@@ -1,13 +1,25 @@
 // src/electron/preload/preload.ts
-// All of the Node.js APIs are available in the preload process.
-// It has the same sandbox as a Chrome extension.
-window.addEventListener('DOMContentLoaded', () => {
-    const replaceText = (selector:any, text:any) => {
-      const element = document.getElementById(selector)
-      if (element) element.innerText = text
-    }
+import { contextBridge, ipcRenderer } from 'electron';
 
-    for (const dependency of ['chrome', 'node', 'electron']) {
-      replaceText(`${dependency}-version`, process.versions[dependency])
-    }
-  })
+type RowRecord = Record<string, string>;
+
+contextBridge.exposeInMainWorld('excelBridge', {
+    openWorkbook: () => ipcRenderer.invoke('excel:open') as Promise<
+        | { canceled: true }
+        | {
+              canceled: false;
+              filePath?: string;
+              sheetName?: string;
+              rowCount?: number;
+              rows?: RowRecord[];
+              error?: string;
+          }
+    >,
+    saveWorkbook: (payload: { filePath: string; sheetName: string; rows: RowRecord[] }) =>
+        ipcRenderer.invoke('excel:save', payload) as Promise<{ ok: boolean; error?: string }>,
+    saveWorkbookAs: (payload: { defaultPath?: string; sheetName: string; rows: RowRecord[] }) =>
+        ipcRenderer.invoke('excel:save-as', payload) as Promise<
+            | { canceled: true }
+            | { canceled: false; ok: boolean; filePath?: string; error?: string }
+        >
+});

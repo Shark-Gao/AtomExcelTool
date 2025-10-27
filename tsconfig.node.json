@@ -1,39 +1,7 @@
-// {
-//   "compilerOptions": {
-//     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-//     "target": "ES2023",
-//     "lib": ["ES2023"],
-//     "module": "ESNext",
-//     "types": ["node"],
-//     "skipLibCheck": true,
-
-//     /* Bundler mode */
-//     "moduleResolution": "bundler",
-//     "allowImportingTsExtensions": false,
-//     "verbatimModuleSyntax": true,
-//     "moduleDetection": "force",
-//     "noEmit": false,
-//     "outDir": "dist/electron",
-//     /* Linting */
-//     "strict": true,
-//     "noUnusedLocals": true,
-//     "noUnusedParameters": true,
-//     "erasableSyntaxOnly": true,
-//     "noFallthroughCasesInSwitch": true,
-//     "noUncheckedSideEffectImports": true,
-
-//     // "composite": true,
-//     // "module": "esnext",
-//     // "moduleResolution": "node"
-//   },
-//   "include": ["vite.config.ts","src/electron/**/*"]
-// }
-
-
 {
   "compilerOptions": {
      "module": "esnext",
-    "moduleResolution": "bundler",   // 或 node16 / nodenext
+    "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "outDir": "dist/app",

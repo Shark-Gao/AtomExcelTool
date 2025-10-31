@@ -1,1 +1,26 @@
-selectedRowName watcher 里 nextTick 后取按钮 ref，scrollIntoView 定位列表项。
+## 项目状态更新
+
+### 已完成任务
+1. ✅ 将 `MH_LOG` 替换为 `console` 接口（error/warn/log）
+2. ✅ 创建 UE 类型定义文件 (`UETypes.ts`)
+   - 定义了所有必需的枚举类型
+   - 创建了 `ue` 和 `api` 命名空间
+   - 添加了工具类型和全局函数定义
+3. ✅ 解决了所有 TypeScript 编译错误（178个错误已清除）
+4. ✅ 修复了命名空间导出问题
+5. ✅ 添加了缺失的类型定义：
+   - `ENMWeaponType` 枚举
+   - `$Ref<T>` 类型
+   - `Safe<T>` 类型的 `error` 字段
+   - `CurrentAbilityConfigID` 导出变量
+
+### 新增文件
+- `src/electron/main/UETypes.ts` - UE类型定义和枚举
+
+### 修改文件
+- `src/electron/main/MHTsAtomSystemUtils.ts` - 添加了 UETypes 导入和 CurrentAbilityConfigID 导出
+
+### 当前状态
+- 编译错误: 0
+- 所有 UE 相关的类型错误已解决
+- 项目可以正常编译

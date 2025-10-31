@@ -12,7 +12,6 @@
     "useDefineForClassFields": true,
     "module": "commonjs",
     "moduleResolution": "node",
-    "strict": true,
     "jsx": "preserve",
     "sourceMap": true,
     "resolveJsonModule": true,

@@ -12,8 +12,14 @@ declare global {
         rowCount?: number;
         columnNames?: string[];
         rows?: ExcelRowRecord[];
+        rowNames?: string[];
+        rowNameColumnName?: string;
         error?: string;
       };
+
+  type ExcelReadRowResult =
+    | { ok: false; error: string }
+    | { ok: true; rowName: string; row: ExcelRowRecord; columnNames: string[] };
 
   type ExcelSaveResult = { ok: boolean; error?: string };
 
@@ -23,6 +29,7 @@ declare global {
 
   interface ExcelBridge {
     openWorkbook(): Promise<ExcelOpenResult>;
+    readRow(payload: { filePath: string; sheetName: string; rowName: string }): Promise<ExcelReadRowResult>;
     saveWorkbook(payload: {
       filePath: string;
       sheetName: string;

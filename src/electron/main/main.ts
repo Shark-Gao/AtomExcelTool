@@ -1,131 +1,111 @@
 // src/electron/main/main.ts
 import { join } from 'path';
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
-import { readFile, writeFile } from 'fs/promises';
-import { read, utils, write, type WorkSheet } from 'xlsx';
+import ExcelJS from 'exceljs';
+import { FAtomExpressionParser } from './MHTsAtomSystemUtils';
 
 type RowRecord = Record<string, string>;
-type RawMatrix = string[][];
 
 const ROW_NAME_IDENTIFIER = 'rowname';
 
-const isDev = !app.isPackaged;//process.env.npm_lifecycle_event === 'app:dev';
+const isDev = !app.isPackaged;
 
 function normalizeHeaderIdentifier(label: string): string {
     return label.replace(/\s+/g, '').toLowerCase();
 }
 
 function isRowNameLabel(label: string): boolean {
-    const normalized = normalizeHeaderIdentifier(label);
-    return normalized.startsWith(ROW_NAME_IDENTIFIER);
+    return normalizeHeaderIdentifier(label).startsWith(ROW_NAME_IDENTIFIER);
 }
 
-function normalizeRow(row: Record<string, unknown>): RowRecord {
-    const normalized: RowRecord = {};
-    Object.entries(row).forEach(([columnName, value]) => {
-        normalized[columnName] = value === undefined || value === null ? '' : String(value);
+function findHeaderRowNumber(worksheet: ExcelJS.Worksheet): number {
+    for (let r = 1; r <= worksheet.rowCount; r += 1) {
+        const row = worksheet.getRow(r);
+        for (let c = 1; c <= worksheet.columnCount; c += 1) {
+            const text = row.getCell(c).text || '';
+            if (isRowNameLabel(text)) {
+                return r;
+            }
+        }
+    }
+    throw new Error('未自动识别到包含 RowName 的表头行，请检查 Excel 列标题。');
+}
+
+function buildHeaderLabels(headerRow: ExcelJS.Row, totalColumns: number): string[] {
+    const headerSet = new Set<string>();
+    const labels: string[] = [];
+    for (let c = 1; c <= totalColumns; c += 1) {
+        const label = (headerRow.getCell(c).text || '').trim();
+        const base = label || `Column${c}`;
+        let candidate = base;
+        let dup = 1;
+        while (headerSet.has(candidate)) {
+            dup += 1;
+            candidate = `${base}_${dup}`;
+        }
+        headerSet.add(candidate);
+        labels.push(candidate);
+    }
+    return labels;
+}
+
+function extractHeaderMetadata(worksheet: ExcelJS.Worksheet): {
+    headerRowNumber: number;
+    headerLabels: string[];
+    rowNameColumnNumber: number;
+} {
+    const headerRowNumber = findHeaderRowNumber(worksheet);
+    const headerRow = worksheet.getRow(headerRowNumber);
+    const headerLabels = buildHeaderLabels(headerRow, worksheet.columnCount);
+    const rowNameIndex = headerLabels.findIndex((label) => isRowNameLabel(label));
+    if (rowNameIndex === -1) {
+        throw new Error('未识别到 RowName 列，请确认表头包含 RowName。');
+    }
+    return {
+        headerRowNumber,
+        headerLabels,
+        rowNameColumnNumber: rowNameIndex + 1
+    };
+}
+
+function extractRowNames(
+    worksheet: ExcelJS.Worksheet,
+    headerRowNumber: number,
+    rowNameColumnNumber: number
+): string[] {
+    const names: string[] = [];
+    for (let r = headerRowNumber + 1; r <= worksheet.rowCount; r += 1) {
+        const row = worksheet.getRow(r);
+        const raw = row.getCell(rowNameColumnNumber).text || '';
+        const trimmed = raw.trim();
+        if (trimmed.length > 0) {
+            names.push(trimmed);
+        }
+    }
+    return names;
+}
+
+function extractRowRecord(row: ExcelJS.Row, headerLabels: string[]): RowRecord {
+    const record: RowRecord = {};
+    headerLabels.forEach((columnName, index) => {
+        const cell = row.getCell(index + 1);
+        const text = cell.text ?? '';
+        record[columnName] = text;
     });
-    return normalized;
+    return record;
 }
 
 function ensureRowName(record: RowRecord): string {
-    const possibleKeys = Object.keys(record);
-    for (const key of possibleKeys) {
+    const keys = Object.keys(record);
+    for (const key of keys) {
         if (isRowNameLabel(key)) {
             const value = record[key];
-            if (value && value.toString().trim().length > 0) {
-                return value;
+            if (value && value.trim().length > 0) {
+                return value.trim();
             }
         }
     }
     throw new Error('未找到 RowName 列，请确认表头包含 RowName。');
-}
-
-function convertSheetToRawMatrix(sheet: WorkSheet): RawMatrix {
-    return utils.sheet_to_json<string[]>(sheet, {
-        header: 1,
-        blankrows: false,
-        defval: ''
-    }) as RawMatrix;
-}
-
-function findHeaderRowIndex(rawMatrix: RawMatrix): number {
-    for (let rowIndex = 0; rowIndex < rawMatrix.length; rowIndex += 1) {
-        const row = rawMatrix[rowIndex];
-        const hasRowNameHeader = row.some((cellValue) => typeof cellValue === 'string' && isRowNameLabel(cellValue));
-        if (hasRowNameHeader) {
-            return rowIndex;
-        }
-    }
-
-    throw new Error('未自动识别到包含 RowName 的表头行，请检查 Excel 列标题。');
-}
-
-function buildHeaderFromMatrixRow(headerRow: string[]): string[] {
-    const headerSet = new Set<string>();
-    headerRow.forEach((cellValue, columnIndex) => {
-        const headerLabel = typeof cellValue === 'string' ? cellValue.trim() : '';
-        if (!headerLabel) {
-            headerSet.add(`Column${columnIndex + 1}`);
-            return;
-        }
-
-        let candidateLabel = headerLabel;
-        let duplicateCount = 1;
-        while (headerSet.has(candidateLabel)) {
-            duplicateCount += 1;
-            candidateLabel = `${headerLabel}_${duplicateCount}`;
-        }
-        headerSet.add(candidateLabel);
-    });
-
-    return Array.from(headerSet);
-}
-
-function convertMatrixToObjects(matrix: RawMatrix, headerRowIndex: number): Record<string, unknown>[] {
-    const headerRow = matrix[headerRowIndex];
-    if (!headerRow) {
-        throw new Error('未找到表头行数据，请检查 Excel 文件。');
-    }
-
-    const headerColumns = buildHeaderFromMatrixRow(headerRow);
-    const dataRows = matrix.slice(headerRowIndex + 1);
-
-    if (!dataRows.length) {
-        throw new Error('识别到表头行后没有数据行，请检查 Excel 文件内容。');
-    }
-
-    return dataRows.map((dataRow, dataRowIndex) => {
-        const record: Record<string, unknown> = {};
-        let hasRowNameValue = false;
-        headerColumns.forEach((columnName, columnIndex) => {
-            const cellValue = dataRow[columnIndex];
-            const isRowName = isRowNameLabel(columnName);
-            if (isRowName) {
-                hasRowNameValue = typeof cellValue === 'string' ? cellValue.trim().length > 0 : cellValue !== undefined && cellValue !== null;
-            }
-            record[columnName] = cellValue === undefined || cellValue === null ? '' : cellValue;
-        });
-
-        if (!hasRowNameValue) {
-            throw new Error(`第 ${dataRowIndex + 1} 行数据缺少 RowName 值，请检查 Excel 数据。`);
-        }
-
-        return record;
-    });
-}
-
-function extractRowsWithDynamicHeader(sheet: WorkSheet): Record<string, unknown>[] {
-    const rawMatrix = convertSheetToRawMatrix(sheet);
-
-    if (!rawMatrix.length) {
-        throw new Error('工作表没有数据行。');
-    }
-
-    const headerRowIndex = findHeaderRowIndex(rawMatrix);
-    const objects = convertMatrixToObjects(rawMatrix, headerRowIndex);
-
-    return objects;
 }
 
 async function handleOpenWorkbook() {
@@ -139,47 +119,143 @@ async function handleOpenWorkbook() {
     }
 
     const filePath = filePaths[0];
-    const buffer = await readFile(filePath);
-    const workbook = read(buffer, { type: 'buffer' });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
 
-    if (!workbook.SheetNames.length) {
+    if (!workbook.worksheets.length) {
         throw new Error('所选 Excel 文件中没有可读取的工作表。');
     }
 
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const rawRows = extractRowsWithDynamicHeader(sheet);
+    const worksheet = workbook.worksheets[0];
+    const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(worksheet);
+    const rowNames = extractRowNames(worksheet, headerRowNumber, rowNameColumnNumber);
 
-    if (!rawRows.length) {
-        throw new Error('工作表没有数据行。');
+    const rows: RowRecord[] = [];
+    for (let r = headerRowNumber + 1; r <= worksheet.rowCount; r += 1) {
+        const row = worksheet.getRow(r);
+        const record = extractRowRecord(row, headerLabels);
+        const rowName = (record[headerLabels[rowNameColumnNumber - 1]] || '').trim();
+        if (rowName.length === 0) {
+            continue;
+        }
+        rows.push(record);
     }
-
-    const rows = rawRows.map((row) => {
-        const normalized = normalizeRow(row);
-        const rowName = ensureRowName(normalized);
-        normalized.RowName = rowName;
-        return normalized;
-    });
 
     return {
         canceled: false,
         filePath,
-        sheetName,
+        sheetName: worksheet.name,
         rowCount: rows.length,
-        rows
+        columnNames: headerLabels,
+        rows,
+        rowNames,
+        rowNameColumnName: headerLabels[rowNameColumnNumber - 1]
     };
 }
 
-async function writeWorkbookToDisk(filePath: string, rows: RowRecord[], sheetName: string) {
-    if (!rows.length) {
-        throw new Error('没有可写入的数据行。');
+async function readRowByName(
+    filePath: string,
+    sheetName: string | undefined,
+    targetRowName: string
+): Promise<{ row: RowRecord; columnNames: string[] }> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
+
+    const worksheet = sheetName ? workbook.getWorksheet(sheetName) : workbook.worksheets[0];
+    if (!worksheet) {
+        throw new Error(`工作簿中不存在名为 ${sheetName} 的工作表。`);
     }
 
-    const sheet = utils.json_to_sheet(rows);
-    const workbook = utils.book_new();
-    utils.book_append_sheet(workbook, sheet, sheetName || 'Sheet1');
-    const buffer = write(workbook, { bookType: 'xlsx', type: 'buffer' }) as Buffer;
-    await writeFile(filePath, buffer);
+    const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(worksheet);
+
+    for (let r = headerRowNumber + 1; r <= worksheet.rowCount; r += 1) {
+        const row = worksheet.getRow(r);
+        const value = (row.getCell(rowNameColumnNumber).text || '').trim();
+        if (value.length === 0) {
+            continue;
+        }
+        if (value === targetRowName.trim()) {
+            const record = extractRowRecord(row, headerLabels);
+            return { row: record, columnNames: headerLabels };
+        }
+    }
+
+    throw new Error(`未在工作表中找到 RowName 为 ${targetRowName} 的数据。`);
+}
+
+async function writeWorkbookToDisk(filePath: string, rows: RowRecord[], sheetName: string) {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
+
+    const targetWorksheet = sheetName ? workbook.getWorksheet(sheetName) : workbook.worksheets[0];
+    if (!targetWorksheet) {
+        throw new Error('目标 Excel 工作簿中没有可用工作表。');
+    }
+
+    const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(targetWorksheet);
+
+    const headerStyleByColumn: Record<number, ExcelJS.Style> = {};
+    for (let c = 1; c <= targetWorksheet.columnCount; c += 1) {
+        headerStyleByColumn[c] = JSON.parse(JSON.stringify(targetWorksheet.getRow(headerRowNumber).getCell(c).style || {}));
+    }
+
+    const ensureColumnNumber = (columnName: string): number => {
+        const existingIndex = headerLabels.findIndex((label) => label === columnName);
+        if (existingIndex !== -1) {
+            return existingIndex + 1;
+        }
+
+        const newColumnNumber = targetWorksheet.columnCount + 1;
+        const headerRow = targetWorksheet.getRow(headerRowNumber);
+        const headerCell = headerRow.getCell(newColumnNumber);
+        headerCell.value = columnName;
+
+        const neighborStyle = headerStyleByColumn[newColumnNumber - 1] || {};
+        headerCell.style = JSON.parse(JSON.stringify(neighborStyle));
+        headerLabels.push(columnName);
+        headerStyleByColumn[newColumnNumber] = JSON.parse(JSON.stringify(headerCell.style || {}));
+        return newColumnNumber;
+    };
+
+    const rowNameToRowNumber = new Map<string, number>();
+    for (let r = headerRowNumber + 1; r <= targetWorksheet.rowCount; r += 1) {
+        const row = targetWorksheet.getRow(r);
+        const value = (row.getCell(rowNameColumnNumber).text || '').trim();
+        if (value.length > 0 && !rowNameToRowNumber.has(value)) {
+            rowNameToRowNumber.set(value, r);
+        }
+    }
+
+    let maxRowNumber = targetWorksheet.rowCount;
+
+    rows.forEach((incomingRow) => {
+        const rowName = ensureRowName(incomingRow);
+        if (rowName.length === 0) {
+            return;
+        }
+
+        let targetRowNumber = rowNameToRowNumber.get(rowName);
+        if (!targetRowNumber) {
+            maxRowNumber += 1;
+            targetRowNumber = maxRowNumber;
+            rowNameToRowNumber.set(rowName, targetRowNumber);
+        }
+
+        const worksheetRow = targetWorksheet.getRow(targetRowNumber);
+        const rowNameCell = worksheetRow.getCell(rowNameColumnNumber);
+        rowNameCell.value = rowName;
+
+        Object.entries(incomingRow).forEach(([columnName, value]) => {
+            if (value === undefined) {
+                return;
+            }
+            const columnNumber = ensureColumnNumber(columnName);
+            const cell = worksheetRow.getCell(columnNumber);
+            cell.value = value;
+        });
+    });
+
+    await workbook.xlsx.writeFile(filePath);
 }
 
 ipcMain.handle('excel:open', async () => {
@@ -191,6 +267,19 @@ ipcMain.handle('excel:open', async () => {
         return { canceled: false, error: message };
     }
 });
+
+ipcMain.handle(
+    'excel:read-row',
+    async (_event, payload: { filePath: string; sheetName: string; rowName: string }) => {
+        try {
+            const { row, columnNames } = await readRowByName(payload.filePath, payload.sheetName, payload.rowName);
+            return { ok: true, rowName: payload.rowName, row, columnNames };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : '读取单行数据时发生未知错误。';
+            return { ok: false, error: message };
+        }
+    }
+);
 
 ipcMain.handle('excel:save', async (_event, payload: { filePath: string; sheetName: string; rows: RowRecord[] }) => {
     try {
@@ -223,8 +312,9 @@ ipcMain.handle('excel:save-as', async (_event, payload: { defaultPath?: string; 
 
 function createWindow() {
     const mainWindow = new BrowserWindow({
-        width: 1280,
-        height: 800,
+        title: 'Excel原子编辑工具',
+        width: 1500,
+        height: 900,
         minWidth: 960,
         minHeight: 600,
         webPreferences: {
@@ -237,10 +327,13 @@ function createWindow() {
 
     if (isDev) {
         mainWindow.loadURL('http://localhost:5173');
-        // mainWindow.webContents.openDevTools();
     } else {
         mainWindow.loadFile(join(__dirname, '../../index.html'));
     }
+
+    const delegate = FAtomExpressionParser.main("DealDamageByBuffHitConfigID(False, False, 1, 1007)");
+    const json = JSON.stringify(delegate, undefined, '  ');
+    console.log(json);
 }
 
 app.whenReady().then(() => {

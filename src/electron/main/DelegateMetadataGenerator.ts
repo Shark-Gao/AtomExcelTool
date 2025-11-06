@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import type { ClassMetadata, FieldMeta, ParamMetadata } from '../../types/DynamicObjectForm';
 import { getConstructorParamNames, getConstructorRawParamName, getConstructorRawParamNames, PARAM_METADATA_KEY } from './DelegateDecorators';
+import { DELEGATE_BASE_CLASSES, DELEGATE_BASE_CLASS_DETECTION_ORDER } from '../../constants/DelegateBaseClassesConst';
 
 
 
@@ -89,17 +90,17 @@ export class DelegateMetadataGenerator {
     if (this.isDelegateType(paramType)) {
       let baseClass = undefined;
       if (typeName.includes('NumberValue')) {
-        baseClass = 'NumberValueDelegate';
+        baseClass = DELEGATE_BASE_CLASSES.NumberValueDelegate;
       } else if (typeName.includes('BoolValue')) {
-        baseClass = 'BoolValueDelegate';
+        baseClass = DELEGATE_BASE_CLASSES.BoolValueDelegate;
       } else if (typeName.includes('ActorValue')) {
-        baseClass = 'ActorValueDelegate';
+        baseClass = DELEGATE_BASE_CLASSES.ActorValueDelegate;
       } else if (typeName.includes('EventDelegate')) {
-        baseClass = 'EventDelegateEx';
+        baseClass = DELEGATE_BASE_CLASSES.EventDelegateEx;
       } else if (typeName.includes('ActionDelegate')) {
-        baseClass = 'ActionDelegate';
+        baseClass = DELEGATE_BASE_CLASSES.ActionDelegate;
       } else if (typeName.includes('TaskDelegate')) {
-        baseClass = 'TaskDelegate';
+        baseClass = DELEGATE_BASE_CLASSES.TaskDelegate;
       }
 
       if (baseClass) {
@@ -243,23 +244,13 @@ export class DelegateMetadataGenerator {
         
         if (this.isDelegateType(currentProto.constructor)) {
           // 按优先级匹配基类
-          if (baseClassName.includes('NumberValueDelegate')) {
-            baseClass = 'NumberValueDelegate';
-            break;
-          } else if (baseClassName.includes('BoolValueDelegate')) {
-            baseClass = 'BoolValueDelegate';
-            break;
-          } else if (baseClassName.includes('ActorValueDelegate')) {
-            baseClass = 'ActorValueDelegate';
-            break;
-          } else if (baseClassName.includes('EventDelegateEx')) {
-            baseClass = 'EventDelegateEx';
-            break;
-          } else if (baseClassName.includes('ActionDelegate')) {
-            baseClass = 'ActionDelegate';
-            break;
-          } else if (baseClassName.includes('TaskDelegate')) {
-            baseClass = 'TaskDelegate';
+          for (const delegateBaseClass of DELEGATE_BASE_CLASS_DETECTION_ORDER) {
+            if (baseClassName.includes(delegateBaseClass)) {
+              baseClass = delegateBaseClass;
+              break;
+            }
+          }
+          if (baseClass) {
             break;
           }
         }
@@ -268,7 +259,7 @@ export class DelegateMetadataGenerator {
         currentProto = Object.getPrototypeOf(currentProto);
       }
 
-      const displayName = delegateConfigKey;//Reflect.getOwnMetadata('class:label', delegateClass) || className;
+      const displayName = Reflect.getOwnMetadata('class:label', delegateClass) || delegateConfigKey;//Reflect.getOwnMetadata('class:label', delegateClass) || className;
 
       return {
         className: ueClassName || className,

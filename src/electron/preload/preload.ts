@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('excelBridge', {
               columnNames?: string[];
               rowNames?: string[];
               rowNameColumnName?: string;
+              columnDescriptions?: Record<string, string>;
               error?: string;
           }
     >,

@@ -14,44 +14,8 @@
     "app:build": "npm run vite:build && tsc && electron-builder",
     "app:preview": "npm run vite:build && tsc && electron ."
   },
-  "build": {
-    "appId": "YourAppID",
-    "asar": true,
-    "directories": {
-      "buildResources": "assets",
-      "output": "release/${version}"
-    },
-    "files": [
-      "dist"
-    ],
-    "mac": {
-      "artifactName": "${productName}_${version}.${ext}",
-      "target": [
-        "dmg"
-      ]
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "artifactName": "${productName}_${version}.${ext}"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "deleteAppDataOnUninstall": false
-    }
-  },
   "dependencies": {
-    "decimal.js": "^10.6.0",
     "exceljs": "^4.4.0",
-    "luxon": "^3.7.2",
     "reflect-metadata": "^0.2.2",
     "vue": "^3.5.22"
   },
@@ -66,6 +30,7 @@
     "electron-builder": "^26.0.12",
     "eslint": "^9.39.0",
     "tailwindcss": "^4.1.16",
+    "terser": "^5.44.1",
     "typescript": "~5.9.3",
     "vite": "^7.1.7",
     "vue-tsc": "^3.1.0"

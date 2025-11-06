@@ -3,8 +3,12 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, t
 import DynamicObjectForm, { type ClassRegistry, type FieldMeta, type FieldOption } from './components/DynamicObjectForm.vue'
 import SearchableDropdown from './components/SearchableDropdown.vue'
 import SettingsModal from './components/SettingsModal.vue'
+import Toast from './components/Toast.vue'
+import ProgressModal from './components/ProgressModal.vue'
 import { loadSettingsFromStorage, saveSettingsToStorage } from './utils/settingsStorage'
 import type { ClassMetadata as DelegateClassMetadata } from './types/DynamicObjectForm'
+import { getAllowedBaseClassesForFieldName, isAtomicField } from './constants/DelegateBaseClassesConst'
+import { normalizeClassInstance } from './utils/ClassNormalizer'
 
 type RowRecord = Record<string, string>
 
@@ -17,11 +21,13 @@ type WorkbookMeta = {
 const rowNameToRecord = reactive<Record<string, Record<string, string>>>({})
 const rowNames = ref<string[]>([])
 const columnNames = ref<string[]>([])
+const columnDescriptions = reactive<Record<string, string>>({})
 const rowNameColumnLabel = ref<string>('RowName')
 const selectedRowName = ref<string | null>(null)
 const editableRecord = reactive<Record<string, unknown>>({})
 const workbookMeta = ref<WorkbookMeta | null>(null)
 const errorMessage = ref<string | null>(null)
+const successMessage = ref<string | null>(null)
 const isLoading = ref(false)
 const searchKeyword = ref('')
 const openedFilePath = ref<string | null>(null)
@@ -46,6 +52,13 @@ const currentTheme = ref<string>(initialSettings.theme)
 const rowButtonRefs = reactive<Record<string, HTMLButtonElement>>({})
 const isSettingsModalOpen = ref(false)
 const showOnlyAtomicFields = ref(initialSettings.showOnlyAtomicFields)
+const isDebugMode = ref(false)
+
+// 进度控件相关
+const isProgressVisible = ref(false)
+const progressMessage = ref('处理中...')
+const progressValue = ref(0)
+const progressType = ref<'saving' | 'loading' | 'processing'>('processing')
 
 type ParsedClassObject = {
   _ClassName: string
@@ -74,6 +87,31 @@ const selectedConditionField = ref<string | null>(null)
 const selectedConditionFieldData = ref<ConditionFieldInfo | null>(null)
 const atomClassSearchKeyword = ref<string>('')
 const openAtomClassDropdown = ref<string | null>(null) // 记录哪个字段的下拉框是打开的
+
+// 字段名 -> 允许的基类 映射（缓存）
+const fieldAllowedBaseClassesCache = reactive<Record<string, string[]>>({})
+
+/**
+ * 根据字段名确定其允许的基类集合
+ * 使用 DelegateBaseClasses.ts 中定义的映射规则
+ */
+function getAllowedBaseClassesForField(fieldName: string): string[] {
+  // 检查缓存
+  if (fieldAllowedBaseClassesCache[fieldName]) {
+    return fieldAllowedBaseClassesCache[fieldName]
+  }
+
+  // 使用常量中的规则获取允许的基类
+  let allowed = getAllowedBaseClassesForFieldName(fieldName)
+
+  // 如果无匹配规则，返回所有基类
+  if (allowed.length === 0) {
+    allowed = Object.keys(subclassOptions)
+  }
+
+  fieldAllowedBaseClassesCache[fieldName] = allowed
+  return allowed
+}
 
 function clearClassRegistry() {
   Object.keys(classRegistry).forEach((key) => delete classRegistry[key])
@@ -261,6 +299,7 @@ async function applyNormalizedObjectByColumnName(normalized: ParsedClassObject, 
 /**
  * 处理原子类型选择
  * 当用户从下拉框选择一个原子类型时，创建该类型的默认实例
+ * 同时验证选中的类是否属于该字段允许的基类
  */
 function handleSelectAtomClass(columnName: string, className: string) {
   if (!className || !selectedRowName.value) {
@@ -274,28 +313,19 @@ function handleSelectAtomClass(columnName: string, className: string) {
     return
   }
 
-  // 创建默认对象
-  const defaultObject: ParsedClassObject = {
-    _ClassName: className
-  }
-
-  conditionFieldsMap[selectedRowName.value][columnName] = {
-    raw: '',
-    parsed: defaultObject,
-    json: JSON.stringify(defaultObject, null, 2)
-  }
-
-  editableRecord[columnName] = ''
+  const json = normalizeClassInstance(className, {}, classRegistry, subclassOptions)
+  const jsonObj = JSON.parse(JSON.stringify(json))
+  applyNormalizedObjectByColumnName(jsonObj, columnName);
 }
 
 function clearAtomicFieldConfig(columnName: string) {
-  if (!selectedRowName.value) {
+  if (!selectedRowName || !selectedRowName.value) {
     return
   }
-  
   // 清除原子字段配置
-  if (conditionFieldsMap[selectedRowName.value]) {
-    delete conditionFieldsMap[selectedRowName.value][columnName]
+  const rowData = conditionFieldsMap[selectedRowName.value]
+  if (rowData && rowData[columnName]) {
+    rowData[columnName].parsed = undefined
   }
   
   // 清除编辑记录
@@ -381,12 +411,22 @@ const conditionFieldSet = computed(() => new Set(conditionFieldNames.value))
 
 /**
  * 过滤原子类选项（支持搜索）
+ * 根据当前打开的字段限制可用的基类
  */
 const filteredAtomClassOptions = computed(() => {
   const keyword = atomClassSearchKeyword.value.trim().toLowerCase()
   const result: Record<string, typeof subclassOptions[string]> = {}
 
+  // 获取当前打开的字段允许的基类
+  const currentFieldName = openAtomClassDropdown.value
+  const allowedBaseClasses = currentFieldName ? getAllowedBaseClassesForField(currentFieldName) : Object.keys(subclassOptions)
+
   for (const [baseClass, options] of Object.entries(subclassOptions)) {
+    // 只包括允许的基类
+    if (!allowedBaseClasses.includes(baseClass)) {
+      continue
+    }
+
     if (!keyword) {
       result[baseClass] = options
       continue
@@ -510,9 +550,13 @@ watch(
     await nextTick()
 
     const normalizedKeyword = newKeyword.toLowerCase()
-    matchingColumnNames.value = Object.keys(columnInputRefs).filter((columnName) =>
-      columnName.toLowerCase().includes(normalizedKeyword)
-    )
+    matchingColumnNames.value = Object.keys(columnInputRefs).filter((columnName) => {
+      // 如果启用了"仅显示原子字段"，则只搜索原子字段
+      if (showOnlyAtomicFields.value && !isAtomicField(columnName)) {
+        return false
+      }
+      return columnName.toLowerCase().includes(normalizedKeyword)
+    })
 
     if (!matchingColumnNames.value.length) {
       activeColumnMatchIndex.value = 0
@@ -547,14 +591,8 @@ async function parseConditionFieldsFromRecord(record: Record<string, string>): P
     return result
   }
 
-  // 识别原子字段（条件类型、action类型、task类型）
-  const atomicFieldNames = Object.keys(record).filter(fieldName => 
-    // fieldName.endsWith('.Condition') || 
-    // fieldName.endsWith('.Action') || 
-    // fieldName.endsWith('.Task')
-    fieldName.endsWith('.e') ||
-    fieldName.startsWith('EventActionEx')
-  )
+  // 识别原子字段（根据 DelegateBaseClassesConst 中的规则判断）
+  const atomicFieldNames = Object.keys(record).filter(isAtomicField)
 
   // 逐个字段调用主线程解析接口
   for (const fieldName of atomicFieldNames) {
@@ -689,15 +727,19 @@ async function openWorkbookFromMainProcess() {
     return
   }
 
-  isLoading.value = true
   errorMessage.value = null
+  showProgress('正在打开 Excel 文件...', 'loading', 10)
 
   try {
+    updateProgress(20)
     const result = await excelBridge.openWorkbook()
+    
     if (result.canceled) {
+      hideProgress()
       return
     }
 
+    updateProgress(30)
     if (result.error) {
       throw new Error(result.error)
     }
@@ -706,35 +748,46 @@ async function openWorkbookFromMainProcess() {
       throw new Error('工作表没有有效的 RowName 数据行。')
     }
 
+    updateProgress(40)
     openedFilePath.value = result.filePath ?? null
     sheetName.value = result.sheetName ?? 'Sheet1'
     columnNames.value = result.columnNames ?? []
+    Object.keys(columnDescriptions).forEach((k)=> delete columnDescriptions[k])
+    Object.entries(result.columnDescriptions ?? {}).forEach(([k,v])=> columnDescriptions[k]= v || '')
     rowNameColumnLabel.value = result.rowNameColumnName ?? 'RowName'
     workbookMeta.value = {
       sheetName: sheetName.value,
       rowCount: result.rowCount ?? result.rows.length
     }
 
+    updateProgress(60)
     Object.keys(rowNameToRecord).forEach((key) => delete rowNameToRecord[key])
     Object.keys(conditionFieldsMap).forEach((key) => delete conditionFieldsMap[key])
     
+    updateProgress(75)
     const normalizedRows = result.rows.map((row) => ({ ...row }))
     rowNames.value = normalizedRows
       .map((row) => row[rowNameColumnLabel.value] ?? row.RowName)
       .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
     
+    updateProgress(85)
     normalizedRows.forEach((row) => {
       const rowName = row[rowNameColumnLabel.value] ?? row.RowName
       if (typeof rowName === 'string' && rowName.trim().length > 0) {
         rowNameToRecord[rowName.trim()] = row
       }
     })
+    
+    updateProgress(95)
     selectedRowName.value = rowNames.value[0] ?? null
+    
+    updateProgress(100)
+    hideProgress()
+    showSuccessMessage('Excel 文件已成功加载！')
   } catch (error) {
+    hideProgress()
     errorMessage.value = error instanceof Error ? error.message : '打开 Excel 文件失败。'
     clearWorkbookState()
-  } finally {
-    isLoading.value = false
   }
 }
 
@@ -787,7 +840,45 @@ function buildRowsForSaving(): RowRecord[] {
   }))
 }
 
+/**
+ * 显示进度模态框
+ */
+function showProgress(message: string = '处理中...', type: 'saving' | 'loading' | 'processing' = 'processing', progress: number = 0) {
+  isProgressVisible.value = true
+  progressMessage.value = message
+  progressType.value = type
+  progressValue.value = progress
+}
+
+/**
+ * 更新进度值
+ */
+function updateProgress(progress: number) {
+  progressValue.value = Math.min(100, Math.max(0, progress))
+}
+
+/**
+ * 隐藏进度模态框
+ */
+function hideProgress() {
+  isProgressVisible.value = false
+  progressValue.value = 0
+}
+
+/**
+ * 显示成功提示信息，3秒后自动消失
+ */
+function showSuccessMessage(message: string) {
+  successMessage.value = message
+  setTimeout(() => {
+    successMessage.value = null
+  }, 3000)
+}
+
 async function saveWorkbookToDisk() {
+  // 先保存当前编辑数据
+  saveEditableRecord();
+
   if (!window.excelBridge) {
     errorMessage.value = '当前环境未暴露 Excel 能力，请检查 Preload 配置。'
     return
@@ -796,18 +887,31 @@ async function saveWorkbookToDisk() {
     await saveWorkbookAs()
     return
   }
-
+  
+  errorMessage.value = "";
+  showProgress('正在保存...', 'saving', 10)
+  
   try {
+    updateProgress(30)
     const rows = buildRowsForSaving()
+    
+    updateProgress(60)
     const result = await window.excelBridge.saveWorkbook({
       filePath: openedFilePath.value,
       sheetName: sheetName.value,
       rows
     })
+    
+    updateProgress(90)
     if (!result.ok) {
       throw new Error(result.error ?? '保存失败')
     }
+    
+    updateProgress(100)
+    hideProgress()
+    showSuccessMessage('保存成功！')
   } catch (error) {
+    hideProgress()
     errorMessage.value = error instanceof Error ? error.message : '保存 Excel 时失败。'
   }
 }
@@ -817,9 +921,15 @@ async function saveWorkbookAs() {
     errorMessage.value = '当前环境未暴露 Excel 能力，请检查 Preload 配置。'
     return
   }
-
+  
+  errorMessage.value = "";
+  showProgress('正在保存...', 'saving', 10)
+  
   try {
+    updateProgress(30)
     const rows = buildRowsForSaving()
+    
+    updateProgress(60)
     const result = await window.excelBridge.saveWorkbookAs({
       defaultPath: openedFilePath.value ?? undefined,
       sheetName: sheetName.value,
@@ -827,15 +937,21 @@ async function saveWorkbookAs() {
     })
 
     if (result.canceled) {
+      hideProgress()
       return
     }
 
+    updateProgress(90)
     if (!result.ok) {
       throw new Error(result.error ?? '保存失败')
     }
 
     openedFilePath.value = result.filePath ?? openedFilePath.value
+    updateProgress(100)
+    hideProgress()
+    showSuccessMessage('保存成功！')
   } catch (error) {
+    hideProgress()
     errorMessage.value = error instanceof Error ? error.message : '保存 Excel 时失败。'
   }
 }
@@ -937,97 +1053,104 @@ async function saveWorkbookAs() {
               </label>
               <div class="join">
                 <button class="btn join-item" :disabled="!selectedRowName" @click="resetEditableRecord">重置</button>
-                <button class="btn join-item btn-primary" :disabled="!selectedRowName" @click="saveEditableRecord">保存修改</button>
+                <!-- <button class="btn join-item btn-primary" :disabled="!selectedRowName" @click="saveEditableRecord">保存修改</button> -->
               </div>
             </div>
           </header>
         </div>
 
-        <div class="scrollbar flex-1 overflow-y-auto px-6 pb-4">
-          <div v-if="selectedRowName" class="space-y-4 pt-4">
-            <div class="divider my-2"></div>
-            <div
-              v-for="(value, columnName) in currentRecord"
-              v-show="!showOnlyAtomicFields || conditionFieldSet.has(columnName)"
-              :key="columnName"
-              :ref="(el) => setColumnInputRef(columnName, el)"
-              class="grid grid-cols-[minmax(160px,200px),minmax(0,1fr)] items-center gap-4 column-field-container rounded-lg px-3 py-2 transition-all duration-150 cursor-pointer"
-              :class="{ 'bg-primary/10 border border-primary/60': columnName === highlightColumnName, 'hover:bg-base-300/50': columnName !== highlightColumnName }"
-            >
-              <div class="text-sm font-semibold text-base-content/70 truncate" :title="columnName">
-                {{ columnName }}
-                <!-- 如果已有配置，显示清除按钮 -->
-                <button
-                  v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
-                  type="button"
-                  class="btn btn-xs btn-outline btn-error"
-                  @click="clearAtomicFieldConfig(columnName)"
-                  title="清除原子配置"
+        <div class="flex flex-1 flex-col min-h-0 overflow-hidden">
+          <div class="flex-1 overflow-y-auto px-6 pb-4">
+            <div v-if="selectedRowName" class="pt-4">
+              <div class="divider my-2"></div>
+              <div class="grid grid-cols-none gap-4 auto-cols-max" style="grid-auto-flow: column;">
+                <div
+                v-for="(value, columnName) in currentRecord"
+                v-show="!showOnlyAtomicFields || conditionFieldSet.has(columnName)"
+                :key="columnName"
+                :ref="(el) => setColumnInputRef(columnName, el)"
+                class="column-field-container rounded-lg px-3 py-2 transition-all duration-150 cursor-pointer border"
+                :class="{ 'bg-primary/10 border-primary/60': columnName === highlightColumnName, 'border-base-300 hover:border-base-400': columnName !== highlightColumnName }"
                 >
-                  清除配置
-                </button>
-              </div>
-              <template v-if="conditionFieldSet.has(columnName)">
-                <div class="space-y-2">
-                  <SearchableDropdown
-                    v-if="!conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
-                    :options="filteredAtomClassOptions"
-                    :search-keyword="atomClassSearchKeyword"
-                    :open="openAtomClassDropdown === columnName"
-                    placeholder="搜索原子类型..."
-                    @update:search-keyword="atomClassSearchKeyword = $event"
-                    @update:open="openAtomClassDropdown = $event ? columnName : null"
-                    @select="(value, option) => handleSelectAtomClass(columnName, value)"
-                  />
-                </div>
-                
-                <!-- 如果已有配置，显示详细编辑界面 -->
-                <template v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed">
-                   <div class="space-y-2">
-                    <div>
-                      <label class="label">
-                        <span class="label-text text-sm font-semibold">原始表达式</span>
-                      </label>
-                      <textarea
-                        :value="editableRecord[columnName] as string"
-                        readonly
-                        class="textarea textarea-bordered textarea-sm h-10 font-mono text-xs resize"
-                      ></textarea>
+                  <div class="text-sm font-semibold text-base-content/70 truncate mb-1" :title="columnName">
+                    {{ columnName }}
+                    <!-- 如果已有配置，显示清除按钮 -->
+                    <button
+                      v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
+                      type="button"
+                      class="btn btn-xs btn-outline btn-error ml-2"
+                      @click="clearAtomicFieldConfig(columnName)"
+                      title="清除原子配置"
+                    >
+                      清除配置
+                    </button>
+                  </div>
+                  <p class="text-xs text-base-content/50 mb-2 min-h-[1rem]" :title="columnDescriptions[columnName] || ''">
+                    {{ columnDescriptions[columnName] || '' }}
+                  </p>
+                  <template v-if="conditionFieldSet.has(columnName)">
+                    <div class="space-y-2">
+                      <SearchableDropdown
+                        v-if="!conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
+                        :options="filteredAtomClassOptions"
+                        :search-keyword="atomClassSearchKeyword"
+                        :open="openAtomClassDropdown === columnName"
+                        placeholder="搜索原子类型..."
+                        @update:search-keyword="atomClassSearchKeyword = $event"
+                        @update:open="openAtomClassDropdown = $event ? columnName : null"
+                        @select="(value, option) => handleSelectAtomClass(columnName, value)"
+                      />
                     </div>
                   
-                    <div>
-                      <label class="label">
-                        <span class="label-text text-sm font-semibold">解析后 JSON</span>
-                      </label>
-                      <textarea
-                        :value="formatJson(conditionFieldsMap[selectedRowName][columnName]?.parsed)"
-                        readonly
-                        class="textarea textarea-bordered textarea-sm h-32 font-mono text-xs resize"
-                      ></textarea>
-                    </div>
-                  </div> 
-                  <DynamicObjectForm
-                    :class-name="((conditionFieldsMap[selectedRowName][columnName]?.parsed)?. _ClassName as string) || 'UnknownCondition'"
-                    :registry="classRegistry"
-                    :subclass-options="subclassOptions"
-                    :model-value="(conditionFieldsMap[selectedRowName][columnName]?.parsed) as Record<string, unknown>"
-                    @update:model-value="(value) => applyNormalizedObjectByColumnName(value as ParsedClassObject, columnName)"
-                  />
-                </template>
-              </template>
-              <template v-else>
-                <input v-model="editableRecord[columnName]" type="text" class="input input-bordered" />
-              </template>
+                    <!-- 如果已有配置，显示详细编辑界面 -->
+                    <template v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed">
+                      <div class="space-y-2">
+                        <div>
+                          <label class="label">
+                            <span class="label-text text-sm font-semibold">原始表达式</span>
+                          </label>
+                          <input
+                            :value="editableRecord[columnName] as string"
+                            readonly
+                            type="text"
+                            class="input input-bordered input-sm font-mono text-xs w-full"
+                          />
+                        </div>
+                      
+                        <div v-if="isDebugMode">
+                          <label class="label">
+                            <span class="label-text text-sm font-semibold">解析后 JSON</span>
+                          </label>
+                          <textarea
+                            :value="formatJson(conditionFieldsMap[selectedRowName][columnName]?.parsed)"
+                            readonly
+                            class="textarea textarea-bordered textarea-sm h-32 font-mono text-xs resize"
+                          ></textarea>
+                        </div>
+                      </div> 
+                      <DynamicObjectForm
+                        :class-name="((conditionFieldsMap[selectedRowName][columnName]?.parsed)?. _ClassName as string) || 'UnknownCondition'"
+                        :registry="classRegistry"
+                        :subclass-options="subclassOptions"
+                        :model-value="(conditionFieldsMap[selectedRowName][columnName]?.parsed) as Record<string, unknown>"
+                        @update:model-value="(value) => applyNormalizedObjectByColumnName(value as ParsedClassObject, columnName)"
+                      />
+                    </template>
+                    
+                  </template>
+                  <template v-else>
+                      <input v-model="editableRecord[columnName]" type="text" class="input input-bordered" />
+                  </template>
+                </div>
+              </div>
             </div>
+            <div v-else class="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-base-300 bg-base-200/60 p-16 text-base-content/60">
+              <p>暂无选中条目，请在左侧列表中选择一个 RowName。</p>
+            </div>
+          
+        </div>
 
-
-          </div>
-
-          <div v-else class="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-base-300 bg-base-200/60 p-16 text-base-content/60">
-            <p>暂无选中条目，请在左侧列表中选择一个 RowName。</p>
-          </div>
-
-          <!-- <div class="card bg-base-200/60 shadow-inner">
+          <div class="card bg-base-200/60 shadow-inner" v-if="isDebugMode">
             <div class="card-body space-y-4">
               <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
                 <div class="scrollbar max-h-[420px] overflow-y-auto pr-1">
@@ -1053,7 +1176,7 @@ async function saveWorkbookAs() {
                 </div>
               </div>
             </div>
-          </div> -->
+          </div>
         </div>
       </section>
     </main>
@@ -1062,10 +1185,26 @@ async function saveWorkbookAs() {
       :is-open="isSettingsModalOpen"
       :current-theme="currentTheme"
       :show-only-atomic-fields="showOnlyAtomicFields"
+      :is-debug-mode="isDebugMode"
       :theme-options="themeOptions"
       @update:is-open="isSettingsModalOpen = $event"
       @update:current-theme="currentTheme = $event"
       @update:show-only-atomic-fields="showOnlyAtomicFields = $event"
+      @update:is-debug-mode="isDebugMode = $event"
+    />
+
+    <!-- 保存进度控件 -->
+    <ProgressModal
+      :is-visible="isProgressVisible"
+      :message="progressMessage"
+      :progress="progressValue"
+      :type="progressType"
+    />
+
+    <!-- 保存成功提示 -->
+    <Toast
+      :message="successMessage"
+      type="success"
     />
   </div>
 </template>

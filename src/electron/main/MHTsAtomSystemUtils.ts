@@ -46,7 +46,7 @@ abstract class BoolValueDelegate extends DelegateBase {}
 abstract class ActorValueDelegate extends DelegateBase {}
 abstract class EventDelegateEx extends DelegateBase {}
 
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueConstDelegate extends NumberValueDelegate {
   public _Constant: number;
   public Constant: number;
@@ -70,42 +70,42 @@ class NumberValueConstDelegate extends NumberValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueConstDelegate extends BoolValueDelegate {
   public constructor(public readonly BoolConst: boolean) {
     super("MHTsBoolTriggerValueConst_C");
   }
 }
 
-@AtomGenClass("是否在副本中")
+@AtomGenClass()
 class BoolTriggerValueIsInFubenDelegate extends BoolValueDelegate {
   constructor() {
     super("MHTsBoolTriggerValueIsInFuben_C");
   }
 }
 
-@AtomGenClass("检查技能组信息")
+@AtomGenClass()
 class BoolTriggerValueCheckContextAbilityGroupDelegate extends BoolValueDelegate {
   public constructor(public readonly AbilityGroup: string) {
     super("MHTsBoolTriggerValueCheckContextAbilityGroup_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueCheckIsQuestRunningDelegate extends BoolValueDelegate {
   public constructor(public readonly TargetQuestID: string) {
     super("MHTsBoolTriggerValueCheckIsQuestRunning_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueCheckIsQuestFinishedDelegate extends BoolValueDelegate {
   public constructor(public readonly TargetQuestID: string) {
     super("MHTsBoolTriggerValueCheckIsQuestFinished_C");
   }
 }
 
-@AtomGenClass("角色")
+@AtomGenClass()
 class EventCharacterDeathClaimDelegate extends EventDelegateEx {
   public SelfOnly: boolean;
   public constructor(SelfOnly: boolean | BoolValueConstDelegate) {
@@ -119,7 +119,7 @@ class EventCharacterDeathClaimDelegate extends EventDelegateEx {
   }
 }
 
-@AtomGenClass("角色")
+@AtomGenClass()
 class EventCharacterStatusEffectDispelledDelegate extends EventDelegateEx {
   public StatusEffectType: EStatusEffect;
   public constructor(StatusEffectType: number | NumberValueConstDelegate) {
@@ -132,7 +132,7 @@ class EventCharacterStatusEffectDispelledDelegate extends EventDelegateEx {
   }
 }
 
-@AtomGenClass("生命值")
+@AtomGenClass()
 class EventHealthReductionWithinAPeriodOfTimeDelegate extends EventDelegateEx {
   public readonly TimeLimit: number = undefined;
   public constructor(
@@ -144,7 +144,7 @@ class EventHealthReductionWithinAPeriodOfTimeDelegate extends EventDelegateEx {
   }
 }
 
-@AtomGenClass("技能")
+@AtomGenClass()
 class EventComboAbilityTriggerDamageDelegate extends EventDelegateEx {
   public SkillIdList: Readonly<Array<NumberValueDelegate>> = undefined;
   public constructor(...Candidates: ReadonlyArray<NumberValueDelegate>) {
@@ -153,7 +153,7 @@ class EventComboAbilityTriggerDamageDelegate extends EventDelegateEx {
   }
 }
 
-@AtomGenClass("组")
+@AtomGenClass()
 class EventGroupSkillFirstTriggerDamageDelegate extends EventDelegateEx {
   public CheckSkillGroupId: number;
 
@@ -163,7 +163,7 @@ class EventGroupSkillFirstTriggerDamageDelegate extends EventDelegateEx {
   }
 }
 
-@AtomGenClass("持续时间")
+@AtomGenClass()
 class EventTriggerRepeatedWithinDurationDelegate extends EventDelegateEx {
   public Event: EventDelegateEx;
   public Duration: number;
@@ -188,147 +188,147 @@ class EventTriggerRepeatedWithinDurationDelegate extends EventDelegateEx {
   }
 }
 
-@AtomGenClass("角色")
+@AtomGenClass()
 class EventCharacterUpdatedDelegate extends EventDelegateEx {
   public constructor() {
     super("MHTsTriggerEventCharacterUpdated_C");
   }
 }
 
-@AtomGenClass("EventCommonForwarderDelegate")
+@AtomGenClass()
 class EventCommonForwarderDelegate extends EventDelegateEx {
   public constructor(public readonly EventName: string) {
     super("MHTsTriggerEventForwarder_C");
   }
 }
-@AtomGenClass("EventCommonForwarderPreAffinity")
+@AtomGenClass()
 class EventCommonForwarderPreAffinity extends EventCommonForwarderDelegate {
   public constructor() {
     super("PreAffinity");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderPostAffinity")
+@AtomGenClass()
 class EventCommonForwarderPostAffinity extends EventCommonForwarderDelegate {
   public constructor() {
     super("PostAffinity");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("状态")
+@AtomGenClass()
 class EventCommonForwarderPreStatusEffect extends EventCommonForwarderDelegate {
   public constructor() {
     super("PreStatusEffect");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("状态")
+@AtomGenClass()
 class EventCommonForwarderEveStatusEffect extends EventCommonForwarderDelegate {
   public constructor() {
     super("EveStatusEffect");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderPlayerDefenseSuccessServer")
+@AtomGenClass()
 class EventCommonForwarderPlayerDefenseSuccessServer extends EventCommonForwarderDelegate {
   public constructor() {
     super("PlayerDefenseSuccessServer");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderPlayerDefenseSuccess")
+@AtomGenClass()
 class EventCommonForwarderPlayerDefenseSuccess extends EventCommonForwarderDelegate {
   public constructor() {
     super("PlayerDefenseSuccess");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderPlayerDefenseFailed")
+@AtomGenClass()
 class EventCommonForwarderPlayerDefenseFailed extends EventCommonForwarderDelegate {
   public constructor() {
     super("PlayerDefenseFailed");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderPostReceiveDamageAsAttacker")
+@AtomGenClass()
 class EventCommonForwarderPostReceiveDamageAsAttacker extends EventCommonForwarderDelegate {
   public constructor() {
     super("PostReceiveDamageAsAttacker");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderPreReceiveDamageAsAttacker")
+@AtomGenClass()
 class EventCommonForwarderPreReceiveDamageAsAttacker extends EventCommonForwarderDelegate {
   public constructor() {
     super("PreReceiveDamageAsAttacker");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderPreReceiveDamageAsVictim")
+@AtomGenClass()
 class EventCommonForwarderPreReceiveDamageAsVictim extends EventCommonForwarderDelegate {
   public constructor() {
     super("PreReceiveDamageAsVictim");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderPostReceiveDamageAsVictim")
+@AtomGenClass()
 class EventCommonForwarderPostReceiveDamageAsVictim extends EventCommonForwarderDelegate {
   public constructor() {
     super("PostReceiveDamageAsVictim");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("计数器")
+@AtomGenClass()
 class EventCommonForwarderCounterAttackSuccess extends EventCommonForwarderDelegate {
   public constructor() {
     super("CounterAttackSuccess");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("计数器")
+@AtomGenClass()
 class EventCommonForwarderCounterAttackSuccessServer extends EventCommonForwarderDelegate {
   public constructor() {
     super("CounterAttackSuccessServer");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderComboEnd")
+@AtomGenClass()
 class EventCommonForwarderComboEnd extends EventCommonForwarderDelegate {
   public constructor() {
     super("ComboEnd");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderHealingAsHealer")
+@AtomGenClass()
 class EventCommonForwarderHealingAsHealer extends EventCommonForwarderDelegate {
   public constructor() {
     super("HealingAsHealer");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderHealingAsTarget")
+@AtomGenClass()
 class EventCommonForwarderHealingAsTarget extends EventCommonForwarderDelegate {
   public constructor() {
     super("HealingAsTarget");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("技能")
+@AtomGenClass()
 class EventCommonForwarderPreBeginAbilityTag extends EventCommonForwarderDelegate {
   public constructor() {
     super("PreBeginAbilityTag");
   }
 }
-@AtomGenClass("技能")
+@AtomGenClass()
 class EventCommonForwarderBeginAbilityTag extends EventCommonForwarderDelegate {
   public constructor() {
     super("BeginAbilityTag");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("技能")
+@AtomGenClass()
 class EventCommonForwarderEndAbilityTag extends EventCommonForwarderDelegate {
   public constructor() {
     super("EndAbilityTag");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderFurinkazanAdvanced")
+@AtomGenClass()
 class EventCommonForwarderFurinkazanAdvanced extends EventCommonForwarderDelegate {
   public constructor() {
     super("FurinkazanAdvanced");
   }
 } // eslint-disable-line prettier/prettier
-@AtomGenClass("EventCommonForwarderPreAttack")
+@AtomGenClass()
 class EventCommonForwarderPreAttack extends EventCommonForwarderDelegate {
   public constructor() {
     super("PreAttack");
   }
 } // eslint-disable-line prettier/prettier
 
-@AtomGenClass("EventBeginToSatisfyTheConditionDelegate")
+@AtomGenClass()
 class EventBeginToSatisfyTheConditionDelegate extends EventDelegateEx {
   public readonly TimeRequired: number;
 
@@ -341,7 +341,7 @@ class EventBeginToSatisfyTheConditionDelegate extends EventDelegateEx {
   }
 }
 
-@AtomGenClass("硬直")
+@AtomGenClass()
 class EventMonsterEpicStiffnessChanged extends EventDelegateEx {
   public readonly IsStarted: boolean;
   public constructor(IsStarted: BoolValueConstDelegate) {
@@ -350,7 +350,7 @@ class EventMonsterEpicStiffnessChanged extends EventDelegateEx {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueBuffStack extends NumberValueDelegate {
   public readonly BuffID: string = undefined;
 
@@ -367,7 +367,7 @@ class NumberValueBuffStack extends NumberValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueAttackBowgunMagazineInfoDelegate extends NumberValueDelegate {
   public readonly Type: 1 | 2 | 3 | 4;
 
@@ -378,7 +378,7 @@ class NumberValueAttackBowgunMagazineInfoDelegate extends NumberValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueBowgunAmmoType extends NumberValueDelegate {
   public readonly AmmoSource: -1 | 0 | 1;
 
@@ -389,7 +389,7 @@ class NumberValueBowgunAmmoType extends NumberValueDelegate {
   }
 }
 
-@AtomGenClass("通过BuffID获取BuffStack")
+@AtomGenClass()
 class NumberValueBuffBuffStackByBuffId extends NumberValueDelegate {
   public readonly BuffID: string = undefined;
 
@@ -406,7 +406,7 @@ class NumberValueBuffBuffStackByBuffId extends NumberValueDelegate {
         : BuffID;
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetDistDelegate extends NumberValueDelegate {
   public constructor(
     public readonly lhs: ActorValueDelegate,
@@ -415,7 +415,7 @@ class NumberValueGetDistDelegate extends NumberValueDelegate {
     super("MHTsNumberTriggerValueGetDist_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetDist2DDelegate extends NumberValueDelegate {
   public constructor(
     public readonly lhs: ActorValueDelegate,
@@ -424,7 +424,7 @@ class NumberValueGetDist2DDelegate extends NumberValueDelegate {
     super("MHTsNumberTriggerValueGetDist2D_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueAttributeScalingByPlayerSkillGroupLevel extends NumberValueDelegate {
   public readonly key: string;
 
@@ -443,7 +443,7 @@ class NumberValueAttributeScalingByPlayerSkillGroupLevel extends NumberValueDele
       ); // eslint-disable-line prettier/prettier
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueAttributeScalingByCombatPetAscensionPhase extends NumberValueDelegate {
   public readonly key: string;
 
@@ -462,7 +462,7 @@ class NumberValueAttributeScalingByCombatPetAscensionPhase extends NumberValueDe
       ); // eslint-disable-line prettier/prettier
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetDistZDelegate extends NumberValueDelegate {
   public constructor(
     public readonly lhs: ActorValueDelegate,
@@ -472,25 +472,25 @@ class NumberValueGetDistZDelegate extends NumberValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueMonsterBrokenBodyPartNumDelegate extends NumberValueDelegate {
   public constructor(public readonly Monster: ActorValueDelegate) {
     super("MHTsNumberTriggerValueBrokenBodyPartNum_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueCounterAttackValueDelegate extends NumberValueDelegate {
   public constructor(public readonly BodyPartName: string) {
     super("MHTsNumberTriggerValueGetCounterAttackValue_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueCounterAttackMaxValueDelegate extends NumberValueDelegate {
   public constructor(public readonly BodyPartName: string) {
     super("MHTsNumberTriggerValueGetCounterAttackMaxValue_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueQuadraticFunctionDelegate extends NumberValueDelegate {
   public constructor(
     public readonly x: NumberValueDelegate,
@@ -501,7 +501,7 @@ class NumberValueQuadraticFunctionDelegate extends NumberValueDelegate {
     super("MHTsNumberTriggerValueQuadraticFunction_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueBuffCustomValueDelegate extends NumberValueDelegate {
   public readonly idx: number = undefined;
 
@@ -510,25 +510,25 @@ class NumberValueBuffCustomValueDelegate extends NumberValueDelegate {
     this.idx = idx.Constant;
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueSatiationDelegate extends NumberValueDelegate {
   public constructor(public readonly Who: ActorValueDelegate) {
     super("MHTsNumberTriggerValueSatiation_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueCombatPetTowerNumDelegate extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueCombatPetTowerNum_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueSkillGroupIDDelegate extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueSkillGroupID_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueMinMaxExDelegate extends NumberValueDelegate {
   public readonly Candidates: Readonly<Array<NumberValueDelegate>> = undefined;
   public constructor(
@@ -539,31 +539,31 @@ class NumberValueMinMaxExDelegate extends NumberValueDelegate {
     this.Candidates = Candidates;
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueMinEx extends NumberValueMinMaxExDelegate {
   public constructor(...Candidates: readonly NumberValueDelegate[]) {
     super(true, ...Candidates);
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueMaxEx extends NumberValueMinMaxExDelegate {
   public constructor(...Candidates: readonly NumberValueDelegate[]) {
     super(false, ...Candidates);
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueCountPartyAdventurerDelegate extends NumberValueDelegate {
   public constructor(public readonly PickMethod: BoolValueDelegate) {
     super("ArashiNumberTriggerValueCountPartyAdventurer_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueBuffTimeDelegate extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueAbilityContextTime_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueBuffRemainingTimeDelegate extends NumberValueDelegate {
   public readonly BuffId: string = undefined;
   public constructor(
@@ -576,7 +576,7 @@ class NumberValueBuffRemainingTimeDelegate extends NumberValueDelegate {
       typeof BuffId === "string" ? BuffId : BuffId.Constant.toString();
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueSurroundingMonsterNumDelegate extends NumberValueDelegate {
   public readonly MonsterID: string = undefined;
 
@@ -592,7 +592,7 @@ class NumberValueSurroundingMonsterNumDelegate extends NumberValueDelegate {
     this.MonsterID = MonsterID;
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueConditionalNumberDelegate extends NumberValueDelegate {
   public constructor(
     public readonly Condition: BoolValueDelegate,
@@ -602,25 +602,25 @@ class NumberValueConditionalNumberDelegate extends NumberValueDelegate {
     super("MHTsNumberTriggerValueConditionalNumber_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetHitzoneOrSharpnessDelegate extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueGetAttackSharpnessOrHitzone_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetHitzone extends NumberValueGetHitzoneOrSharpnessDelegate {
   public constructor() {
     super();
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueAttributeDelegate extends NumberValueDelegate {
   public constructor(public readonly AttributeName: string) {
     super("MHTsNumberTriggerValueAttribute_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetActorAttributeDelegate extends NumberValueDelegate {
   public constructor(
     public readonly Actor: ActorValueDelegate,
@@ -629,7 +629,7 @@ class NumberValueGetActorAttributeDelegate extends NumberValueDelegate {
     super("MHTsNumberTriggerValueGetActorAttribute_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueUnaryOperatorDelegate extends NumberValueDelegate {
   public constructor(public readonly Operand: NumberValueDelegate) {
     super("MHTsNumberTriggerValueUnaryOperator_C");
@@ -637,7 +637,7 @@ class NumberValueUnaryOperatorDelegate extends NumberValueDelegate {
     return FConstantFoldingHelper.ReplaceNumberValueUnaryOperator(this) as any;
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueBinaryOperatorDelegate extends NumberValueDelegate {
   public constructor(
     public readonly lhs: NumberValueDelegate,
@@ -649,19 +649,19 @@ class NumberValueBinaryOperatorDelegate extends NumberValueDelegate {
     return FConstantFoldingHelper.ReplaceNumberBinaryOperator(this) as any;
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueMinimumOperator extends NumberValueBinaryOperatorDelegate {
   public constructor(lhs: NumberValueDelegate, rhs: NumberValueDelegate) {
     super(lhs, ue.EMHNumberTriggerValueBinaryOperator.Min, rhs);
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueMaximumOperator extends NumberValueBinaryOperatorDelegate {
   public constructor(lhs: NumberValueDelegate, rhs: NumberValueDelegate) {
     super(lhs, ue.EMHNumberTriggerValueBinaryOperator.Max, rhs);
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueClampDelegate extends NumberValueDelegate {
   public constructor(
     public readonly inp: NumberValueDelegate,
@@ -673,13 +673,13 @@ class NumberValueClampDelegate extends NumberValueDelegate {
     return FConstantFoldingHelper.ReplaceClamp(this) as any;
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetActorHeightDelegate extends NumberValueDelegate {
   public constructor(public readonly Who: ActorValueDelegate) {
     super("MHTsNumberTriggerValueActorHeight_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValuePetMasterJustAttackedDelegate extends NumberValueDelegate {
   public constructor(
     public readonly TrueWeight: NumberValueDelegate,
@@ -688,61 +688,61 @@ class NumberValuePetMasterJustAttackedDelegate extends NumberValueDelegate {
     super("MHTsNumberTriggerValuePetMasterJustAttacked_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValuePetTargetMonsterInDisadvantageTimes extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValuePetTargetMonsterInDisadvantageTimes_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberTriggerValueCoopCombatEnergyFullTime extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueCoopCombatEnergyFullTime_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueNextDamageTime extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueNextDamageTime_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueClosestMonsterAttackCollisionDistance extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueClosestMonsterAttackCollisionDistance_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass("AI下一次伤害时间")
 class NumberValueAAINextDamageTime extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueAAINextDamageTime_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueAAINextDamageTimeSpecificTaskType extends NumberValueDelegate {
   public constructor(public readonly TaskType: string) {
     super("MHTsNumberTriggerValueAAINextDamageTimeSpecificTaskType_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueAAIToughnessZeroRemainTime extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueAAIToughnessZeroRemainTime_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueAAIFurinkazanStageRemainTime extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueAAIFurinkazanStageRemainTime_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetHbgBulletMaxShotDistance extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueGetHbgBulletMaxShotDistance_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetKeyPressedTime extends NumberValueDelegate {
   public readonly Key: string = undefined;
 
@@ -755,67 +755,67 @@ class NumberValueGetKeyPressedTime extends NumberValueDelegate {
     }
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetAbilityCurrentTime extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueGetAbilityCurrentTime_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetFurinkazanStage extends NumberValueDelegate {
   public constructor(public readonly Who: ActorValueDelegate) {
     super("MHTsNumberTriggerValueFurinkazanStage_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetHbgCurrentBulletType extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueGetHbgCurrentBulletType_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetHbgCurrentBulletNum extends NumberValueDelegate {
   public constructor(public readonly BulletType: string) {
     super("MHTsNumberTriggerValueGetHbgCurrentBulletNum_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetHbgMaxBulletNum extends NumberValueDelegate {
   public constructor(public readonly BulletType: string) {
     super("MHTsNumberTriggerValueGetHbgMaxBulletNum_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetItsStrategyActionItemNum extends NumberValueDelegate {
   public constructor() {
     super("MHtsNumberTriggerValueGetItsStrategyActionItemNum_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetItsStrategyActionUsedCounts extends NumberValueDelegate {
   public constructor() {
     super("MHtsNumberTriggerValueGetItsStrategyActionUsedCounts_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetItsStrategyActionTeamUsedCounts extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueGetItsStrategyActionTeamUsedCounts_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueAAIRandom extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueAAIRandom_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueAAIAbilityRandom extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueAAIAbilityRandom_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueAAIGetDist extends NumberValueDelegate {
   public constructor(
     public readonly Name0: string,
@@ -825,19 +825,19 @@ class NumberValueAAIGetDist extends NumberValueDelegate {
     super("MHTsNumberTriggerValueAAIGetDist_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueGetAffinityDelegate extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueGetAffinity_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberTriggerValueAAIGetTimeSinceLastUseDelegate extends NumberValueDelegate {
   public constructor(private readonly AbilityName: string) {
     super("MHTsNumberTriggerValueAAIGetTimeSinceLastUse_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberTriggerValueAAIGetAngleDelegate extends NumberValueDelegate {
   public constructor(
     public readonly lhs: ActorValueDelegate,
@@ -846,25 +846,25 @@ class NumberTriggerValueAAIGetAngleDelegate extends NumberValueDelegate {
     super("MHTsNumberTriggerValueAAIGetAngle_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberTriggerValueGetHitLockPointPart extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueGetHitLockPointPart_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberTriggerValueJoyStickAngle extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueJoyStickAngle_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckAbilityCategory extends BoolValueDelegate {
   public constructor(public readonly SkillCategory: string) {
     super("MHTsBoolTriggerValueCheckAbilityCategory_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckAbilityCategoryTimer extends BoolValueDelegate {
   public constructor(
     public readonly SkillCategory: string,
@@ -874,7 +874,7 @@ class BoolValueCheckAbilityCategoryTimer extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckWeatherDelegate extends BoolValueDelegate {
   public constructor(
     public readonly Who: ActorValueDelegate,
@@ -895,7 +895,7 @@ class BoolValueCheckWeatherDelegate extends BoolValueDelegate {
     super("MHTsBoolTriggerValueCheckWeather_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueAtLeastOneSurroundingMonster extends BoolValueDelegate {
   public constructor(
     public readonly SurroundingWhom: ActorValueDelegate,
@@ -905,7 +905,7 @@ class BoolValueAtLeastOneSurroundingMonster extends BoolValueDelegate {
     super("MHTsBoolTriggerValueAtLeastOneSurroundingMonster_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueActorHasTagsDelegate extends BoolValueDelegate {
   public readonly Tags: ReadonlyArray<string> = undefined;
 
@@ -917,37 +917,37 @@ class BoolValueActorHasTagsDelegate extends BoolValueDelegate {
     this.Tags = Tags;
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueMonsterCanBeDeemedAsPostureDamageVulnerableDelegate extends BoolValueDelegate {
   public constructor(public readonly Who: ActorValueDelegate) {
     super("MHTsBoolTriggerValueMonsterCanBeDeemedAsPostureDamageVulnerable_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCaptureNetRecommend extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueCaptureNetRecommend_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueStoneRecommend extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueStoneRecommend_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueClutchClawRecommend extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueClutchClawRecommend_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueReinForcedBulletRecommend extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueReinForcedBulletRecommend_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckRecommendTypeLevel extends BoolValueDelegate {
   private SettingRowName: string;
   private Level: string;
@@ -960,7 +960,7 @@ class BoolValueCheckRecommendTypeLevel extends BoolValueDelegate {
     this.Level = LevelVal.Constant.toString();
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCharacterTemperatureState extends BoolValueDelegate {
   public constructor(
     public readonly Who: ActorValueDelegate,
@@ -969,7 +969,7 @@ class BoolValueCharacterTemperatureState extends BoolValueDelegate {
     super("MHTsBoolTriggerValueCharacterTemperatureState_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCharacterSatiationState extends BoolValueDelegate {
   public constructor(
     public readonly Who: ActorValueDelegate,
@@ -978,28 +978,28 @@ class BoolValueCharacterSatiationState extends BoolValueDelegate {
     super("MHTsBoolTriggerValueCharacterSatiationState_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCharacterHasEmitterFireBullet extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueCharacterHasEmitterFireBullet_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCharacterHasEmitterWaterBullet extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueCharacterHasEmitterWaterBullet_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCharacterHasEmitterCrystalBullet extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueCharacterHasEmitterCrystalBullet_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckAdventureID extends BoolValueDelegate {
   AdventureID: number;
   public constructor(
@@ -1012,7 +1012,7 @@ class BoolValueCheckAdventureID extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckAdventureType extends BoolValueDelegate {
   AdventureType: api.ENMAdventureAttributeType;
   public constructor(
@@ -1036,7 +1036,7 @@ class BoolValueCheckAdventureType extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberTriggerValueTeamAdventureTypeNums extends NumberValueDelegate {
   /** 冒险家类型 */
   AdventureType: api.ENMAdventureAttributeType;
@@ -1058,47 +1058,47 @@ class NumberTriggerValueTeamAdventureTypeNums extends NumberValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueCoopCombatSkillPerceptionBase extends BoolValueDelegate {
   public constructor() {
     super("BoolTriggerValueCoopCombatSkillPerceptionBase_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueMonsterHitTeammate extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueMonsterHitTeammate_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueMonsterBeInBigStiffness extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueMonsterBeInBigStiffness_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueTeammateReleaseGP extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueTeammateReleaseGP_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueTeammateReleaseFinalSkill extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueTeammateReleaseFinalSkill_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValuePetMasterAct extends BoolValueDelegate {
   public constructor(public readonly ActionType: string) {
     super("MHTsBoolTriggerValuePetMasterAct_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValuePetMasterHitMonster extends BoolValueDelegate {
   public Count: number;
   public constructor(
@@ -1109,14 +1109,14 @@ class BoolTriggerValuePetMasterHitMonster extends BoolValueDelegate {
     this.Count = Count.Constant;
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckAttackTag extends BoolValueDelegate {
   public constructor(public readonly GameplayTag: string) {
     super("MHTsBoolTriggerValueCheckAttackTag_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueActorIsPerformingAbility extends BoolValueDelegate {
   public constructor(
     public readonly Who: ActorValueDelegate,
@@ -1126,7 +1126,7 @@ class BoolValueActorIsPerformingAbility extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckActorUniquestrID extends BoolValueDelegate {
   public constructor(
     public readonly Target: ActorValueDelegate,
@@ -1136,7 +1136,7 @@ class BoolValueCheckActorUniquestrID extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueActorIsInCertainMonsterBuffState extends BoolValueDelegate {
   public constructor(
     public readonly Actor: ActorValueDelegate,
@@ -1146,7 +1146,7 @@ class BoolValueActorIsInCertainMonsterBuffState extends BoolValueDelegate {
     super("MHTsBoolTriggerValueIsInCertainMonsterBuffState_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueMonsterInStiffnessStateDelegate extends BoolValueDelegate {
   public StiffnessType: EStiffnessType;
   public constructor(StiffnessType: string) {
@@ -1154,7 +1154,7 @@ class BoolTriggerValueMonsterInStiffnessStateDelegate extends BoolValueDelegate 
     this.StiffnessType = EStiffnessType[StiffnessType];
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueActorIsConsumingItem extends BoolValueDelegate {
   public constructor(
     public readonly Who: ActorValueDelegate,
@@ -1165,7 +1165,7 @@ class BoolValueActorIsConsumingItem extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueEMIsMaxComboDesire extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueEMIsMaxComboDesire_C");
@@ -1176,7 +1176,7 @@ const FalseConstBoolValue = new BoolValueConstDelegate(false);
 const TrueConstBoolValue = new BoolValueConstDelegate(true);
 const ZeroConstNumberValue = new NumberValueConstDelegate(0);
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueBeOfDelegate extends BoolValueDelegate {
   public constructor(
     public readonly Who: ActorValueDelegate,
@@ -1188,56 +1188,56 @@ class BoolValueBeOfDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueIsCharacter extends BoolValueBeOfDelegate {
   public constructor(Who: ActorValueDelegate) {
     super(Who, true, false, false);
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueIsPet extends BoolValueBeOfDelegate {
   public constructor(Who: ActorValueDelegate) {
     super(Who, false, true, false);
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueIsMonster extends BoolValueBeOfDelegate {
   public constructor(Who: ActorValueDelegate) {
     super(Who, false, false, true);
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueMonsterSleeping extends BoolValueDelegate {
   public constructor(public readonly Monster: ActorValueDelegate) {
     super("ArashiBoolTriggerValueMonsterIsSleeping_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueAttackingBrokenPart extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueIsBrokenPartAttacked_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckBrightMossAvilable extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolValueCheckBrightMossAvilable_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckPuddlePodAvilable extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolValueCheckPuddlePodAvilable_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueBinaryOperatorOnNumberDelegate extends BoolValueDelegate {
   public constructor(
     public readonly lhs: NumberValueDelegate,
@@ -1445,7 +1445,7 @@ abstract class FConstantFoldingHelper {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueFallingWithinTheIntervalDelegate extends BoolValueDelegate {
   public readonly LeftOpen: boolean = undefined;
   public readonly RightOpen: boolean = undefined;
@@ -1466,7 +1466,7 @@ class BoolValueFallingWithinTheIntervalDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueFallingWithinTheClosedInterval extends BoolValueFallingWithinTheIntervalDelegate {
   public constructor(
     TargetNumber: NumberValueDelegate,
@@ -1483,7 +1483,7 @@ class BoolValueFallingWithinTheClosedInterval extends BoolValueFallingWithinTheI
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueIsTheSameActorDelegate extends BoolValueDelegate {
   public constructor(
     public readonly lhs: ActorValueDelegate,
@@ -1493,35 +1493,35 @@ class BoolValueIsTheSameActorDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValuePetSkillCDDelegate extends BoolValueDelegate {
   public constructor(public readonly PetSkillID: NumberValueDelegate) {
     super("MHTsBoolTriggerValuePetSkillCD_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValuePetSkillEnergyDelegate extends BoolValueDelegate {
   public constructor(public readonly PetSkillID: NumberValueDelegate) {
     super("MHTsBoolTriggerValuePetSkillEnergy_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValuePetSkillPriorityDelegate extends BoolValueDelegate {
   public constructor(public readonly PetSkillID: NumberValueDelegate) {
     super("MHTsBoolTriggerValuePetSkillPriority_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValuePetCheckControllerFlagDelegate extends BoolValueDelegate {
   public constructor(public readonly FlagName: string) {
     super("MHTsBoolTriggerValuePetCheckControllerFlag_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckWeaponTypeDelegate extends BoolValueDelegate {
   public readonly WeaponType: api.ENMWeaponType;
 
@@ -1534,7 +1534,7 @@ class BoolValueCheckWeaponTypeDelegate extends BoolValueDelegate {
       typeof WeaponType === "number" ? WeaponType : WeaponType.Constant;
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckWeaponStateDelegate extends BoolValueDelegate {
   public readonly WeaponState: number;
   public constructor(WeaponState: NumberValueConstDelegate) {
@@ -1543,7 +1543,7 @@ class BoolValueCheckWeaponStateDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValuePetMasterWeaponTypeDelegate extends BoolValueDelegate {
   public readonly Cases = new Array<NumberValueDelegate>();
   public constructor(...Cases: readonly NumberValueDelegate[]) {
@@ -1559,27 +1559,27 @@ class BoolValuePetMasterWeaponTypeDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValuePetIsFreeDelegate extends BoolValueDelegate {
   public constructor(public readonly PetSkillID: NumberValueDelegate) {
     super("MHTsBoolTriggerValuePetIsFree_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValuePetIsFlyingDelegate extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValuePetIsFlying_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueAnyAdventurerHealthPercentLowerThan extends BoolValueDelegate {
   public constructor(public readonly Threshold: NumberValueDelegate) {
     super("MHTsBoolTriggerValueAnyAdventurerHealthPercentLowerThan_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueAnyActorAttributeLowerThan extends BoolValueDelegate {
   public constructor(
     public readonly TargetType: string,
@@ -1592,14 +1592,14 @@ class BoolValueAnyActorAttributeLowerThan extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValuePetHasHelpTargetDelegate extends BoolValueDelegate {
   public constructor(public readonly HelpType: string) {
     super("MHTsBoolTriggerValuePetHasHelpTarget_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValuePetCheckAndSetHealTargetDelegate extends BoolValueDelegate {
   public constructor(
     public readonly MasterHealthPercentage: number,
@@ -1610,21 +1610,21 @@ class BoolValuePetCheckAndSetHealTargetDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValuePetHasSkillDelegate extends BoolValueDelegate {
   public constructor(public readonly SkillID: NumberValueDelegate) {
     super("MHTsBoolTriggerValuePetHasSkill_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValuePetMasterCanBird extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValuePetMasterCanBird_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCharacterSufferingFromDelegate extends BoolValueDelegate {
   public readonly StatusEffectNames: ReadonlyArray<string> = undefined;
 
@@ -1634,14 +1634,14 @@ class BoolValueCharacterSufferingFromDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCharacterSufferingFromStatusEffectDelegate extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueCharacterSufferingFromStatusEffect_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueAnyActorSufferingFromStatusEffectDelegate extends BoolValueDelegate {
   // eslint-disable-next-line prettier/prettier
   public constructor(
@@ -1652,7 +1652,7 @@ class BoolValueAnyActorSufferingFromStatusEffectDelegate extends BoolValueDelega
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueTryGetTeamActionTokenDelegate extends BoolValueDelegate {
   public constructor(
     public readonly MaxTokenNumForThisAction: NumberValueDelegate
@@ -1661,14 +1661,14 @@ class BoolTriggerValueTryGetTeamActionTokenDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueAffinityHitDelegate extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueAffinityHit_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckAttackPhysicalTypeDelegate extends BoolValueDelegate {
   public readonly PhysicalType: ue.EMHPhysicType;
   public constructor(PhysicalType: keyof typeof ue.EMHPhysicType) {
@@ -1677,35 +1677,35 @@ class BoolValueCheckAttackPhysicalTypeDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckAttackIsBySkillHitId extends BoolValueDelegate {
   public constructor(public readonly SkillHitId: string) {
     super("ArashiBoolTriggerValueCheckAttackIsBySkillHitId_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckAttackIsBySkillSlot extends BoolValueDelegate {
   public constructor(public readonly SkillSlotName: string) {
     super("ArashiBoolTriggerValueCheckAttackIsBySkillSlot_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueIsDamageOverTimeDelegate extends BoolValueDelegate {
   public constructor() {
     super("ArashiBoolTriggerValueIsDamageOverTime_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueElementalCriticalHitDelegate extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueElementalCriticalHit_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueAttackFromCertainAmmo extends BoolValueDelegate {
   public readonly AmmoConfigID: string = undefined;
 
@@ -1721,21 +1721,21 @@ class BoolValueAttackFromCertainAmmo extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueCharacterCombatTimeDelegate extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueCharacterCombatTime_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class NumberValueRandomDelegate extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueRandom_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueBinaryOperatorOnBoolDelegate extends BoolValueDelegate {
   public constructor(
     public readonly lhs: BoolValueDelegate,
@@ -1749,7 +1749,7 @@ class BoolValueBinaryOperatorOnBoolDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueNotDelegate extends BoolValueDelegate {
   public constructor(public readonly Value: BoolValueDelegate) {
     super("MHTsBoolTriggerValueNot_C");
@@ -1758,7 +1758,7 @@ class BoolValueNotDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckContextAbilityHasTagDelegate extends BoolValueDelegate {
   public constructor(
     public readonly TagName: string,
@@ -1769,28 +1769,28 @@ class BoolValueCheckContextAbilityHasTagDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckContextAbilityHasTag extends BoolValueCheckContextAbilityHasTagDelegate {
   public constructor(TagName: string) {
     super(TagName, "");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckContextAbilityIsFromSkillSlot extends BoolValueCheckContextAbilityHasTagDelegate {
   public constructor(SkillSlotName: EAbilityType) {
     super("", SkillSlotName);
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckDefenseSuccess extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueCheckDefenseSuccess_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckFieldConfigIDDelegate extends BoolValueDelegate {
   public constructor(
     public readonly Target: ActorValueDelegate,
@@ -1800,42 +1800,42 @@ class BoolValueCheckFieldConfigIDDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckPrecisionDefense extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueCheckPrecisionDefense_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckCharacterMotionModeDelegate extends BoolValueDelegate {
   public constructor(public readonly MotionModeName: string) {
     super("MHTsBoolTriggerValueCheckCharacterMotionMode_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueIsActorInAirDelegate extends BoolValueDelegate {
   public constructor(public readonly ActorToCheck: ActorValueDelegate) {
     super("MHTsBoolTriggerValueIsActorInAir_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueAttackFromSocket extends BoolValueDelegate {
   public constructor(public readonly SocketName: string) {
     super("MHTsBoolTriggerValueAttackFromSocket_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckEMCreatureStateDelegate extends BoolValueDelegate {
   public constructor(public readonly TagName: string) {
     super("MHTsBoolTriggerValueCheckEMCreatureState_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckEMTeamIndexDelegate extends BoolValueDelegate {
   public constructor(
     public readonly TeamIndex: number | NumberValueConstDelegate
@@ -1849,7 +1849,7 @@ class BoolValueCheckEMTeamIndexDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckEMStageIdDelegate extends BoolValueDelegate {
   public constructor(
     public readonly StageId: number | NumberValueConstDelegate
@@ -1863,40 +1863,42 @@ class BoolValueCheckEMStageIdDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass("AI检查是否在僵硬类型")
 class BoolValueAAIMonsterInStiffnessTypeDelegate extends BoolValueDelegate {
-  public constructor(public readonly StiffnessType: string) {
+  public constructor(
+    @AtomGenParam({descName: "僵直类型"})
+    public readonly StiffnessType: string) {
     super("MHTsBoolTriggerValueAAIMonsterInStiffnessType_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckPilotModeWithDodgeBtnDelegate extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueCheckPilotModeWithDodgeBtn_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckPilotModeWithSheatheBtnDelegate extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueCheckPilotModeWithSheatheBtn_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass("AI检查是否在敌对领域")
 class BoolValueAAICheckInUnfriendlyFieldDelegate extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueAAICheckInUnfriendlyField_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueCheckEMTargetHealDelegate extends BoolValueDelegate {
   public constructor(public readonly BackTraceTime: NumberValueDelegate) {
     super("MHTsBoolTriggerValueCheckEMTargetHeal_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueCheckEMTargetSufferingFromDelegate extends BoolValueDelegate {
   public readonly StatusEffectNames: ReadonlyArray<string> = undefined;
 
@@ -1906,14 +1908,14 @@ class BoolTriggerValueCheckEMTargetSufferingFromDelegate extends BoolValueDelega
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueCheckEMTargetHelplessDelegate extends BoolValueDelegate {
   public constructor(public readonly Level: string) {
     super("MHTsBoolTriggerValueCheckEMTargetHelpless_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueCheckEMLostHpInSpanDelegate extends BoolValueDelegate {
   public constructor(
     public readonly BackTraceTime: NumberValueDelegate,
@@ -1923,7 +1925,7 @@ class BoolTriggerValueCheckEMLostHpInSpanDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueCheckEMTargetHpPercentDelegate extends BoolValueDelegate {
   public constructor(
     public readonly Op: string,
@@ -1933,7 +1935,7 @@ class BoolTriggerValueCheckEMTargetHpPercentDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueCheckEMTargetAngleDelegate extends BoolValueDelegate {
   public constructor(
     public readonly Op: string,
@@ -1943,7 +1945,7 @@ class BoolTriggerValueCheckEMTargetAngleDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueCheckEMTargetDistanceDelegate extends BoolValueDelegate {
   public constructor(
     public readonly Op: string,
@@ -1954,7 +1956,7 @@ class BoolTriggerValueCheckEMTargetDistanceDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueCheckDistanceBetweenActorsDelegate extends BoolValueDelegate {
   public constructor(
     public readonly SourceActor: ActorValueDelegate,
@@ -1967,7 +1969,7 @@ class BoolTriggerValueCheckDistanceBetweenActorsDelegate extends BoolValueDelega
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolTriggerValueCheckEMTargetDamageCountDelegate extends BoolValueDelegate {
   public constructor(
     public readonly BackTraceTime: NumberValueDelegate,
@@ -1977,7 +1979,7 @@ class BoolTriggerValueCheckEMTargetDamageCountDelegate extends BoolValueDelegate
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckEMCreatureStateByActorDelegate extends BoolValueDelegate {
   public constructor(
     public readonly Target: ActorValueDelegate,
@@ -1987,7 +1989,7 @@ class BoolValueCheckEMCreatureStateByActorDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckEMAbilityHasTagByActorDelegate extends BoolValueDelegate {
   public constructor(
     public readonly Target: ActorValueDelegate,
@@ -1997,7 +1999,7 @@ class BoolValueCheckEMAbilityHasTagByActorDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckEMAIStateByActorDelegate extends BoolValueDelegate {
   public Target: ActorValueDelegate;
   public TargetAIState: EMAIStateType;
@@ -2015,21 +2017,21 @@ class BoolValueCheckEMAIStateByActorDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckEMIsBossMonsterDelegate extends BoolValueDelegate {
   public constructor(public readonly Target: ActorValueDelegate) {
     super("MHTsBoolTriggerValueCheckEMIsBossMonster_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckEMIsInTurfWarDelegate extends BoolValueDelegate {
   public constructor(public readonly Target: ActorValueDelegate) {
     super("MHTsBoolTriggerValueCheckEMIsInTurfWar_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckEMStiffnessTypeByActorDelegate extends BoolValueDelegate {
   public constructor(
     public readonly Target: ActorValueDelegate,
@@ -2039,7 +2041,7 @@ class BoolValueCheckEMStiffnessTypeByActorDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckEMIsTargetMonsterByArchetypeIDDelegate extends BoolValueDelegate {
   public constructor(
     public readonly Monster: ActorValueDelegate,
@@ -2049,7 +2051,7 @@ class BoolValueCheckEMIsTargetMonsterByArchetypeIDDelegate extends BoolValueDele
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckIsTargetEnvMonsterByRowNameDelegate extends BoolValueDelegate {
   public constructor(
     public readonly EnvMonster: ActorValueDelegate,
@@ -2059,70 +2061,76 @@ class BoolValueCheckIsTargetEnvMonsterByRowNameDelegate extends BoolValueDelegat
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckHasSkillSplineDelegate extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueCheckHasSkillSpline_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckEMInClimbArea extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueCheckEMInClimbArea_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckEMInFoodState extends BoolValueDelegate {
   public constructor(public readonly FoodID: string) {
     super("MHTsBoolTriggerValueCheckEMInFoodState_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass("检查是否特殊AI")
 class BoolTriggerValueAAICheckIsSpecAIDelegate extends BoolValueDelegate {
-  public constructor(public readonly OfWhom: ActorValueDelegate) {
+  public constructor(
+    @AtomGenParam({descName: "目标类型"})
+    public readonly OfWhom: ActorValueDelegate) {
     super("MHTsBoolTriggerValueAAICheckIsSpecAI_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueAAINeedDodge extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueAAINeedDodge_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueAAINeedCounterDamage extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueAAINeedCounterDamage_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass("AI是否有技能组")
 class BoolValueAAIHasSkillGroup extends BoolValueDelegate {
-  public constructor(public readonly SkillGroup: NumberValueDelegate) {
+  public constructor(
+    @AtomGenParam({descName: "技能组"})
+    public readonly SkillGroup: NumberValueDelegate) {
     super("MHTsBoolTriggerValueAAIHasSkillGroup_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass("AI是否有指令")
 class BoolValueAAIHasCommand extends BoolValueDelegate {
-  public constructor(public readonly Command: string) {
+  public constructor(
+    @AtomGenParam({descName: "指令名称"})
+    public readonly Command: string) {
     super("MHTsBoolTriggerValueAAIHasCommand_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueNeedDodge extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueNeedDodge_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckPlayerInMonsterAggro extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerVlaueCheckPlayerInMonsterAggro_C");
@@ -2165,7 +2173,7 @@ abstract class TaskDelegate extends DelegateBase {
   }
 }
 
-@AtomGenClass("技能")
+@AtomGenClass()
 class ModifyAbilitySpeedTaskDelegate extends TaskDelegate {
   public readonly SpeedModification: number;
 
@@ -2188,7 +2196,7 @@ class ModifyAbilitySpeedTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("速度")
+@AtomGenClass()
 class ModifyMonsterMotionSpeedTaskDelegate extends TaskDelegate {
   public readonly AbilityMotionModifying: number;
   public readonly OtherMotionModifying: number;
@@ -2216,7 +2224,7 @@ class ModifyMonsterMotionSpeedTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("开")
+@AtomGenClass()
 class ReviveTeamAdventurerOnLifeClaimTaskDelegate extends TaskDelegate {
   public readonly HealthRatioAfterRevive: number = undefined;
   public readonly CoolDown: number = undefined;
@@ -2240,7 +2248,7 @@ class ReviveTeamAdventurerOnLifeClaimTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("耐力值")
+@AtomGenClass()
 class PauseStaminaRegenerationTaskDelegate extends TaskDelegate {
   public constructor() {
     super(
@@ -2255,7 +2263,7 @@ class PauseStaminaRegenerationTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("PartyBuffTaskDelegate")
+@AtomGenClass()
 class PartyBuffTaskDelegate extends TaskDelegate {
   public readonly BuffId: string = undefined;
   public readonly IgnoreBuffSource: boolean = false;
@@ -2281,7 +2289,7 @@ class PartyBuffTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("技能")
+@AtomGenClass()
 class CoopCombatPursuitSkillSwitchTaskDelegate extends TaskDelegate {
   public constructor() {
     super(
@@ -2294,7 +2302,7 @@ class CoopCombatPursuitSkillSwitchTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("DuyaoniaoSpecialShootTaskDelegate")
+@AtomGenClass()
 class DuyaoniaoSpecialShootTaskDelegate extends TaskDelegate {
   bDot: boolean;
   bHPLoss: boolean;
@@ -2338,7 +2346,7 @@ class DuyaoniaoSpecialShootTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("TmpIncreaseMonsterToughnessTaskDelegate")
+@AtomGenClass()
 class TmpIncreaseMonsterToughnessTaskDelegate extends TaskDelegate {
   public constructor(public readonly Increase: NumberValueDelegate) {
     super(
@@ -2351,7 +2359,7 @@ class TmpIncreaseMonsterToughnessTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("角色")
+@AtomGenClass()
 class CharacterMovementSpeedModificationTaskDelegate extends TaskDelegate {
   public constructor(
     public readonly Category: string,
@@ -2371,7 +2379,7 @@ class CharacterMovementSpeedModificationTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("EMModificationSightPerceptionDelegate")
+@AtomGenClass()
 class EMModificationSightPerceptionDelegate extends TaskDelegate {
   public readonly DistanceScale: number = undefined;
   public readonly AngleScale: number = undefined;
@@ -2391,7 +2399,7 @@ class EMModificationSightPerceptionDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("设置")
+@AtomGenClass()
 class EMSetBreakPartbLockTaskDelegate extends TaskDelegate {
   public readonly BodypartName: string = undefined;
   public readonly RevertOnEnd: boolean = true;
@@ -2413,7 +2421,7 @@ class EMSetBreakPartbLockTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("修饰符")
+@AtomGenClass()
 class AddModifierTaskDelegate extends TaskDelegate {
   public ModifierId: number;
 
@@ -2432,7 +2440,7 @@ class AddModifierTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("ConditionControlledBuffTaskDelegate")
+@AtomGenClass()
 class ConditionControlledBuffTaskDelegate extends TaskDelegate {
   public readonly ThresholdTime: number = undefined;
   public readonly BuffId: string = undefined;
@@ -2463,7 +2471,7 @@ class ConditionControlledBuffTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("动态")
+@AtomGenClass()
 class DynamicDurationTaskDelegate extends TaskDelegate {
   public readonly bFixed: boolean;
 
@@ -2485,7 +2493,7 @@ class DynamicDurationTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("事件")
+@AtomGenClass()
 class ButtonStrengthEventTaskDelegate extends TaskDelegate {
   public readonly SkillGroupID: string = undefined;
 
@@ -2512,7 +2520,7 @@ class ButtonStrengthEventTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("ShadowCloneBuffsTaskDelegate")
+@AtomGenClass()
 class ShadowCloneBuffsTaskDelegate extends TaskDelegate {
   public readonly BuffIds: ReadonlyArray<string> = undefined;
 
@@ -2547,7 +2555,7 @@ abstract class ActionDelegate extends DelegateBase {
   }
 }
 
-@AtomGenClass("角色")
+@AtomGenClass()
 class ActionReviveCharacterDeathDelegate extends ActionDelegate {
   constructor(
     public readonly PostHealth: NumberValueDelegate,
@@ -2557,7 +2565,7 @@ class ActionReviveCharacterDeathDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("技能")
+@AtomGenClass()
 class NotifyOfSkillEffectActivatedActionDelegate extends ActionDelegate {
   public readonly NotificationId: number;
   public constructor(NotificationId: number | NumberValueConstDelegate) {
@@ -2569,7 +2577,7 @@ class NotifyOfSkillEffectActivatedActionDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("设置")
+@AtomGenClass()
 class ActionSetAbilityBoolCustomValueDelegate extends ActionDelegate {
   public readonly bTransformInCombo: boolean;
   public constructor(
@@ -2582,7 +2590,7 @@ class ActionSetAbilityBoolCustomValueDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("设置")
+@AtomGenClass()
 class ActionSetAbilityNumberCustomValueDelegate extends ActionDelegate {
   public constructor(
     public readonly Key: string,
@@ -2592,7 +2600,7 @@ class ActionSetAbilityNumberCustomValueDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("技能")
+@AtomGenClass()
 class ActionModifyAbilityPlayRateInAbilityGroupDelegate extends ActionDelegate {
   public constructor(
     public readonly AbilityGroup: string,
@@ -2602,7 +2610,7 @@ class ActionModifyAbilityPlayRateInAbilityGroupDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("配额")
+@AtomGenClass()
 class ActionQuotaAndCoolDownActionDelegate extends ActionDelegate {
   public readonly QuotaID: string = undefined;
   public readonly CoolDownID: string = undefined;
@@ -2625,7 +2633,7 @@ class ActionQuotaAndCoolDownActionDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("配额")
+@AtomGenClass()
 class ActionQuotaAction extends ActionQuotaAndCoolDownActionDelegate {
   public constructor(
     Quota: NumberValueConstDelegate,
@@ -2643,7 +2651,7 @@ class ActionQuotaAction extends ActionQuotaAndCoolDownActionDelegate {
   }
 }
 
-@AtomGenClass("配额")
+@AtomGenClass()
 class ActionQuotaActionWithSpecifiedID extends ActionQuotaAndCoolDownActionDelegate {
   public constructor(
     Quota: NumberValueConstDelegate,
@@ -2657,7 +2665,7 @@ class ActionQuotaActionWithSpecifiedID extends ActionQuotaAndCoolDownActionDeleg
   }
 }
 
-@AtomGenClass("凉爽")
+@AtomGenClass()
 class ActionCoolDownAction extends ActionQuotaAndCoolDownActionDelegate {
   public constructor(
     CoolDown: NumberValueConstDelegate,
@@ -2675,7 +2683,7 @@ class ActionCoolDownAction extends ActionQuotaAndCoolDownActionDelegate {
   }
 }
 
-@AtomGenClass("凉爽")
+@AtomGenClass()
 class ActionCoolDownActionWithSpecifiedID extends ActionQuotaAndCoolDownActionDelegate {
   public constructor(
     CoolDown: NumberValueConstDelegate,
@@ -2698,7 +2706,7 @@ class ActionCoolDownActionWithSpecifiedID extends ActionQuotaAndCoolDownActionDe
   }
 }
 
-@AtomGenClass("配额")
+@AtomGenClass()
 class ActionQuotaAndCoolDownAction extends ActionQuotaAndCoolDownActionDelegate {
   public constructor(
     Quota: NumberValueConstDelegate,
@@ -2718,7 +2726,7 @@ class ActionQuotaAndCoolDownAction extends ActionQuotaAndCoolDownActionDelegate 
   }
 }
 
-@AtomGenClass("配额")
+@AtomGenClass()
 class ActionQuotaAndCoolDownActionWithSpecifiedID extends ActionQuotaAndCoolDownActionDelegate {
   public constructor(
     Quota: NumberValueConstDelegate,
@@ -2740,7 +2748,7 @@ class ActionQuotaAndCoolDownActionWithSpecifiedID extends ActionQuotaAndCoolDown
   }
 }
 
-@AtomGenClass("ActionNOPDelegate")
+@AtomGenClass()
 class ActionNOPDelegate extends ActionDelegate {
   public constructor() {
     super("MHTsTriggerActionNOP_C");
@@ -2749,7 +2757,7 @@ class ActionNOPDelegate extends ActionDelegate {
 
 const NopActionValue = new ActionNOPDelegate();
 
-@AtomGenClass("开")
+@AtomGenClass()
 class ActionLootDropOnAttackDelegate extends ActionDelegate {
   public readonly DropLifeSpan: number = undefined;
   public readonly DropRadius: number = undefined;
@@ -2767,7 +2775,7 @@ class ActionLootDropOnAttackDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("设置")
+@AtomGenClass()
 class ActionSystemSetAttributeDelegate extends ActionDelegate {
   public constructor(
     public readonly AttrName: string,
@@ -2777,7 +2785,7 @@ class ActionSystemSetAttributeDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("开")
+@AtomGenClass()
 class ActionWithLimitationOnTheNumberOfTimesForEachCombinationOfAbilityInstanceAndHitTargetDelegate extends ActionDelegate {
   public readonly QuotaId: string = undefined;
   public readonly Quota: number = undefined;
@@ -2793,7 +2801,7 @@ class ActionWithLimitationOnTheNumberOfTimesForEachCombinationOfAbilityInstanceA
     this.Quota = Quota.Constant;
   }
 }
-@AtomGenClass("PetMasterActConsumeDelegate")
+@AtomGenClass()
 class PetMasterActConsumeDelegate extends ActionDelegate {
   public readonly ActionType: string;
   public constructor(ActionType: string) {
@@ -2801,7 +2809,7 @@ class PetMasterActConsumeDelegate extends ActionDelegate {
     this.ActionType = ActionType;
   }
 }
-@AtomGenClass("PetMasterHitMonsterConsumeDelegate")
+@AtomGenClass()
 class PetMasterHitMonsterConsumeDelegate extends ActionDelegate {
   public readonly DamageType: string;
   public constructor(DamageType: string) {
@@ -2809,7 +2817,7 @@ class PetMasterHitMonsterConsumeDelegate extends ActionDelegate {
     this.DamageType = DamageType;
   }
 }
-@AtomGenClass("构建")
+@AtomGenClass()
 class ActionConsumeBuildUpOrRestoreCombatResource extends ActionDelegate {
   public readonly Tags: readonly string[];
   public constructor(
@@ -2822,7 +2830,7 @@ class ActionConsumeBuildUpOrRestoreCombatResource extends ActionDelegate {
   }
 }
 
-@AtomGenClass("刷新")
+@AtomGenClass()
 class ActionRefreshBuffFromMeDelegate extends ActionDelegate {
   public readonly BuffId: string = undefined;
 
@@ -2838,7 +2846,7 @@ class ActionRefreshBuffFromMeDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("ActionRemoveBuffFromMeDelegate")
+@AtomGenClass()
 class ActionRemoveBuffFromMeDelegate extends ActionDelegate {
   public readonly BuffId: string = undefined;
 
@@ -2854,7 +2862,7 @@ class ActionRemoveBuffFromMeDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("确定")
+@AtomGenClass()
 class ActionDispelCertainCharacterStatusEffectDelegate extends ActionDelegate {
   public readonly bReset: boolean = undefined;
 
@@ -2868,7 +2876,7 @@ class ActionDispelCertainCharacterStatusEffectDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("ActionAddCombatPetEnergyDelegate")
+@AtomGenClass()
 class ActionAddCombatPetEnergyDelegate extends ActionDelegate {
   public constructor(
     public readonly OnWhom: ActorValueDelegate,
@@ -2878,7 +2886,7 @@ class ActionAddCombatPetEnergyDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("编号")
+@AtomGenClass()
 class ActionRemoveBuffsByBuffIDDelegate extends ActionDelegate {
   public readonly BuffID: string = undefined;
 
@@ -2889,14 +2897,14 @@ class ActionRemoveBuffsByBuffIDDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("重置")
+@AtomGenClass()
 class ActionResetAbilityCategoryTimerDelegate extends ActionDelegate {
   public constructor(public readonly SkillCategory: string) {
     super("MHTsTriggerActionResetAbilityCategoryTimer_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCanItemRecommendByGuideDelegate extends BoolValueDelegate {
   public readonly ItemID: number;
   public readonly GuideID: string;
@@ -2918,7 +2926,7 @@ class BoolValueCanItemRecommendByGuideDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckBuffDelegate extends BoolValueDelegate {
   public readonly BuffID: string = undefined;
 
@@ -2929,7 +2937,7 @@ class BoolValueCheckBuffDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckBuffStateDelegate extends BoolValueDelegate {
   private readonly InvertCondition: boolean = false;
   private readonly StateName: string = undefined;
@@ -2941,14 +2949,14 @@ class BoolValueCheckBuffStateDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueWAProjectileUsableDelegate extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueWAProjectileUsable_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckCurrentWAIDDelegate extends BoolValueDelegate {
   public readonly WAID: string = undefined;
 
@@ -2958,7 +2966,7 @@ class BoolValueCheckCurrentWAIDDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("ActionSpawnSoapDelegate")
+@AtomGenClass()
 class ActionSpawnSoapDelegate extends ActionDelegate {
   public readonly ConfigId: string = undefined;
 
@@ -2969,7 +2977,7 @@ class ActionSpawnSoapDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("字段")
+@AtomGenClass()
 class ActionSpawnFieldDelegate extends ActionDelegate {
   public readonly FieldConfigID: string = undefined;
   public readonly bFollowSelf: boolean = undefined;
@@ -2999,7 +3007,7 @@ class ActionSpawnFieldDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("计数器")
+@AtomGenClass()
 class ActionStartCounterAttackDelegate extends ActionDelegate {
   public readonly BodyPartName: string;
   public readonly bReset: boolean;
@@ -3011,7 +3019,7 @@ class ActionStartCounterAttackDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("ActionTriggerEMAIRespondDelegate")
+@AtomGenClass()
 class ActionTriggerEMAIRespondDelegate extends ActionDelegate {
   private readonly RespondID: string;
 
@@ -3021,7 +3029,7 @@ class ActionTriggerEMAIRespondDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("重置")
+@AtomGenClass()
 class ActionResetCounterAttackDelegate extends ActionDelegate {
   public readonly BodyPartName: string;
   public constructor(BodyPartName: string) {
@@ -3030,7 +3038,7 @@ class ActionResetCounterAttackDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("计数器")
+@AtomGenClass()
 class ActionPauseCounterAttackDelegate extends ActionDelegate {
   public readonly BodyPartName: string;
   public constructor(BodyPartName: string, bReset = false) {
@@ -3039,7 +3047,7 @@ class ActionPauseCounterAttackDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("设置")
+@AtomGenClass()
 class ActionSetSummonMoveModeDelegate extends ActionDelegate {
   public readonly NewMovementMode: ue.ESummonMovementMode = undefined;
 
@@ -3055,7 +3063,7 @@ class ActionSetSummonMoveModeDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("设置")
+@AtomGenClass()
 class ActionSetSummonWalkingSpeedDelegate extends ActionDelegate {
   public readonly Speed: number = undefined;
   public readonly Roll: number = undefined;
@@ -3076,14 +3084,14 @@ class ActionSetSummonWalkingSpeedDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("ActionDispelAffiliatedBuffDelegate")
+@AtomGenClass()
 class ActionDispelAffiliatedBuffDelegate extends ActionDelegate {
   public constructor() {
     super("MHTsTriggerActionDispelAffiliatedBuff_C");
   }
 }
 
-@AtomGenClass("ActionSwitchCaseDelegate")
+@AtomGenClass()
 class ActionSwitchCaseDelegate extends ActionDelegate {
   public readonly Cases = new Array<NumberValueDelegate>();
   public readonly Actions = new Array<ActionDelegate>();
@@ -3111,7 +3119,7 @@ class ActionSwitchCaseDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("技能")
+@AtomGenClass()
 class ActionChangeAbilityCoolDownDelegate extends ActionDelegate {
   public constructor(
     public readonly AbilityName: string,
@@ -3122,7 +3130,7 @@ class ActionChangeAbilityCoolDownDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("技能")
+@AtomGenClass()
 class ActionAddAbilityCoolDown extends ActionChangeAbilityCoolDownDelegate {
   public constructor(
     AbilityName: string,
@@ -3133,14 +3141,14 @@ class ActionAddAbilityCoolDown extends ActionChangeAbilityCoolDownDelegate {
   }
 }
 
-@AtomGenClass("设置")
+@AtomGenClass()
 class ActionSetAbilityCoolDown extends ActionChangeAbilityCoolDownDelegate {
   public constructor(AbilityName: string, Value: NumberValueDelegate) {
     super(AbilityName, Value, 0);
   }
 }
 
-@AtomGenClass("条件")
+@AtomGenClass()
 class ActionTakeConditionalActionExDelegate extends ActionDelegate {
   public constructor(
     public readonly Condition: BoolValueDelegate,
@@ -3153,7 +3161,7 @@ class ActionTakeConditionalActionExDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("ActionTakeActionsExDelegate")
+@AtomGenClass()
 class ActionTakeActionsExDelegate extends ActionDelegate {
   public readonly Actions: ReadonlyArray<ActionDelegate> = undefined;
 
@@ -3174,7 +3182,7 @@ class ActionTakeActionsExDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("ActionApplyBuffWithSourceDelegate")
+@AtomGenClass()
 class ActionApplyBuffWithSourceDelegate extends ActionDelegate {
   public readonly BuffID: string = undefined;
   public constructor(
@@ -3192,7 +3200,7 @@ class ActionApplyBuffWithSourceDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("ActionAddFireForceFX")
+@AtomGenClass()
 class ActionAddFireForceFX extends ActionDelegate {
   public readonly Radius: number;
   public readonly AngleOffset: number;
@@ -3209,7 +3217,7 @@ class ActionAddFireForceFX extends ActionDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class ActionApplyBuffWithCustomValueDelegate extends ActionDelegate {
   public readonly BuffId: string = undefined;
   public readonly CustomValues: ReadonlyArray<NumberValueDelegate> = undefined;
@@ -3227,7 +3235,7 @@ class ActionApplyBuffWithCustomValueDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("ActionApplyBuff")
+@AtomGenClass()
 class ActionApplyBuff extends ActionApplyBuffWithSourceDelegate {
   public constructor(
     BuffID: string | NumberValueConstDelegate,
@@ -3237,7 +3245,7 @@ class ActionApplyBuff extends ActionApplyBuffWithSourceDelegate {
   }
 }
 
-@AtomGenClass("开")
+@AtomGenClass()
 class ActionApplyBuffUnderThisBuffOn extends ActionDelegate {
   public readonly BuffId: string = undefined;
   public readonly OnWhom: ActorValueDelegate = undefined;
@@ -3252,7 +3260,7 @@ class ActionApplyBuffUnderThisBuffOn extends ActionDelegate {
   }
 }
 
-@AtomGenClass("ActionHealDelegate")
+@AtomGenClass()
 class ActionHealDelegate extends ActionDelegate {
   public constructor(
     public readonly Who: ActorValueDelegate,
@@ -3270,14 +3278,14 @@ class ActionHealDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("角色")
+@AtomGenClass()
 class ActionDispelCharacterStatusEffectDelegate extends ActionDelegate {
   public constructor(public readonly Who: ActorValueDelegate) {
     super("MHTsTriggerActionDispelStatusEffectOfCharacter_C");
   }
 }
 
-@AtomGenClass("角色")
+@AtomGenClass()
 class ActionChangeCharacterStaminaMax extends ActionDelegate {
   public constructor(
     public readonly Who: ActorValueDelegate,
@@ -3287,7 +3295,7 @@ class ActionChangeCharacterStaminaMax extends ActionDelegate {
   }
 }
 
-@AtomGenClass("角色")
+@AtomGenClass()
 class ActionChangeCharacterStamina extends ActionDelegate {
   public constructor(
     public readonly Who: ActorValueDelegate,
@@ -3297,14 +3305,14 @@ class ActionChangeCharacterStamina extends ActionDelegate {
   }
 }
 
-@AtomGenClass("ActionAAIBowMoveArcShotMarkLocation")
+@AtomGenClass()
 class ActionAAIBowMoveArcShotMarkLocation extends ActionDelegate {
   public constructor(public readonly MoveSpeed: NumberValueDelegate) {
     super("MHTsTriggerActionAAIBowMoveArcShotMarkLocation_C");
   }
 }
 
-@AtomGenClass("ActionAAIPetFollow")
+@AtomGenClass()
 class ActionAAIPetFollow extends ActionDelegate {
   public constructor(
     public readonly TargetType: string,
@@ -3313,34 +3321,34 @@ class ActionAAIPetFollow extends ActionDelegate {
     super("MHTsTriggerActionAAIPetFollow_C");
   }
 }
-@AtomGenClass("ActionAAIBowMoveAimPointLocation")
+@AtomGenClass()
 class ActionAAIBowMoveAimPointLocation extends ActionDelegate {
   public constructor() {
     super("MHTsTriggerActionAAIBowMoveAimPointLocation_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueAttackTargetOrSourceDelegate extends ActorValueDelegate {
   public constructor(public Target: boolean) {
     super("MHTsActorTriggerValueAttackTarget_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueAttackSource extends ActorValueAttackTargetOrSourceDelegate {
   public constructor() {
     super(false);
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueLockTarget extends ActorValueDelegate {
   public constructor() {
     super("MHTsActorTriggerValueLockTarget_C");
   }
 }
-@AtomGenClass("获取")
+@AtomGenClass()
 class ActionGetNearestMonsterInRadio extends ActorValueDelegate {
   public readonly Radio: number;
   public constructor(Radio: NumberValueConstDelegate) {
@@ -3349,7 +3357,7 @@ class ActionGetNearestMonsterInRadio extends ActorValueDelegate {
   }
 }
 
-@AtomGenClass("测试")
+@AtomGenClass()
 class MetaDataTestDummyDelegate extends NumberValueDelegate {
   public constructor(
     First: "xxx" | "yyy",
@@ -3367,89 +3375,89 @@ class MetaDataTestDummyDelegate extends NumberValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueCurrentlyVisitedDelegate extends ActorValueDelegate {
   public constructor() {
     super("ArashiActorTriggerValueCurrentlyVisited_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueAttackTarget extends ActorValueAttackTargetOrSourceDelegate {
   public constructor() {
     super(true);
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueTriggerOwnerDelegate extends ActorValueDelegate {
   public constructor() {
     super("MHTsActorTriggerValueTriggerOwner_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueGetTargetActorDelegate extends ActorValueDelegate {
   public constructor() {
     super("MHTsActorTriggerValueGetTargetActor_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueGetPetTargetDelegate extends ActorValueDelegate {
   public constructor() {
     super("MHTsActorTriggerValueGetPetTarget_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueGetPetDelegate extends ActorValueDelegate {
   public constructor() {
     super("MHTsActorTriggerValueGetPet_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueGetPlayerCharacterDelegate extends ActorValueDelegate {
   public constructor() {
     super("MHTsActorTriggerValueGetPlayerCharacter_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueBuffSource extends ActorValueDelegate {
   public constructor() {
     super("MHTsActorTriggerValueBuffSource_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueMaster extends ActorValueDelegate {
   public constructor(public readonly OfWhom: ActorValueDelegate) {
     super("MHTsActorTriggerValueGetMasterActor_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class ActorValueAAIGetEnemy extends ActorValueDelegate {
   public constructor() {
     super("MHTsActorTriggerValueAAIGetEnemy_C");
   }
 }
 
-@AtomGenClass("CustomActionDelegate")
+@AtomGenClass()
 class CustomActionDelegate extends ActionDelegate {
   public constructor(ClassName: string) {
     super(ClassName);
   }
 }
 
-@AtomGenClass("ActionAddPetStaminDelegate")
+@AtomGenClass()
 class ActionAddPetStaminDelegate extends ActionDelegate {
   public constructor(public readonly Addend: NumberValueDelegate) {
     super("MHTsTriggerActionAddPetStamina_C");
   }
 }
 
-@AtomGenClass("延迟")
+@AtomGenClass()
 class ActionDelayMonsterStiffnessTimeDelegate extends ActionDelegate {
   public DelayTimePercent: number;
   public DelayTime: number;
@@ -3463,7 +3471,7 @@ class ActionDelayMonsterStiffnessTimeDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("硬直")
+@AtomGenClass()
 class ActionChangeMonsterCurStiffnessTimeDelegate extends ActionDelegate {
   public constructor(
     public readonly DelayTimePercent: NumberValueDelegate,
@@ -3473,7 +3481,7 @@ class ActionChangeMonsterCurStiffnessTimeDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("延迟")
+@AtomGenClass()
 class ActionDelayBuffDurationDelegate extends ActionDelegate {
   public readonly BuffId: string;
   public readonly DelayTime: number;
@@ -3490,7 +3498,7 @@ class ActionDelayBuffDurationDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("CustomActionDealDamageDelegate")
+@AtomGenClass()
 class CustomActionDealDamageDelegate extends ActionDelegate {
   public readonly AtkArgs: AtkParamsInTermsOfJsObject;
   public readonly BuffHitConfigID: string = undefined;
@@ -3524,7 +3532,7 @@ class CustomActionDealDamageDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("编号")
+@AtomGenClass()
 class CustomActionDealDamageByBuffHitConfigID extends CustomActionDealDamageDelegate {
   public constructor(
     bDoT: BoolValueConstDelegate,
@@ -3550,7 +3558,7 @@ class CustomActionDealDamageByBuffHitConfigID extends CustomActionDealDamageDele
   }
 }
 
-@AtomGenClass("CustomActionMonsterDealDamage")
+@AtomGenClass()
 class CustomActionMonsterDealDamage extends CustomActionDealDamageDelegate {
   public constructor(MonsterAttackConfigID: string) {
     super(
@@ -3568,7 +3576,7 @@ class CustomActionMonsterDealDamage extends CustomActionDealDamageDelegate {
   }
 }
 
-@AtomGenClass("硬直")
+@AtomGenClass()
 class CustomActionEMTriggerStiffnessDelegate extends ActionDelegate {
   public constructor(
     public readonly StiffnessType: string,
@@ -3582,14 +3590,14 @@ class CustomActionEMTriggerStiffnessDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("CustomActionEMHitBySpecialAmmoDelegate")
+@AtomGenClass()
 class CustomActionEMHitBySpecialAmmoDelegate extends ActionDelegate {
   public constructor(public readonly AmmoType: string) {
     super("MHTsTriggerActionEMHitBySpecialAmmo_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueEMIsSpecialAmmoBuffStackFullDelegate extends BoolValueDelegate {
   public constructor(
     public readonly AmmoType: string,
@@ -3603,7 +3611,7 @@ class BoolValueEMIsSpecialAmmoBuffStackFullDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("ActionModifyHealingDelegate")
+@AtomGenClass()
 class ActionModifyHealingDelegate extends ActionDelegate {
   public constructor(
     public readonly AdditionalFlt: NumberValueDelegate,
@@ -3613,7 +3621,7 @@ class ActionModifyHealingDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("修饰符")
+@AtomGenClass()
 class CustomActionModifyAttackAtkNumAttModifierDelegate extends CustomActionDelegate {
   public constructor(
     public readonly AtkNumStyleType: NumberValueDelegate,
@@ -3623,7 +3631,7 @@ class CustomActionModifyAttackAtkNumAttModifierDelegate extends CustomActionDele
   }
 }
 
-@AtomGenClass("属性")
+@AtomGenClass()
 class CustomActionModifyAttackAttributeModifierDelegate extends CustomActionDelegate {
   public constructor(
     public readonly AttackerOrVictim: BoolValueDelegate,
@@ -3634,7 +3642,7 @@ class CustomActionModifyAttackAttributeModifierDelegate extends CustomActionDele
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class CustomActionModifyAttackMotionValueDelegate extends CustomActionDelegate {
   public constructor(
     public readonly PhysicalPercentageBonus: NumberValueDelegate,
@@ -3645,28 +3653,28 @@ class CustomActionModifyAttackMotionValueDelegate extends CustomActionDelegate {
   }
 }
 
-@AtomGenClass("物理")
+@AtomGenClass()
 class CustomActionModifyAttackPhysicalMotionValue extends CustomActionModifyAttackMotionValueDelegate {
   public constructor(PercentageBonus: NumberValueDelegate) {
     super(PercentageBonus, ZeroConstNumberValue, ZeroConstNumberValue);
   }
 }
 
-@AtomGenClass("状态")
+@AtomGenClass()
 class CustomActionModifyAttackStatusEffectMotionValue extends CustomActionModifyAttackMotionValueDelegate {
   public constructor(PercentageBonus: NumberValueDelegate) {
     super(ZeroConstNumberValue, PercentageBonus, ZeroConstNumberValue);
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class CustomActionModifyAttackElementalMotionValue extends CustomActionModifyAttackMotionValueDelegate {
   public constructor(PercentageBonus: NumberValueDelegate) {
     super(ZeroConstNumberValue, ZeroConstNumberValue, PercentageBonus);
   }
 }
 
-@AtomGenClass("CustomActionModifyAttackOverrideElementalDamageDelegate")
+@AtomGenClass()
 class CustomActionModifyAttackOverrideElementalDamageDelegate extends CustomActionDelegate {
   public constructor(
     public readonly Element: keyof typeof EElementalStatusEffect,
@@ -3676,7 +3684,7 @@ class CustomActionModifyAttackOverrideElementalDamageDelegate extends CustomActi
   }
 }
 
-@AtomGenClass("CustomActionModifyAttackPostureDamageDelegate")
+@AtomGenClass()
 class CustomActionModifyAttackPostureDamageDelegate extends CustomActionDelegate {
   public constructor(
     public readonly Addend: NumberValueDelegate,
@@ -3686,7 +3694,7 @@ class CustomActionModifyAttackPostureDamageDelegate extends CustomActionDelegate
   }
 }
 
-@AtomGenClass("真实")
+@AtomGenClass()
 class CustomActionModifyAttackRealStatusEffectInflictions extends CustomActionDelegate {
   public constructor(
     public readonly StatusEffect: keyof typeof EStatusEffect,
@@ -3696,7 +3704,7 @@ class CustomActionModifyAttackRealStatusEffectInflictions extends CustomActionDe
   }
 }
 
-@AtomGenClass("CustomActionModifyAttackIncreaseThreatGeneration")
+@AtomGenClass()
 class CustomActionModifyAttackIncreaseThreatGeneration extends CustomActionDelegate {
   public constructor(
     public readonly Addend: NumberValueDelegate,
@@ -3706,21 +3714,21 @@ class CustomActionModifyAttackIncreaseThreatGeneration extends CustomActionDeleg
   }
 }
 
-@AtomGenClass("属性")
+@AtomGenClass()
 class CustomActionModifyAttackerAttributeFactor extends CustomActionModifyAttackAttributeModifierDelegate {
   public constructor(FactorName: string, DeltaValue: NumberValueDelegate) {
     super(TrueConstBoolValue, FactorName, DeltaValue);
   }
 }
 
-@AtomGenClass("属性")
+@AtomGenClass()
 class CustomActionModifyVictimAttributeFactor extends CustomActionModifyAttackAttributeModifierDelegate {
   public constructor(FactorName: string, DeltaValue: NumberValueDelegate) {
     super(FalseConstBoolValue, FactorName, DeltaValue);
   }
 }
 
-@AtomGenClass("角色")
+@AtomGenClass()
 class CustomActionModifyCharacterAttributeDelegate extends CustomActionDelegate {
   public constructor(
     public readonly AttributeName: string,
@@ -3730,7 +3738,7 @@ class CustomActionModifyCharacterAttributeDelegate extends CustomActionDelegate 
   }
 }
 
-@AtomGenClass("属性")
+@AtomGenClass()
 class CustomActionModifyMonsterAttributeDelegate extends CustomActionDelegate {
   public constructor(
     public readonly AttributeName: string,
@@ -3741,21 +3749,21 @@ class CustomActionModifyMonsterAttributeDelegate extends CustomActionDelegate {
   }
 }
 
-@AtomGenClass("状态")
+@AtomGenClass()
 class CustomActionRemoveEMBuffState extends CustomActionDelegate {
   public constructor(public readonly BuffStateName: string) {
     super("MHTsTriggerActionEMRemoveBuffState_C");
   }
 }
 
-@AtomGenClass("状态")
+@AtomGenClass()
 class CustomActionAddEMBuffState extends CustomActionDelegate {
   public constructor(public readonly BuffStateName: string) {
     super("MHTsTriggerActionEMAddBuffState_C");
   }
 }
 
-@AtomGenClass("CustomActionModifyAttackAddPartBreakDelegate")
+@AtomGenClass()
 class CustomActionModifyAttackAddPartBreakDelegate extends CustomActionDelegate {
   public constructor(
     public readonly AdditionalPartBreak: NumberValueDelegate,
@@ -3765,7 +3773,7 @@ class CustomActionModifyAttackAddPartBreakDelegate extends CustomActionDelegate 
   }
 }
 
-@AtomGenClass("属性")
+@AtomGenClass()
 class CustomActionModifyAttackChangeAttributeAfterwardsDelegate extends CustomActionDelegate {
   public constructor(
     public readonly AttackerOrVictim: boolean,
@@ -3776,7 +3784,7 @@ class CustomActionModifyAttackChangeAttributeAfterwardsDelegate extends CustomAc
   }
 }
 
-@AtomGenClass("属性")
+@AtomGenClass()
 class ChangeAttributeByMultiplierTaskDelegate extends TaskDelegate {
   public readonly AttributeKey: string;
   public readonly Multiplier: number;
@@ -3799,7 +3807,7 @@ class ChangeAttributeByMultiplierTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("SetFuBenSpecialPartTaskDelegate")
+@AtomGenClass()
 class SetFuBenSpecialPartTaskDelegate extends TaskDelegate {
   public readonly BreakablePartName: string;
 
@@ -3816,21 +3824,21 @@ class SetFuBenSpecialPartTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("生命值")
+@AtomGenClass()
 class CustomActionModifyHealthPointLoss extends CustomActionDelegate {
   public constructor(public readonly HealthPointLoss: NumberValueDelegate) {
     super("MHTsTriggerActionModifyHealthPointLoss_C");
   }
 }
 
-@AtomGenClass("名称")
+@AtomGenClass()
 class CustomActionModifyHitBoneName extends CustomActionDelegate {
   public constructor(public readonly BoneName: string) {
     super("MHTsTriggerActionModifyHitBoneName_C");
   }
 }
 
-@AtomGenClass("属性")
+@AtomGenClass()
 class CustomActionModifyVictimAttributeAfterwards extends CustomActionModifyAttackChangeAttributeAfterwardsDelegate {
   public constructor(
     AttributeName: string,
@@ -3840,7 +3848,7 @@ class CustomActionModifyVictimAttributeAfterwards extends CustomActionModifyAtta
   }
 }
 
-@AtomGenClass("属性")
+@AtomGenClass()
 class CustomActionModifyAttackerAttributeAfterwards extends CustomActionModifyAttackChangeAttributeAfterwardsDelegate {
   public constructor(
     AttributeName: string,
@@ -3850,7 +3858,7 @@ class CustomActionModifyAttackerAttributeAfterwards extends CustomActionModifyAt
   }
 }
 
-@AtomGenClass("技能")
+@AtomGenClass()
 class ActivateAbilityAction extends CustomActionDelegate {
   public readonly AbilityConfigID: string;
 
@@ -3860,14 +3868,14 @@ class ActivateAbilityAction extends CustomActionDelegate {
   }
 }
 
-@AtomGenClass("字段")
+@AtomGenClass()
 class FieldDisableNextDestroyAction extends CustomActionDelegate {
   public constructor() {
     super("MHTsTriggerActionFieldDisableNextDestroy_C");
   }
 }
 
-@AtomGenClass("字段")
+@AtomGenClass()
 class FieldCustomDestroyAction extends CustomActionDelegate {
   public constructor() {
     super("MHTsTriggerActionFieldExecuteCustomDestory_C");
@@ -3886,7 +3894,7 @@ abstract class StatusEffectInflictionOnMonsterAction extends ActionDelegate {
     super("ArashiTriggerActionInflictStatusEffectOnMonster_C");
   }
 }
-@AtomGenClass("状态")
+@AtomGenClass()
 class PoisonStatusEffectInflictionOnMonsterAction extends StatusEffectInflictionOnMonsterAction {
   public constructor(
     Target: ActorValueDelegate,
@@ -3905,7 +3913,7 @@ class PoisonStatusEffectInflictionOnMonsterAction extends StatusEffectInfliction
     );
   }
 }
-@AtomGenClass("状态")
+@AtomGenClass()
 class ParalysisStatusEffectInflictionOnMonsterAction extends StatusEffectInflictionOnMonsterAction {
   public constructor(
     Target: ActorValueDelegate,
@@ -3922,7 +3930,7 @@ class ParalysisStatusEffectInflictionOnMonsterAction extends StatusEffectInflict
     );
   }
 }
-@AtomGenClass("状态")
+@AtomGenClass()
 class SleepStatusEffectInflictionOnMonsterAction extends StatusEffectInflictionOnMonsterAction {
   public constructor(
     Target: ActorValueDelegate,
@@ -3939,7 +3947,7 @@ class SleepStatusEffectInflictionOnMonsterAction extends StatusEffectInflictionO
     );
   }
 }
-@AtomGenClass("状态")
+@AtomGenClass()
 class StunStatusEffectInflictionOnMonsterAction extends StatusEffectInflictionOnMonsterAction {
   public constructor(
     Target: ActorValueDelegate,
@@ -3957,35 +3965,35 @@ class StunStatusEffectInflictionOnMonsterAction extends StatusEffectInflictionOn
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class SummonCustomValueNumberDelegate extends NumberValueDelegate {
   public constructor(public readonly Index: number) {
     super("MHTsNumberTriggerValueSummonCustomValue_C");
   }
 }
 
-@AtomGenClass("副本")
+@AtomGenClass()
 class FubenTimeNumbleDelegate extends NumberValueDelegate {
   public constructor() {
     super("MHTsNumberTriggerValueFubenTime_C");
   }
 }
 
-@AtomGenClass("物品")
+@AtomGenClass()
 class HaveItemBoolValueDelegate extends NumberValueDelegate {
   public constructor(public readonly ItemID: NumberValueDelegate) {
     super("MHTsBoolTriggerValueHaveItem_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckIsInBattleDelegate extends BoolValueDelegate {
   public constructor() {
     super("MHTsBoolTriggerValueCheckIsInBattle_C");
   }
 }
 
-@AtomGenClass("粒子")
+@AtomGenClass()
 class ParticleEffectTaskDelegate extends TaskDelegate {
   public readonly AttachToComponent = false;
   public readonly ComponentName = "";
@@ -4021,7 +4029,7 @@ class ParticleEffectTaskDelegate extends TaskDelegate {
     );
   }
 }
-@AtomGenClass("连续")
+@AtomGenClass()
 class ContinuousSpikeTalentDelegate extends TaskDelegate {
   public ModifierIds: Array<number> = [];
   public constructor(
@@ -4039,7 +4047,7 @@ class ContinuousSpikeTalentDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("EventControlledBuffTaskDelegate")
+@AtomGenClass()
 class EventControlledBuffTaskDelegate extends TaskDelegate {
   public readonly ThresholdTime: number = undefined;
 
@@ -4064,7 +4072,7 @@ class EventControlledBuffTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("生命值")
+@AtomGenClass()
 class RedHealthRelievingPausingTaskDelegate extends TaskDelegate {
   public constructor() {
     super(
@@ -4077,7 +4085,7 @@ class RedHealthRelievingPausingTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("粒子")
+@AtomGenClass()
 class MonsterParticleEffectTaskDelegate extends TaskDelegate {
   public readonly EffectTag = { TagName: undefined };
   public readonly EffectStopOnTaskEnd: boolean = undefined;
@@ -4096,7 +4104,7 @@ class MonsterParticleEffectTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("事件")
+@AtomGenClass()
 class ActivateAkEventTaskDelegate extends TaskDelegate {
   public readonly AkEventName: string = undefined;
 
@@ -4112,7 +4120,7 @@ class ActivateAkEventTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("TaskTakeActionExDelegate")
+@AtomGenClass()
 class TaskTakeActionExDelegate extends TaskDelegate {
   public constructor(
     public readonly BeginAction: ActionDelegate,
@@ -4128,7 +4136,7 @@ class TaskTakeActionExDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("ActionOverTimeTaskDelegate")
+@AtomGenClass()
 class ActionOverTimeTaskDelegate extends TaskDelegate {
   public constructor(
     public readonly Interval: number,
@@ -4143,7 +4151,7 @@ class ActionOverTimeTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("速度")
+@AtomGenClass()
 class BowgunModifyAmmoRechargeSpeedTaskDelegate extends TaskDelegate {
   public readonly WyvernheartSpeedUp: number;
   public readonly PowerfulAmmoSpeedUp: number;
@@ -4173,7 +4181,7 @@ class BowgunModifyAmmoRechargeSpeedTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("EventActionExTaskDelegate")
+@AtomGenClass()
 class EventActionExTaskDelegate extends TaskDelegate {
   public constructor(
     public readonly Event: EventDelegateEx,
@@ -4188,7 +4196,7 @@ class EventActionExTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("开")
+@AtomGenClass()
 class ApplyBuffOnMasterCharacterTaskDelegate extends TaskDelegate {
   public readonly BuffId: string = undefined;
 
@@ -4206,7 +4214,7 @@ class ApplyBuffOnMasterCharacterTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("CombatResourceChangeModificationTaskDelegate")
+@AtomGenClass()
 class CombatResourceChangeModificationTaskDelegate extends TaskDelegate {
   public readonly Tags: ReadonlyArray<string> = undefined;
 
@@ -4230,7 +4238,7 @@ class CombatResourceChangeModificationTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("属性")
+@AtomGenClass()
 class AddAttributeTaskDelegate extends TaskDelegate {
   public constructor(
     public readonly FactorName: string,
@@ -4250,14 +4258,14 @@ class AddAttributeTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("属性")
+@AtomGenClass()
 class AddAttributeTaskFixedAtBeginning extends AddAttributeTaskDelegate {
   public constructor(FactorName: string, AttributeChange: NumberValueDelegate) {
     super(FactorName, AttributeChange, "", false);
   }
 }
 
-@AtomGenClass("字段")
+@AtomGenClass()
 class AddFieldDurationModifierTaskDelegate extends TaskDelegate {
   public readonly FieldConfigID: string = undefined;
   public readonly FieldDurationToAdd: number = undefined;
@@ -4277,7 +4285,7 @@ class AddFieldDurationModifierTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("构建")
+@AtomGenClass()
 class CombatResourceConsumptionBuildUpOrRestorationTaskDelegate extends TaskDelegate {
   public readonly CombatResource: ue.ECombatResource;
 
@@ -4313,14 +4321,14 @@ class CombatResourceConsumptionBuildUpOrRestorationTaskDelegate extends TaskDele
   }
 }
 
-@AtomGenClass("默认")
+@AtomGenClass()
 class HandleDefaultSuccActionDelegate extends ActionDelegate {
   public constructor() {
     super("MHTsCT_HandleDefaultSuccAction_C");
   }
 }
 
-@AtomGenClass("教程")
+@AtomGenClass()
 class SendTutorialTipsUnlockEventActionDelegate extends ActionDelegate {
   public constructor(
     public readonly TutorialID: NumberValueDelegate,
@@ -4330,7 +4338,7 @@ class SendTutorialTipsUnlockEventActionDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("CheckConditionTickActionDelegate")
+@AtomGenClass()
 class CheckConditionTickActionDelegate extends ActionDelegate {
   public constructor(
     public readonly SuccessAction: ActionDelegate,
@@ -4347,7 +4355,7 @@ class CheckConditionTickActionDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckAttackerAdventureDelegate extends BoolValueDelegate {
   public constructor(
     public readonly AdventureId: NumberValueDelegate,
@@ -4356,7 +4364,7 @@ class BoolValueCheckAttackerAdventureDelegate extends BoolValueDelegate {
     super("MHTsCT_CheckAttackerAdventure_C");
   }
 }
-@AtomGenClass("值")
+@AtomGenClass()
 class BoolValueCheckAttackerHitTargetBodyPartDelegate extends BoolValueDelegate {
   public constructor(public readonly HitBodyPart: string) {
     super("MHTsCT_CheckAttackerHitTargetBodyPart_C");
@@ -4366,21 +4374,21 @@ class BoolValueCheckAttackerHitTargetBodyPartDelegate extends BoolValueDelegate 
 // 下面这行不能删，用于自动生成代码
 // Auto Gen Atom Delegate Implement
 
-@AtomGenClass("当前")
+@AtomGenClass()
 class CheckCurrentFubenFinishTypeIs_BoolValueDelegate extends BoolValueDelegate {
   public constructor(public readonly FinishType: NumberValueDelegate) {
     super("MHTS_CheckCurrentFubenFinishTypeIs_C");
   }
 }
 
-@AtomGenClass("是否")
+@AtomGenClass()
 class CheckBuffSourceIsSelf_BoolValueDelegate extends BoolValueDelegate {
   public constructor() {
     super("MHTS_CheckBuffSourceIsSelf_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class CheckWAEndMethodOnlySuccessOrFailed_BoolValueDelegate extends BoolValueDelegate {
   public constructor(
     readonly WAType: api.ENMWorldActivityType,
@@ -4390,7 +4398,7 @@ class CheckWAEndMethodOnlySuccessOrFailed_BoolValueDelegate extends BoolValueDel
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class CheckWAEndMethod_BoolValueDelegate extends BoolValueDelegate {
   public constructor(
     readonly WAType: api.ENMWorldActivityType,
@@ -4400,7 +4408,7 @@ class CheckWAEndMethod_BoolValueDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("等级")
+@AtomGenClass()
 class CheckEntryLevel_BoolValueDelegate extends BoolValueDelegate {
   public constructor(
     public readonly EntryType: string,
@@ -4410,7 +4418,7 @@ class CheckEntryLevel_BoolValueDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("类型")
+@AtomGenClass()
 class CheckInteractActionType_BoolValueDelegate extends BoolValueDelegate {
   public ActionType: number | NumberValueConstDelegate;
   public constructor(ActionType: number | NumberValueConstDelegate) {
@@ -4420,7 +4428,7 @@ class CheckInteractActionType_BoolValueDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("是否")
+@AtomGenClass()
 class CheckBagCapacityIsFull_BoolValueDelegate extends BoolValueDelegate {
   public BagCategoryID: number | NumberValueConstDelegate;
   public IsReal: boolean | BoolValueConstDelegate;
@@ -4437,7 +4445,7 @@ class CheckBagCapacityIsFull_BoolValueDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class CheckBagCapacityNumChangeID_BoolValueDelegate extends BoolValueDelegate {
   public ID: number | NumberValueConstDelegate;
   public constructor(ID: number | NumberValueConstDelegate) {
@@ -4446,7 +4454,7 @@ class CheckBagCapacityNumChangeID_BoolValueDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("数量")
+@AtomGenClass()
 class CheckBuildingCountChangedID_BoolValueDelegate extends BoolValueDelegate {
   public ID: number | NumberValueConstDelegate;
 
@@ -4456,7 +4464,7 @@ class CheckBuildingCountChangedID_BoolValueDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("数量")
+@AtomGenClass()
 class CheckBuildingRemainCountLessThan_BoolValueDelegate extends BoolValueDelegate {
   public ID: number | NumberValueConstDelegate;
   public Count: number | NumberValueConstDelegate;
@@ -4470,7 +4478,7 @@ class CheckBuildingRemainCountLessThan_BoolValueDelegate extends BoolValueDelega
   }
 }
 
-@AtomGenClass("节点")
+@AtomGenClass()
 class CheckStudyNodeCost_BoolValueDelegate extends BoolValueDelegate {
   public NodeID: number | NumberValueConstDelegate;
 
@@ -4480,7 +4488,7 @@ class CheckStudyNodeCost_BoolValueDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("节点")
+@AtomGenClass()
 class CheckStudyNodeLevel_BoolValueDelegate extends BoolValueDelegate {
   public NodeID: number | NumberValueConstDelegate;
   public CheckType: string;
@@ -4499,14 +4507,14 @@ class CheckStudyNodeLevel_BoolValueDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("StudyTreeTriggerTips_ActionDelegate")
+@AtomGenClass()
 class StudyTreeTriggerTips_ActionDelegate extends ActionDelegate {
   public constructor(public readonly NodeID: NumberValueDelegate) {
     super("MHTS_StudyTreeTriggerTips_C");
   }
 }
 
-@AtomGenClass("移动")
+@AtomGenClass()
 class CheckMovementMode_BoolValueDelegate extends BoolValueDelegate {
   public PrevMovementMode: EMovementMode;
   public PrevCustomMovementMode: number;
@@ -4542,7 +4550,7 @@ class CheckMovementMode_BoolValueDelegate extends BoolValueDelegate {
   }
 }
 
-@AtomGenClass("名称")
+@AtomGenClass()
 class CheckMonsterBodyBrokenPartName_BoolValueDelegate extends BoolValueDelegate {
   public constructor(
     public readonly PartName: string,
@@ -4552,35 +4560,35 @@ class CheckMonsterBodyBrokenPartName_BoolValueDelegate extends BoolValueDelegate
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class CheckAddedSidetalkID_BoolValueDelegate extends BoolValueDelegate {
   public constructor(public readonly SidetalkID: NumberValueDelegate) {
     super("MHTS_CheckAddedSidetalkID_C");
   }
 }
 
-@AtomGenClass("教程")
+@AtomGenClass()
 class CheckTutorialIsUnlock_BoolValueDelegate extends BoolValueDelegate {
   public constructor(public readonly TutorialID: NumberValueDelegate) {
     super("MHTS_CheckTutorialIsUnlock_C");
   }
 }
 
-@AtomGenClass("武器")
+@AtomGenClass()
 class CheckActorWeaponType_BoolValueDelegate extends BoolValueDelegate {
   public constructor(public readonly WeaponType: NumberValueDelegate) {
     super("MHTS_CheckActorWeaponType_C");
   }
 }
 
-@AtomGenClass("当前")
+@AtomGenClass()
 class CheckCurrentAbility_BoolValueDelegate extends BoolValueDelegate {
   public constructor(public readonly AbilitySkillGroupId: NumberValueDelegate) {
     super("MHTSCT_CheckCurrentAbility_C");
   }
 }
 
-@AtomGenClass("AddSubTriggerList_ActionDelegate")
+@AtomGenClass()
 class AddSubTriggerList_ActionDelegate extends ActionDelegate {
   private readonly SubTriggerRelation: ESubTriggerOperate;
   public readonly SubTriggerConfigIds: ReadonlyArray<NumberValueDelegate> =
@@ -4595,28 +4603,28 @@ class AddSubTriggerList_ActionDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("键")
+@AtomGenClass()
 class CheckInputKey_BoolValueDelegate extends BoolValueDelegate {
   public constructor(public readonly InputKey: string) {
     super("MHTSCT_CheckInputKey_C");
   }
 }
 
-@AtomGenClass("值")
+@AtomGenClass()
 class CheckBuffID_BoolValueDelegate extends BoolValueDelegate {
   public constructor(public readonly BuffID: NumberValueDelegate) {
     super("MHTSCT_CheckBuffID_C");
   }
 }
 
-@AtomGenClass("技能")
+@AtomGenClass()
 class AttSkillDefaultSuccAction_ActionDelegate extends ActionDelegate {
   public constructor(public readonly IsCheckDiffSkill: BoolValueDelegate) {
     super("MHTsCT_AttSkillDefaultSuccAction_C");
   }
 }
 
-@AtomGenClass("AddSubTrigger_ActionDelegate")
+@AtomGenClass()
 class AddSubTrigger_ActionDelegate extends ActionDelegate {
   public readonly SubTriggerIdStr: string;
   public constructor(SubTriggerId: NumberValueConstDelegate) {
@@ -4625,7 +4633,7 @@ class AddSubTrigger_ActionDelegate extends ActionDelegate {
   }
 }
 
-@AtomGenClass("构建")
+@AtomGenClass()
 class CombatResourceConsumptionBuildUpOrRestorationTickTask extends CombatResourceConsumptionBuildUpOrRestorationTaskDelegate {
   public constructor(
     CombatResourceName: keyof typeof ue.ECombatResource,
@@ -4641,7 +4649,7 @@ class CombatResourceConsumptionBuildUpOrRestorationTickTask extends CombatResour
   }
 }
 
-@AtomGenClass("生命值")
+@AtomGenClass()
 class AdventurerHealthLockTaskDelegate extends TaskDelegate {
   public readonly HealthPointLock: number;
   public readonly HealthRatioLock: number;
@@ -4671,7 +4679,7 @@ class AdventurerHealthLockTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("构建")
+@AtomGenClass()
 class CombatResourceConsumptionBuildUpOrRestorationIntervalTask extends CombatResourceConsumptionBuildUpOrRestorationTaskDelegate {
   public constructor(
     CombatResourceName: keyof typeof ue.ECombatResource,
@@ -4690,7 +4698,7 @@ class CombatResourceConsumptionBuildUpOrRestorationIntervalTask extends CombatRe
   }
 }
 
-@AtomGenClass("构建")
+@AtomGenClass()
 class BuildUpOrRestoreInTickTaskDelegate extends TaskDelegate {
   public readonly CombatResource: ue.ECombatResource;
 
@@ -4707,7 +4715,7 @@ class BuildUpOrRestoreInTickTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("属性")
+@AtomGenClass()
 class AttributeAdditionTaskDelegate extends TaskDelegate {
   public readonly AttributeList: {};
   public readonly AdditionalToBase: boolean;
@@ -4730,7 +4738,7 @@ class AttributeAdditionTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("温度")
+@AtomGenClass()
 class TemperatureOvercomeTaskDelegate extends TaskDelegate {
   public readonly TemperatureType: ETemperatureType;
   public readonly ItemID: string;
@@ -4753,7 +4761,7 @@ class TemperatureOvercomeTaskDelegate extends TaskDelegate {
   }
 }
 
-@AtomGenClass("MeshGlowExTaskDelegate")
+@AtomGenClass()
 class MeshGlowExTaskDelegate extends TaskDelegate {
   public readonly MeshSlotNames: Array<string>;
   public readonly MaterialSlotName: string;

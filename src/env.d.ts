@@ -22,6 +22,7 @@ type ExcelOpenResult =
       columnNames?: string[]
       rowNames?: string[]
       rowNameColumnName?: string
+      columnDescriptions?: Record<string, string>
       rows?: RowRecord[]
       error?: string
     }

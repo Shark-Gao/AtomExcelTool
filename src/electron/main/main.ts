@@ -1,6 +1,6 @@
 // src/electron/main/main.ts
 import { join } from 'path';
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron';
 import ExcelJS from 'exceljs';
 import { FAtomExpressionParser, FunctionNameToDelegate } from './MHTsAtomSystemUtils';
 import {DelegateMetadataGenerator} from './DelegateMetadataGenerator';
@@ -166,7 +166,16 @@ async function handleOpenWorkbook() {
         columnNames: headerLabels,
         rows,
         rowNames,
-        rowNameColumnName: headerLabels[rowNameColumnNumber - 1]
+        rowNameColumnName: headerLabels[rowNameColumnNumber - 1],
+        columnDescriptions: (() => {
+            const descRow = worksheet.getRow(1);
+            const map: Record<string, string> = {};
+            headerLabels.forEach((label, idx) => {
+                const text = (descRow.getCell(idx + 1).text || '').trim();
+                map[label] = text;
+            });
+            return map;
+        })()
     };
 }
 
@@ -378,6 +387,9 @@ function createWindow() {
             sandbox: false
         },
     });
+
+    // 禁用菜单栏
+    Menu.setApplicationMenu(null);
 
     if (isDev) {
         mainWindow.loadURL('http://localhost:5173');

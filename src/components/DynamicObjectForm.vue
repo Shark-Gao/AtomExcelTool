@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { normalizeClassInstance as normalizeClassInstanceUtil } from '../utils/ClassNormalizer'
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object' | 'array'
 
@@ -140,77 +141,9 @@ function getSubclassOptions(baseClass: string): FieldOption[] {
   return props.subclassOptions[baseClass] ?? []
 }
 
+// 内部便捷函数，直接使用当前组件的 props
 function normalizeClassInstance(className: string, raw: Record<string, unknown>): Record<string, unknown> {
-  const info = props.registry[className]
-  if (!info) {
-    return { _ClassName: className }
-  }
-
-  const normalized: Record<string, unknown> = { _ClassName: className }
-
-  Object.entries(info.fields).forEach(([fieldKey, fieldMeta]) => {
-    const rawValue = raw[fieldKey]
-
-    if (fieldMeta.type === 'object') {
-      const options = getSubclassOptions(fieldMeta.baseClass)
-      const rawObject = typeof rawValue === 'object' && rawValue !== null ? (rawValue as Record<string, unknown>) : {}
-      const requestedClass = typeof rawObject._ClassName === 'string' ? rawObject._ClassName : ''
-      
-      // 如果请求的类在选项中存在，使用它；否则保持空值，让用户选择
-      const selectedClass = options.some((option) => option.value === requestedClass)
-        ? requestedClass
-        : ''
-      
-      if (selectedClass) {
-        normalized[fieldKey] = normalizeClassInstance(selectedClass, rawObject)
-      } else {
-        // 保持空值，让用户从下拉框选择
-        normalized[fieldKey] = { _ClassName: '' }
-      }
-      return
-    }
-
-    if (fieldMeta.type === 'array') {
-      const options = getSubclassOptions(fieldMeta.baseClass)
-      const items = Array.isArray(rawValue) ? rawValue : []
-      normalized[fieldKey] = items.map((item) => {
-        const rawObject = typeof item === 'object' && item !== null ? (item as Record<string, unknown>) : {}
-        const requestedClass = typeof rawObject._ClassName === 'string' ? rawObject._ClassName : ''
-        
-        // 如果请求的类在选项中存在，使用它；否则保持空值
-        const selectedClass = options.some((option) => option.value === requestedClass)
-          ? requestedClass
-          : ''
-        
-        if (selectedClass) {
-          return normalizeClassInstance(selectedClass, rawObject)
-        } else {
-          // 保持空值，让用户从下拉框选择
-          return { _ClassName: '' }
-        }
-      })
-      return
-    }
-
-    if (fieldMeta.type === 'number') {
-      if (rawValue === undefined || rawValue === null || rawValue === '') {
-        normalized[fieldKey] = 0
-        return
-      }
-      const numericValue = Number(rawValue)
-      normalized[fieldKey] = Number.isNaN(numericValue) ? 0 : numericValue
-      return
-    }
-
-    if (fieldMeta.type === 'boolean') {
-      normalized[fieldKey] = Boolean(rawValue)
-      return
-    }
-
-    normalized[fieldKey] = rawValue ?? ''
-  })
-
-  return normalized
+  return normalizeClassInstanceUtil(className, raw, props.registry, props.subclassOptions)
 }
 
 function setLocalValue(value: Record<string, unknown>) {

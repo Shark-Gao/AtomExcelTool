@@ -10,6 +10,7 @@ const props = defineProps<{
   isOpen: boolean
   currentTheme: string
   showOnlyAtomicFields: boolean
+  isDebugMode: boolean
   themeOptions: FieldOption[]
 }>()
 
@@ -17,6 +18,7 @@ const emit = defineEmits<{
   'update:isOpen': [value: boolean]
   'update:currentTheme': [value: string]
   'update:showOnlyAtomicFields': [value: boolean]
+  'update:isDebugMode': [value: boolean]
 }>()
 
 function closeModal() {
@@ -29,6 +31,10 @@ function handleThemeChange(newTheme: string) {
 
 function handleAtomicFieldsToggle(value: boolean) {
   emit('update:showOnlyAtomicFields', value)
+}
+
+function handleDebugModeToggle(value: boolean) {
+  emit('update:isDebugMode', value)
 }
 </script>
 
@@ -66,6 +72,20 @@ function handleAtomicFieldsToggle(value: boolean) {
             />
           </label>
           <p class="text-xs text-base-content/60 mt-2">启用后，只显示原子类型字段，隐藏普通文本字段</p>
+        </div>
+
+        <!-- 调试模式开关 -->
+        <div class="form-control">
+          <label class="label cursor-pointer">
+            <span class="label-text font-semibold">调试模式</span>
+            <input
+              type="checkbox"
+              class="toggle toggle-secondary"
+              :checked="isDebugMode"
+              @change="(event) => handleDebugModeToggle((event.target as HTMLInputElement).checked)"
+            />
+          </label>
+          <p class="text-xs text-base-content/60 mt-2">启用后，显示解析后的 JSON 结构</p>
         </div>
       </div>
 

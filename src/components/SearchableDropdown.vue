@@ -26,6 +26,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+let blurTimeoutId: ReturnType<typeof setTimeout> | null = null
+
 // 使用 props 中的值作为真实来源，不维护本地状态
 // 过滤选项（支持搜索）
 const filteredOptions = computed(() => {
@@ -68,12 +70,18 @@ function handleSearchInput(value: string) {
 }
 
 function handleFocus() {
+  if (blurTimeoutId !== null) {
+    clearTimeout(blurTimeoutId)
+    blurTimeoutId = null
+  }
   emit('update:open', true)
 }
 
 function handleBlur() {
-  setTimeout(() => {
+  // 延迟关闭，保证点击事件有机会先触发
+  blurTimeoutId = setTimeout(() => {
     emit('update:open', false)
+    blurTimeoutId = null
   }, 200)
 }
 </script>
@@ -92,14 +100,14 @@ function handleBlur() {
     />
     <ul
       v-if="props.open"
-      class="dropdown-content menu bg-base-100 rounded-box z-[1] w-full p-2 shadow border border-base-300 max-h-64 overflow-y-auto"
+      class="dropdown-content menu bg-base-100 rounded-box z-9999 w-full p-2 shadow border border-base-300 max-h-164 overflow-y-auto overflow-x-hidden grid grid-cols-1"
     >
       <template v-for="(options, baseClass) in filteredOptions" :key="baseClass">
-        <li v-if="options.length > 0" class="menu-title">
+        <li v-if="options.length > 0" class="menu-title sticky top-0 z-10 bg-base-100">
           <span class="text-xs font-semibold">{{ baseClass }}</span>
         </li>
-        <li v-for="option in options" :key="option.value">
-          <a @click="handleSelect(option.value, option)">
+        <li v-for="option in options" :key="option.value" class="w-full">
+          <a class="w-full" @mousedown.prevent="handleSelect(option.value, option)" @click.prevent>
             {{ option.label }}
           </a>
         </li>

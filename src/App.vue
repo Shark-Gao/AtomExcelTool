@@ -5,6 +5,7 @@ import SearchableDropdown from './components/SearchableDropdown.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import Toast from './components/Toast.vue'
 import ProgressModal from './components/ProgressModal.vue'
+import SkeletonLoader from './components/SkeletonLoader.vue'
 import { loadSettingsFromStorage, saveSettingsToStorage } from './utils/settingsStorage'
 import type { ClassMetadata as DelegateClassMetadata } from './types/DynamicObjectForm'
 import { getAllowedBaseClassesForFieldName, isAtomicField } from './constants/DelegateBaseClassesConst'
@@ -59,6 +60,9 @@ const isProgressVisible = ref(false)
 const progressMessage = ref('处理中...')
 const progressValue = ref(0)
 const progressType = ref<'saving' | 'loading' | 'processing'>('processing')
+
+// Skeleton 加载界面相关
+const isSkeletonVisible = ref(true)
 
 type ParsedClassObject = {
   _ClassName: string
@@ -236,19 +240,30 @@ async function loadDelegateMetadata() {
 
   isDelegateMetadataLoading.value = true
   delegateMetadataError.value = null
+  showProgress('正在加载元数据...', 'loading', 10)
 
   try {
+    updateProgress(30)
     const result = await bridge.getMetadata()
+    
+    updateProgress(50)
     if (!result?.ok || !Array.isArray(result.metadata) || result.metadata.length === 0) {
       throw new Error(result?.error ?? '未获取到有效的 Delegate 元数据。')
     }
 
+    updateProgress(70)
     applyDelegateMetadata(result.metadata, result.grouped ?? {})
 
+    updateProgress(85)
     rawConfigText.value = result.defaultJson;
 
-    
+    updateProgress(95)
     syncMockObjectValueFromJson()
+
+    updateProgress(100)
+    hideProgress()
+    // 加载完成后隐藏 skeleton 界面
+    isSkeletonVisible.value = false
 
   } catch (error) {
     console.error('[delegate metadata]', error)
@@ -256,6 +271,9 @@ async function loadDelegateMetadata() {
     clearClassRegistry()
     clearSubclassOptions()
     resetMockFormStateToEmpty()
+    hideProgress()
+    // 加载失败也要隐藏 skeleton 界面
+    isSkeletonVisible.value = false
   } finally {
     isDelegateMetadataLoading.value = false
   }
@@ -713,7 +731,10 @@ function handleKeydown(event: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
-  loadDelegateMetadata()
+  setTimeout(() => {
+    loadDelegateMetadata()
+  }, 0)
+  // loadDelegateMetadata()
 })
 
 onBeforeUnmount(() => {
@@ -1190,8 +1211,11 @@ async function saveWorkbookAs() {
       @update:is-open="isSettingsModalOpen = $event"
       @update:current-theme="currentTheme = $event"
       @update:show-only-atomic-fields="showOnlyAtomicFields = $event"
-      @update:is-debug-mode="isDebugMode = $event"
+      @update:is-debug-mode="isDebugMode = $event"7
     />
+
+    <!-- Skeleton 加载界面 -->
+    <SkeletonLoader :is-visible="isSkeletonVisible" />
 
     <!-- 保存进度控件 -->
     <ProgressModal

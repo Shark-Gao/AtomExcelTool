@@ -380,6 +380,8 @@ function createWindow() {
         height: 900,
         minWidth: 960,
         minHeight: 600,
+        backgroundColor: '#111827', // 与暗色主题接近，避免闪白
+        show: false, // 等待渲染就绪再显示，避免白屏
         webPreferences: {
             preload: join(__dirname, '../preload/preload.js'),
             contextIsolation: true,
@@ -397,7 +399,12 @@ function createWindow() {
         mainWindow.loadFile(join(__dirname, '../../index.html'));
     }
 
-    
+    // 初始 HTML 解析完成即显示（可看到 index.html 中的 Skeleton）
+    mainWindow.webContents.once('dom-ready', () => {
+        if (!mainWindow.isDestroyed()) {
+            mainWindow.show();
+        }
+    });
 
     // const out = FAtomExpressionParser.serializeDelegate(delegate);
     // console.log(out);

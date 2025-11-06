@@ -1211,7 +1211,7 @@ async function saveWorkbookAs() {
       @update:is-open="isSettingsModalOpen = $event"
       @update:current-theme="currentTheme = $event"
       @update:show-only-atomic-fields="showOnlyAtomicFields = $event"
-      @update:is-debug-mode="isDebugMode = $event"7
+      @update:is-debug-mode="isDebugMode = $event"
     />
 
     <!-- Skeleton 加载界面 -->

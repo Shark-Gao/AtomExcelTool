@@ -2,7 +2,10 @@
 import { join } from 'path';
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import ExcelJS from 'exceljs';
-import { FAtomExpressionParser } from './MHTsAtomSystemUtils';
+import { FAtomExpressionParser, FunctionNameToDelegate } from './MHTsAtomSystemUtils';
+import {DelegateMetadataGenerator} from './DelegateMetadataGenerator';
+import { deParseJsonToExpression } from './DeParseJsonToExpression';
+import { runAllTests } from './DeParseJsonToExpression.test';
 
 type RowRecord = Record<string, string>;
 
@@ -19,16 +22,27 @@ function isRowNameLabel(label: string): boolean {
 }
 
 function findHeaderRowNumber(worksheet: ExcelJS.Worksheet): number {
-    for (let r = 1; r <= worksheet.rowCount; r += 1) {
+    let lastHeaderRowNumber = -1;
+    
+    for (let r = 5; r >= 1; r -= 1) {
         const row = worksheet.getRow(r);
         for (let c = 1; c <= worksheet.columnCount; c += 1) {
             const text = row.getCell(c).text || '';
             if (isRowNameLabel(text)) {
-                return r;
+                lastHeaderRowNumber = r;
+                break; // 找到当前行的 RowName 后，继续检查下一行
             }
         }
+        if (lastHeaderRowNumber != -1) {
+            break
+        }
     }
-    throw new Error('未自动识别到包含 RowName 的表头行，请检查 Excel 列标题。');
+    
+    if (lastHeaderRowNumber === -1) {
+        throw new Error('未自动识别到包含 RowName 的表头行，请检查 Excel 列标题。');
+    }
+    
+    return lastHeaderRowNumber;
 }
 
 function buildHeaderLabels(headerRow: ExcelJS.Row, totalColumns: number): string[] {
@@ -131,6 +145,8 @@ async function handleOpenWorkbook() {
     const rowNames = extractRowNames(worksheet, headerRowNumber, rowNameColumnNumber);
 
     const rows: RowRecord[] = [];
+    const rowsData: Record<string, RowRecord> = {};
+    
     for (let r = headerRowNumber + 1; r <= worksheet.rowCount; r += 1) {
         const row = worksheet.getRow(r);
         const record = extractRowRecord(row, headerLabels);
@@ -139,6 +155,7 @@ async function handleOpenWorkbook() {
             continue;
         }
         rows.push(record);
+        rowsData[rowName] = record;
     }
 
     return {
@@ -151,36 +168,6 @@ async function handleOpenWorkbook() {
         rowNames,
         rowNameColumnName: headerLabels[rowNameColumnNumber - 1]
     };
-}
-
-async function readRowByName(
-    filePath: string,
-    sheetName: string | undefined,
-    targetRowName: string
-): Promise<{ row: RowRecord; columnNames: string[] }> {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(filePath);
-
-    const worksheet = sheetName ? workbook.getWorksheet(sheetName) : workbook.worksheets[0];
-    if (!worksheet) {
-        throw new Error(`工作簿中不存在名为 ${sheetName} 的工作表。`);
-    }
-
-    const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(worksheet);
-
-    for (let r = headerRowNumber + 1; r <= worksheet.rowCount; r += 1) {
-        const row = worksheet.getRow(r);
-        const value = (row.getCell(rowNameColumnNumber).text || '').trim();
-        if (value.length === 0) {
-            continue;
-        }
-        if (value === targetRowName.trim()) {
-            const record = extractRowRecord(row, headerLabels);
-            return { row: record, columnNames: headerLabels };
-        }
-    }
-
-    throw new Error(`未在工作表中找到 RowName 为 ${targetRowName} 的数据。`);
 }
 
 async function writeWorkbookToDisk(filePath: string, rows: RowRecord[], sheetName: string) {
@@ -268,19 +255,6 @@ ipcMain.handle('excel:open', async () => {
     }
 });
 
-ipcMain.handle(
-    'excel:read-row',
-    async (_event, payload: { filePath: string; sheetName: string; rowName: string }) => {
-        try {
-            const { row, columnNames } = await readRowByName(payload.filePath, payload.sheetName, payload.rowName);
-            return { ok: true, rowName: payload.rowName, row, columnNames };
-        } catch (error) {
-            const message = error instanceof Error ? error.message : '读取单行数据时发生未知错误。';
-            return { ok: false, error: message };
-        }
-    }
-);
-
 ipcMain.handle('excel:save', async (_event, payload: { filePath: string; sheetName: string; rows: RowRecord[] }) => {
     try {
         await writeWorkbookToDisk(payload.filePath, payload.rows, payload.sheetName);
@@ -310,6 +284,86 @@ ipcMain.handle('excel:save-as', async (_event, payload: { defaultPath?: string; 
     }
 });
 
+ipcMain.handle('delegate:get-metadata', async () => {
+    try {
+        const metadata = DelegateMetadataGenerator.generateMetadataFromFunctionMap(FunctionNameToDelegate);
+        const registry = DelegateMetadataGenerator.generateClassRegistry(metadata);
+        const grouped = DelegateMetadataGenerator.groupMetadataByBaseClass(metadata);
+
+        // const delegate = FAtomExpressionParser.main("ConditionalAction(CheckInteractActionType(1),NOP(),Heal(Self(), GetAttr(MaxHealth) * 0.02))");
+        const delegate = FAtomExpressionParser.main("NOP()");
+        const defaultJson = JSON.stringify(delegate, undefined, '  ');
+        console.log(defaultJson);
+        runAllTests()
+
+        return {
+            ok: true,
+            metadata,
+            registry,
+            grouped,
+            defaultJson,
+            count: metadata.length
+        };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '生成Delegate元数据失败。';
+        console.error('[delegate:get-metadata]', message);
+        return { ok: false, error: message };
+    }
+});
+
+ipcMain.handle('condition:parse-expression', async (_event, payload: { expression: string }) => {
+    try {
+        const parsed = FAtomExpressionParser.main(payload.expression);
+        if (!parsed) {
+            return { ok: false, error: '表达式解析失败，返回值为空。' };
+        }
+        const json = JSON.stringify(parsed, null, 2);
+        return { ok: true, parsed, json };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '解析条件表达式时发生未知错误。';
+        console.error('[condition:parse-expression]', message);
+        return { ok: false, error: message };
+    }
+});
+
+ipcMain.handle('delegate:parse-condition-field', async (_event, payload: { fieldName: string; rawValue: string }) => {
+    try {
+        if (!payload.rawValue || typeof payload.rawValue !== 'string') {
+            return { ok: false, error: '字段值为空或无效。' };
+        }
+
+        const parsed = FAtomExpressionParser.main(payload.rawValue);
+        if (!parsed) {
+            return { ok: false, error: `字段 ${payload.fieldName} 解析失败，返回值为空。` };
+        }
+
+        return { ok: true, parsed };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : `解析字段 ${payload.fieldName} 时发生未知错误。`;
+        console.error(`[delegate:parse-condition-field] ${payload.fieldName}:`, message);
+        return { ok: false, error: message };
+    }
+});
+
+ipcMain.handle('delegate:deparse-json-to-expression', async (_event, payload: { json: any }) => {
+    try {
+        if (!payload.json || typeof payload.json !== 'object') {
+            return { ok: false, error: 'JSON 对象为空或无效。' };
+        }
+
+        const expression = deParseJsonToExpression(payload.json);
+        if (!expression) {
+            return { ok: false, error: '反向解析失败，返回值为空。' };
+        }
+
+        return { ok: true, expression };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '反向解析 JSON 时发生未知错误。';
+        console.error('[delegate:deparse-json-to-expression]:', message);
+        return { ok: false, error: message };
+    }
+});
+
 function createWindow() {
     const mainWindow = new BrowserWindow({
         title: 'Excel原子编辑工具',
@@ -331,9 +385,10 @@ function createWindow() {
         mainWindow.loadFile(join(__dirname, '../../index.html'));
     }
 
-    const delegate = FAtomExpressionParser.main("DealDamageByBuffHitConfigID(False, False, 1, 1007)");
-    const json = JSON.stringify(delegate, undefined, '  ');
-    console.log(json);
+    
+
+    // const out = FAtomExpressionParser.serializeDelegate(delegate);
+    // console.log(out);
 }
 
 app.whenReady().then(() => {

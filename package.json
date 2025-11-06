@@ -52,6 +52,7 @@
     "decimal.js": "^10.6.0",
     "exceljs": "^4.4.0",
     "luxon": "^3.7.2",
+    "reflect-metadata": "^0.2.2",
     "vue": "^3.5.22"
   },
   "devDependencies": {
@@ -63,6 +64,7 @@
     "daisyui": "^5.3.8",
     "electron": "^38.4.0",
     "electron-builder": "^26.0.12",
+    "eslint": "^9.39.0",
     "tailwindcss": "^4.1.16",
     "typescript": "~5.9.3",
     "vite": "^7.1.7",

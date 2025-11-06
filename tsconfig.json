@@ -19,9 +19,11 @@
     "esModuleInterop": true,
     "lib": ["esnext", "dom"],
     "skipLibCheck": true,
-    "outDir": "dist/electron"
+    "outDir": "dist",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
-  "include": ["src/electron/**/*"],
+  "include": ["src/electron/**/*", "src/types/**/*"],
   "references": [
     {"path": "./tsconfig.node.json"}
   ]

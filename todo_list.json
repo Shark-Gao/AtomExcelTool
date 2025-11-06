@@ -1,0 +1,6 @@
+{
+  "todos": [
+    {"content": "Allow only string values in editableRecord to match existing typing", "status": "done"},
+    {"content": "Render condition columns using DynamicObjectForm with proper bindings", "status": "in_progress"}
+  ]
+}

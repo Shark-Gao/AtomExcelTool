@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type ComponentPublicInstance } from 'vue'
 import DynamicObjectForm, { type ClassRegistry, type FieldMeta, type FieldOption } from './components/DynamicObjectForm.vue'
+import SearchableDropdown from './components/SearchableDropdown.vue'
+import SettingsModal from './components/SettingsModal.vue'
+import { loadSettingsFromStorage, saveSettingsToStorage } from './utils/settingsStorage'
+import type { ClassMetadata as DelegateClassMetadata } from './types/DynamicObjectForm'
 
 type RowRecord = Record<string, string>
 
@@ -9,12 +13,13 @@ type WorkbookMeta = {
   rowCount: number
 }
 
-const rowNameToRecord = reactive<Record<string, RowRecord>>({})
+// 原始的配置数据
+const rowNameToRecord = reactive<Record<string, Record<string, string>>>({})
 const rowNames = ref<string[]>([])
 const columnNames = ref<string[]>([])
 const rowNameColumnLabel = ref<string>('RowName')
 const selectedRowName = ref<string | null>(null)
-const editableRecord = reactive<RowRecord>({})
+const editableRecord = reactive<Record<string, unknown>>({})
 const workbookMeta = ref<WorkbookMeta | null>(null)
 const errorMessage = ref<string | null>(null)
 const isLoading = ref(false)
@@ -35,220 +40,188 @@ const themeOptions = [
   { value: 'retro', label: 'Retro' },
   { value: 'black', label: 'Black' },
 ]
-const currentTheme = ref<string>('dracula_custom')
-const rowButtonRefs = reactive<Record<string, HTMLButtonElement>>({})
 
-type ClassType = 'Condition' | 'Action'
+const initialSettings = loadSettingsFromStorage()
+const currentTheme = ref<string>(initialSettings.theme)
+const rowButtonRefs = reactive<Record<string, HTMLButtonElement>>({})
+const isSettingsModalOpen = ref(false)
+const showOnlyAtomicFields = ref(initialSettings.showOnlyAtomicFields)
 
 type ParsedClassObject = {
   _ClassName: string
   [key: string]: unknown
 }
 
-type PrimitiveFieldDefinition = {
-  key: string
-  label?: string
-  type: 'string' | 'number' | 'boolean'
-}
-
-type SelectFieldDefinition = {
-  key: string
-  label?: string
-  type: 'select'
-  options: FieldOption[]
-}
-
-type ObjectFieldDefinition = {
-  key: string
-  label?: string
-  type: 'object'
-  baseClass: string
-}
-
-type ArrayFieldDefinition = {
-  key: string
-  label?: string
-  type: 'array'
-  baseClass: string
-}
-
-type ClassFieldDefinition =
-  | PrimitiveFieldDefinition
-  | SelectFieldDefinition
-  | ObjectFieldDefinition
-  | ArrayFieldDefinition
-
-type ClassMetadata = {
-  className: string
-  baseClass: string
-  displayName?: string
-  fields: ClassFieldDefinition[]
-}
-
-const metadata: ClassMetadata[] = [
-  {
-    className: 'ConditionActionClassTypeA',
-    baseClass: 'ActionBase',
-    fields: [
-      { key: 'TagName', type: 'string' },
-      { key: 'SkillSlotName', type: 'string' },
-      { key: 'Attr1', type: 'object', baseClass: 'ConditionBase' },
-      { key: 'Attr2', type: 'object', baseClass: 'ActionBase' },
-      {
-        key: 'Tags',
-        type: 'array',
-        baseClass: 'ConditionBase'
-      },
-      {
-        key: 'Priority',
-        type: 'select',
-        options: [
-          { label: '高', value: 'high' },
-          { label: '中', value: 'medium' },
-          { label: '低', value: 'low' }
-        ]
-      }
-    ]
-  },
-  {
-    className: 'ConditionClassTypeB',
-    baseClass: 'ConditionBase',
-    fields: [
-      { key: 'key1', type: 'number' },
-      {
-        key: 'Comparison',
-        type: 'select',
-        options: [
-          { label: '大于', value: 'gt' },
-          { label: '等于', value: 'eq' },
-          { label: '小于', value: 'lt' }
-        ]
-      }
-    ]
-  },
-  {
-    className: 'ConditionClassTypeC',
-    baseClass: 'ConditionBase',
-    fields: [{ key: 'id', type: 'string' }]
-  },
-  {
-    className: 'ActionClassTypeC',
-    baseClass: 'ActionBase',
-    fields: [
-      { key: 'key2', type: 'string' },
-      {
-        key: 'Mode',
-        type: 'select',
-        options: [
-          { label: '普通', value: 'normal' },
-          { label: '强化', value: 'enhanced' }
-        ]
-      }
-    ]
-  },
-  {
-    className: 'ActionClassTypeD',
-    baseClass: 'ActionBase',
-    fields: [
-      { key: 'IsDone', type: 'boolean' },
-      {
-        key: 'SubActions',
-        type: 'array',
-        baseClass: 'ActionBase'
-      }
-    ]
-  }
-]
-
 const classRegistry = reactive<ClassRegistry>({})
-
-function rebuildClassRegistry() {
-  Object.keys(classRegistry).forEach((key) => delete classRegistry[key])
-  metadata.forEach((classMeta) => {
-    classRegistry[classMeta.className] = {
-      displayName: classMeta.className,
-      baseClass: classMeta.baseClass,
-      fields: classMeta.fields.reduce<Record<string, FieldMeta>>((fieldsAccumulator, fieldMeta) => {
-        const label = fieldMeta.label ?? fieldMeta.key
-        if (fieldMeta.type === 'object' || fieldMeta.type === 'array') {
-          fieldsAccumulator[fieldMeta.key] = {
-            label,
-            type: fieldMeta.type,
-            baseClass: fieldMeta.baseClass
-          }
-          return fieldsAccumulator
-        }
-
-        if (fieldMeta.type === 'select') {
-          fieldsAccumulator[fieldMeta.key] = {
-            label,
-            type: fieldMeta.type,
-            options: fieldMeta.options ?? []
-          }
-          return fieldsAccumulator
-        }
-
-        fieldsAccumulator[fieldMeta.key] = {
-          label,
-          type: fieldMeta.type
-        }
-        return fieldsAccumulator
-      }, {})
-    }
-  })
-}
-
-rebuildClassRegistry()
-
 const subclassOptions = reactive<Record<string, FieldOption[]>>({})
+const delegateMetadataError = ref<string | null>(null)
+const isDelegateMetadataLoading = ref(false)
 
-function rebuildSubclassOptions() {
-  Object.keys(subclassOptions).forEach((key) => delete subclassOptions[key])
-  Object.values(classRegistry).forEach((info) => {
-    const bucket = (subclassOptions[info.baseClass] ??= [])
-    bucket.push({ value: info.displayName, label: info.displayName })
-  })
-  Object.values(subclassOptions).forEach((options) => {
-    options.sort((a, b) => a.label.localeCompare(b.label))
-  })
-}
-
-rebuildSubclassOptions()
-
-const mockJsonObject = reactive<ParsedClassObject>({
-  _ClassName: 'ConditionActionClassTypeA',
-  TagName: 'MLan01_atksk_JumpAtk_DashBack',
-  SkillSlotName: '',
-  Attr1: {
-    _ClassName: 'ConditionClassTypeB',
-    key1: 42,
-    Comparison: 'gt'
-  },
-  Attr2: {
-    _ClassName: 'ActionClassTypeC',
-    key2: 'value2',
-    Mode: 'normal'
-  },
-  Tags: [
-    {
-      _ClassName: 'ConditionClassTypeC',
-      id: 'Tag_Hero'
-    },
-    {
-      _ClassName: 'ConditionClassTypeB',
-      key1: 7,
-      Comparison: 'lt'
-    }
-  ],
-  Priority: 'high'
-})
-
+const mockJsonObject = reactive<ParsedClassObject>({ _ClassName: '' })
 const mockObjectValue = reactive<Record<string, unknown>>({})
 const mockClassName = ref<string>(mockJsonObject._ClassName)
-const rawConfigText = ref(
-  JSON.stringify(mockJsonObject, null, 2)
-)
+const rawConfigText = ref(JSON.stringify(mockJsonObject, null, 2))
 const parseErrorMessage = ref<string | null>(null)
+
+// 条件字段相关
+type ConditionFieldInfo = {
+  raw: string
+  parsed: any
+  json: string
+}
+const conditionFieldsMap = reactive<Record<string, Record<string, ConditionFieldInfo>>>({})
+const selectedConditionField = ref<string | null>(null)
+const selectedConditionFieldData = ref<ConditionFieldInfo | null>(null)
+const atomClassSearchKeyword = ref<string>('')
+const openAtomClassDropdown = ref<string | null>(null) // 记录哪个字段的下拉框是打开的
+
+function clearClassRegistry() {
+  Object.keys(classRegistry).forEach((key) => delete classRegistry[key])
+}
+
+function clearSubclassOptions() {
+  Object.keys(subclassOptions).forEach((key) => delete subclassOptions[key])
+}
+
+/**
+ * 格式化 JSON 字符串，支持缩进和美化
+ */
+function formatJson(parsed: any, indent: number = 2): string {
+  try {
+    return JSON.stringify(parsed, null, indent)
+  } catch (error) {
+    console.warn('JSON 格式化失败:', error)
+    return ""
+  }
+}
+
+function convertDelegateFieldMeta(fieldMeta: DelegateClassMetadata['fields'][number]): FieldMeta {
+  const label = fieldMeta.label ?? fieldMeta.key
+
+  if (fieldMeta.type === 'object' || fieldMeta.type === 'array') {
+    return {
+      label,
+      type: fieldMeta.type,
+      baseClass: fieldMeta.baseClass ?? 'DelegateBase'
+    }
+  }
+
+  if ('options' in fieldMeta && Array.isArray(fieldMeta.options)) {
+    const options = fieldMeta.options.map((option) => ({
+      label: option.label,
+      value: String(option.value)
+    }))
+
+    return {
+      label,
+      type: 'select',
+      options
+    }
+  }
+
+  return {
+    label,
+    type: fieldMeta.type
+  }
+}
+
+function applyDelegateMetadata(
+  metadataList: DelegateClassMetadata[],
+  grouped: Record<string, DelegateClassMetadata[]> | undefined
+) {
+  clearClassRegistry()
+  metadataList.forEach((classMeta) => {
+    const fieldsRecord = classMeta.fields.reduce<Record<string, FieldMeta>>((accumulator, fieldMeta) => {
+      accumulator[fieldMeta.key] = convertDelegateFieldMeta(fieldMeta)
+      return accumulator
+    }, {})
+
+    console.log(classMeta.className)
+    classRegistry[classMeta.className] = {
+      displayName: classMeta.displayName ?? classMeta.className,
+      baseClass: classMeta.baseClass,
+      fields: fieldsRecord
+    }
+  })
+
+  clearSubclassOptions()
+  if (grouped && Object.keys(grouped).length > 0) {
+    Object.entries(grouped).forEach(([baseClassName, items]) => {
+      subclassOptions[baseClassName] = items
+        .map((item) => ({
+          value: item.className,
+          label: item.displayName ?? item.className
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label))
+    })
+  } else {
+    const baseToOptions: Record<string, FieldOption[]> = {}
+    metadataList.forEach((classMeta) => {
+      (baseToOptions[classMeta.baseClass] ??= []).push({
+        value: classMeta.className,
+        label: classMeta.displayName ?? classMeta.className
+      })
+    })
+    Object.entries(baseToOptions).forEach(([baseClassName, options]) => {
+      subclassOptions[baseClassName] = options.sort((a, b) => a.label.localeCompare(b.label))
+    })
+  }
+}
+
+function resetMockFormStateToClass(className: string) {
+  mockJsonObject._ClassName = className
+  Object.keys(mockJsonObject).forEach((key) => {
+    if (key !== '_ClassName') {
+      delete mockJsonObject[key]
+    }
+  })
+  mockClassName.value = className
+  syncMockObjectValueFromJson()
+}
+
+function resetMockFormStateToEmpty() {
+  Object.keys(mockJsonObject).forEach((key) => delete mockJsonObject[key])
+  mockJsonObject._ClassName = ''
+  mockClassName.value = ''
+  syncMockObjectValueFromJson()
+}
+
+async function loadDelegateMetadata() {
+  const bridge = window.delegateBridge
+  if (!bridge) {
+    delegateMetadataError.value = '当前环境未暴露 Delegate 元数据接口，请检查 Preload 配置。'
+    clearClassRegistry()
+    clearSubclassOptions()
+    resetMockFormStateToEmpty()
+    return
+  }
+
+  isDelegateMetadataLoading.value = true
+  delegateMetadataError.value = null
+
+  try {
+    const result = await bridge.getMetadata()
+    if (!result?.ok || !Array.isArray(result.metadata) || result.metadata.length === 0) {
+      throw new Error(result?.error ?? '未获取到有效的 Delegate 元数据。')
+    }
+
+    applyDelegateMetadata(result.metadata, result.grouped ?? {})
+
+    rawConfigText.value = result.defaultJson;
+
+    
+    syncMockObjectValueFromJson()
+
+  } catch (error) {
+    console.error('[delegate metadata]', error)
+    delegateMetadataError.value = error instanceof Error ? error.message : '加载 Delegate 元数据失败。'
+    clearClassRegistry()
+    clearSubclassOptions()
+    resetMockFormStateToEmpty()
+  } finally {
+    isDelegateMetadataLoading.value = false
+  }
+}
 
 const mockClassOptions = computed<FieldOption[]>(() => {
   const targetBaseClass = classRegistry[mockClassName.value]?.baseClass
@@ -258,93 +231,94 @@ const mockClassOptions = computed<FieldOption[]>(() => {
   return subclassOptions[targetBaseClass] ?? []
 })
 
-function normalizeInstance(raw: Record<string, unknown>, fallbackClassName?: string): ParsedClassObject {
-  const baseFallback = fallbackClassName ?? mockClassName.value
-  const candidateClassName = typeof raw._ClassName === 'string' ? raw._ClassName : baseFallback
-  const className = classRegistry[candidateClassName] ? candidateClassName : baseFallback
-  const info = classRegistry[className]
-  if (!info) {
-    return { _ClassName: className }
+function applyNormalizedObject(normalized: ParsedClassObject) {
+  if (typeof normalized._ClassName === 'string') {
+    mockClassName.value = normalized._ClassName
   }
-
-  const normalized: ParsedClassObject = { _ClassName: className }
-
-  Object.entries(info.fields).forEach(([fieldKey, fieldMeta]) => {
-    const rawValue = raw[fieldKey]
-
-    if (fieldMeta.type === 'object') {
-      const options = subclassOptions[fieldMeta.baseClass] ?? []
-      const defaultClass = options[0]?.value ?? fieldMeta.baseClass
-      const rawObject = typeof rawValue === 'object' && rawValue !== null ? (rawValue as Record<string, unknown>) : {}
-      const requestedClass = typeof rawObject._ClassName === 'string' ? rawObject._ClassName : defaultClass
-      const selectedClass = options.some((option) => option.value === requestedClass)
-        ? requestedClass
-        : defaultClass
-      normalized[fieldKey] = normalizeInstance({ ...rawObject, _ClassName: selectedClass }, defaultClass)
-      return
-    }
-
-    if (fieldMeta.type === 'number') {
-      if (rawValue === undefined || rawValue === null || rawValue === '') {
-        normalized[fieldKey] = 0
-        return
-      }
-      const numericValue = Number(rawValue)
-      normalized[fieldKey] = Number.isNaN(numericValue) ? 0 : numericValue
-      return
-    }
-
-    if (fieldMeta.type === 'boolean') {
-      normalized[fieldKey] = Boolean(rawValue)
-      return
-    }
-
-    normalized[fieldKey] = rawValue ?? ''
-  })
-
-  return normalized
+  rawConfigText.value = JSON.stringify(normalized, null, 2)
 }
 
-function applyNormalizedObject(normalized: ParsedClassObject) {
+async function applyNormalizedObjectByColumnName(normalized: ParsedClassObject, updateColumnName: string) {
+  if (selectedRowName.value && window.delegateBridge) {
+    try {
+      const result = await window.delegateBridge.deParseJsonToExpression({ json: normalized });
+      if (result.ok && result.expression) {
+        conditionFieldsMap[selectedRowName.value][updateColumnName] = {
+          raw: result.expression,
+          parsed: normalized,
+          json: JSON.stringify(normalized, null, 2)
+        }
+        editableRecord[updateColumnName] = result.expression
+      } else {
+        console.error('反向解析失败:', result.error);
+      }
+    } catch (error) {
+      console.error('调用反向解析接口失败:', error);
+    }
+  }
+}
+
+/**
+ * 处理原子类型选择
+ * 当用户从下拉框选择一个原子类型时，创建该类型的默认实例
+ */
+function handleSelectAtomClass(columnName: string, className: string) {
+  if (!className || !selectedRowName.value) {
+    return
+  }
+
+  // 获取选中的类的元数据
+  const classInfo = classRegistry[className]
+  if (!classInfo) {
+    console.warn(`Class ${className} not found in registry`)
+    return
+  }
+
+  // 创建默认对象
+  const defaultObject: ParsedClassObject = {
+    _ClassName: className
+  }
+
+  conditionFieldsMap[selectedRowName.value][columnName] = {
+    raw: '',
+    parsed: defaultObject,
+    json: JSON.stringify(defaultObject, null, 2)
+  }
+
+  editableRecord[columnName] = ''
+}
+
+function clearAtomicFieldConfig(columnName: string) {
+  if (!selectedRowName.value) {
+    return
+  }
+  
+  // 清除原子字段配置
+  if (conditionFieldsMap[selectedRowName.value]) {
+    delete conditionFieldsMap[selectedRowName.value][columnName]
+  }
+  
+  // 清除编辑记录
+  editableRecord[columnName] = ''
+}
+
+function syncMockObjectValueFromJson() {
+  const parsed = JSON.parse(rawConfigText.value) as ParsedClassObject
+  parseErrorMessage.value = null
+  Object.keys(mockJsonObject).forEach((key) => delete (mockJsonObject as Record<string, unknown>)[key])
+  Object.entries(parsed).forEach(([key, value]) => {
+    ;(mockJsonObject as Record<string, unknown>)[key] = value
+  })
+  if (typeof parsed._ClassName === 'string') {
+    mockClassName.value = parsed._ClassName
+  }
+
   Object.keys(mockObjectValue).forEach((key) => delete mockObjectValue[key])
-  Object.entries(normalized).forEach(([key, value]) => {
+  Object.entries(mockJsonObject).forEach(([key, value]) => {
     mockObjectValue[key] = value
   })
   rawConfigText.value = JSON.stringify(mockObjectValue, null, 2)
 }
-
-function syncMockObjectValueFromJson() {
-  const normalized = normalizeInstance(mockJsonObject)
-  applyNormalizedObject(normalized)
-}
-
-watch(
-  () => rawConfigText.value,
-  (newText) => {
-    try {
-      const parsed = JSON.parse(newText) as ParsedClassObject
-      parseErrorMessage.value = null
-      Object.keys(mockJsonObject).forEach((key) => delete (mockJsonObject as Record<string, unknown>)[key])
-      Object.entries(parsed).forEach(([key, value]) => {
-        ;(mockJsonObject as Record<string, unknown>)[key] = value
-      })
-      if (typeof parsed._ClassName === 'string') {
-        mockClassName.value = parsed._ClassName
-      }
-      syncMockObjectValueFromJson()
-    } catch (error) {
-      parseErrorMessage.value = error instanceof Error ? error.message : '解析 JSON 时失败'
-    }
-  }
-)
-
-watch(
-  () => mockClassName.value,
-  () => {
-    mockJsonObject._ClassName = mockClassName.value
-    syncMockObjectValueFromJson()
-  }
-)
 
 const filteredRowNames = computed(() => {
   const keyword = searchKeyword.value.trim().toLowerCase()
@@ -355,6 +329,7 @@ const filteredRowNames = computed(() => {
   return allRowNames.filter((rowName) => rowName.toLowerCase().includes(keyword))
 })
 
+// 原始的当前选择的记录值
 const currentRecord = computed<RowRecord | null>(() => {
   if (!selectedRowName.value) {
     return null
@@ -363,6 +338,9 @@ const currentRecord = computed<RowRecord | null>(() => {
 })
 
 const statusMessage = computed(() => {
+  if (delegateMetadataError.value) {
+    return `Delegate 元数据加载失败：${delegateMetadataError.value}`
+  }
   if (errorMessage.value) {
     return errorMessage.value
   }
@@ -388,13 +366,53 @@ const displayColumnNames = computed(() => {
   return []
 })
 
+const currentConditionFields = computed(() => {
+  if (!selectedRowName.value) {
+    return {}
+  }
+  return conditionFieldsMap[selectedRowName.value] ?? {}
+})
+
+const conditionFieldNames = computed(() => {
+  return Object.keys(currentConditionFields.value)
+})
+
+const conditionFieldSet = computed(() => new Set(conditionFieldNames.value))
+
+/**
+ * 过滤原子类选项（支持搜索）
+ */
+const filteredAtomClassOptions = computed(() => {
+  const keyword = atomClassSearchKeyword.value.trim().toLowerCase()
+  const result: Record<string, typeof subclassOptions[string]> = {}
+
+  for (const [baseClass, options] of Object.entries(subclassOptions)) {
+    if (!keyword) {
+      result[baseClass] = options
+      continue
+    }
+
+    const filtered = options.filter(
+      (option) =>
+        option.label.toLowerCase().includes(keyword) ||
+        option.value.toLowerCase().includes(keyword)
+    )
+
+    if (filtered.length > 0) {
+      result[baseClass] = filtered
+    }
+  }
+
+  return result
+})
+
 watch(currentRecord, (newRecord) => {
   Object.keys(editableRecord).forEach((key) => delete editableRecord[key])
   if (!newRecord) {
     return
   }
   Object.entries(newRecord).forEach(([columnName, value]) => {
-    editableRecord[columnName] = value ?? ''
+    editableRecord[columnName] = value ?? null
   })
 })
 
@@ -404,6 +422,17 @@ function applyTheme(themeName: string) {
 
 watch(currentTheme, (newTheme) => {
   applyTheme(newTheme)
+  saveSettingsToStorage({
+    theme: newTheme,
+    showOnlyAtomicFields: showOnlyAtomicFields.value
+  })
+})
+
+watch(showOnlyAtomicFields, (newValue) => {
+  saveSettingsToStorage({
+    theme: currentTheme.value,
+    showOnlyAtomicFields: newValue
+  })
 })
 
 applyTheme(currentTheme.value)
@@ -500,10 +529,88 @@ watch(
   }
 )
 
+function isConditionField(columnName: string): boolean {
+    return columnName.endsWith('.Condition');
+}
+
+/**
+ * 解析条件字段字符串
+ * 遍历记录中的所有字段，识别原子字段（Condition、Action、Task类型）
+ * 调用主线程接口逐个解析，返回解析后的JSON字符串
+ */
+async function parseConditionFieldsFromRecord(record: Record<string, string>): Promise<Record<string, ConditionFieldInfo>> {
+  const result: Record<string, ConditionFieldInfo> = {}
+  const delegateBridge = window.delegateBridge
+  
+  if (!delegateBridge) {
+    console.warn('delegateBridge not available for parsing condition fields')
+    return result
+  }
+
+  // 识别原子字段（条件类型、action类型、task类型）
+  const atomicFieldNames = Object.keys(record).filter(fieldName => 
+    // fieldName.endsWith('.Condition') || 
+    // fieldName.endsWith('.Action') || 
+    // fieldName.endsWith('.Task')
+    fieldName.endsWith('.e') ||
+    fieldName.startsWith('EventActionEx')
+  )
+
+  // 逐个字段调用主线程解析接口
+  for (const fieldName of atomicFieldNames) {
+    const rawValue = record[fieldName]
+    if (!rawValue || typeof rawValue !== 'string') {
+      result[fieldName] = {
+          raw: "",
+          parsed: null,
+          json: ""
+        }
+      continue
+    }
+
+    try {
+      const parseResult = await delegateBridge.parseConditionField({ 
+        fieldName, 
+        rawValue 
+      })
+      
+      if (parseResult.ok && parseResult.parsed) {
+        result[fieldName] = {
+          raw: rawValue,
+          parsed: parseResult.parsed,
+          json: JSON.stringify(parseResult.parsed)
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to parse field ${fieldName}:`, error)
+    }
+  }
+
+  return result
+}
+
 watch(selectedRowName, async (newSelection) => {
   if (!newSelection) {
+    selectedConditionField.value = null
+    selectedConditionFieldData.value = null
     return
   }
+  
+  // 延迟加载条件字段
+  if (!conditionFieldsMap[newSelection]) {
+    try {
+      const record = currentRecord.value
+      if (record) {
+        const parsedFields = await parseConditionFieldsFromRecord(record)
+        if (Object.keys(parsedFields).length > 0) {
+          conditionFieldsMap[newSelection] = parsedFields
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load condition fields:', error)
+    }
+  }
+
   await nextTick()
   scrollSelectedRowIntoView()
 })
@@ -568,6 +675,7 @@ function handleKeydown(event: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  loadDelegateMetadata()
 })
 
 onBeforeUnmount(() => {
@@ -575,7 +683,8 @@ onBeforeUnmount(() => {
 })
 
 async function openWorkbookFromMainProcess() {
-  if (!window.excelBridge) {
+  const excelBridge = window.excelBridge
+  if (!excelBridge) {
     errorMessage.value = '当前环境未暴露 Excel 能力，请检查 Preload 配置。'
     return
   }
@@ -584,7 +693,7 @@ async function openWorkbookFromMainProcess() {
   errorMessage.value = null
 
   try {
-    const result = await window.excelBridge.openWorkbook()
+    const result = await excelBridge.openWorkbook()
     if (result.canceled) {
       return
     }
@@ -607,10 +716,13 @@ async function openWorkbookFromMainProcess() {
     }
 
     Object.keys(rowNameToRecord).forEach((key) => delete rowNameToRecord[key])
+    Object.keys(conditionFieldsMap).forEach((key) => delete conditionFieldsMap[key])
+    
     const normalizedRows = result.rows.map((row) => ({ ...row }))
     rowNames.value = normalizedRows
       .map((row) => row[rowNameColumnLabel.value] ?? row.RowName)
       .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+    
     normalizedRows.forEach((row) => {
       const rowName = row[rowNameColumnLabel.value] ?? row.RowName
       if (typeof rowName === 'string' && rowName.trim().length > 0) {
@@ -626,14 +738,33 @@ async function openWorkbookFromMainProcess() {
   }
 }
 
-function resetEditableRecord() {
+async function resetEditableRecord() {
   if (!currentRecord.value) {
     return
   }
   Object.keys(editableRecord).forEach((key) => delete editableRecord[key])
   Object.entries(currentRecord.value).forEach(([columnName, value]) => {
-    editableRecord[columnName] = value ?? ''
+    editableRecord[columnName] = value ?? null
   })
+  const parsedFields = await parseConditionFieldsFromRecord(currentRecord.value)
+  if (Object.keys(parsedFields).length > 0 && selectedRowName.value) {
+    conditionFieldsMap[selectedRowName.value] = parsedFields
+  }
+}
+
+function mutateRecordValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return ''
+  }
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value)
+    } catch (error) {
+      console.warn('无法序列化条件对象，将使用空字符串', error)
+      return ''
+    }
+  }
+  return String(value)
 }
 
 function saveEditableRecord() {
@@ -641,7 +772,12 @@ function saveEditableRecord() {
     return
   }
 
-  rowNameToRecord[selectedRowName.value] = { ...editableRecord }
+  const serializedRecord = Object.entries(editableRecord).reduce<Record<string, string>>((accumulator, [key, value]) => {
+    accumulator[key] = mutateRecordValue(value)
+    return accumulator
+  }, {})
+
+  rowNameToRecord[selectedRowName.value] = serializedRecord
 }
 
 function buildRowsForSaving(): RowRecord[] {
@@ -706,7 +842,7 @@ async function saveWorkbookAs() {
 </script>
 
 <template>
-  <div class="flex h-full flex-col bg-base-200 text-base-content">
+  <div class="flex h-full flex-col bg-base-200 text-base-content" style="zoom: 85fr;">
     <header class="sticky top-0 z-10 border-b border-base-300 bg-base-100 shadow-sm">
       <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
         <div class="join">
@@ -714,27 +850,25 @@ async function saveWorkbookAs() {
           <button class="btn join-item" :disabled="!Object.keys(rowNameToRecord).length" @click="saveWorkbookToDisk">保存</button>
           <button class="btn join-item" :disabled="!Object.keys(rowNameToRecord).length" @click="saveWorkbookAs">另存为</button>
         </div>
-        <span v-if="workbookMeta" class="badge badge-outline">{{ sheetName }} · {{ workbookMeta.rowCount }} 行</span>
-        <span v-if="openedFilePath" class="badge badge-ghost">{{ openedFilePath }}</span>
-        <span v-if="statusMessage" class="text-sm" :class="errorMessage ? 'text-error' : 'text-base-content/60'">
+        <div class="flex flex-wrap items-center gap-3">
+          <span v-if="isDelegateMetadataLoading" class="loading loading-spinner text-primary"></span>
+          <span v-if="workbookMeta" class="badge badge-outline">{{ sheetName }} · {{ workbookMeta.rowCount }} 行</span>
+          <span v-if="openedFilePath" class="badge badge-ghost">{{ openedFilePath }}</span>
+        </div>
+        <span v-if="statusMessage" class="text-sm" :class="[errorMessage || delegateMetadataError ? 'text-error' : 'text-base-content/60']">
           {{ statusMessage }}
         </span>
-        <span v-if="isLoading" class="loading loading-spinner text-primary"></span>
-        <div class="dropdown dropdown-end ml-auto">
-          <div tabindex="0" role="button" class="btn btn-ghost">
-            <span class="hidden sm:inline">主题</span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-          <ul tabindex="0" class="menu dropdown-content z-1 mt-2 w-40 rounded-box bg-base-100 p-2 shadow">
-            <li v-for="option in themeOptions" :key="option.value">
-              <button class="justify-between" :class="{ active: option.value === currentTheme }" @click="currentTheme = option.value">
-                {{ option.label }}
-              </button>
-            </li>
-          </ul>
-        </div>
+        <span v-else-if="isLoading" class="loading loading-spinner text-primary"></span>
+        <button
+          class="btn btn-ghost btn-circle"
+          @click="isSettingsModalOpen = true"
+          title="打开设置"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
       </div>
     </header>
 
@@ -814,21 +948,86 @@ async function saveWorkbookAs() {
             <div class="divider my-2"></div>
             <div
               v-for="(value, columnName) in currentRecord"
+              v-show="!showOnlyAtomicFields || conditionFieldSet.has(columnName)"
               :key="columnName"
               :ref="(el) => setColumnInputRef(columnName, el)"
-              class="grid grid-cols-[minmax(160px,200px),minmax(0,1fr)] items-center gap-4 column-field-container"
-              :class="{ 'bg-primary/10 border border-primary/60 rounded-lg px-3 py-2 -mx-3': columnName === highlightColumnName }"
+              class="grid grid-cols-[minmax(160px,200px),minmax(0,1fr)] items-center gap-4 column-field-container rounded-lg px-3 py-2 transition-all duration-150 cursor-pointer"
+              :class="{ 'bg-primary/10 border border-primary/60': columnName === highlightColumnName, 'hover:bg-base-300/50': columnName !== highlightColumnName }"
             >
-              <div class="text-sm font-semibold text-base-content/70 truncate" :title="columnName">{{ columnName }}</div>
-              <input v-model="editableRecord[columnName]" type="text" class="input input-bordered" />
+              <div class="text-sm font-semibold text-base-content/70 truncate" :title="columnName">
+                {{ columnName }}
+                <!-- 如果已有配置，显示清除按钮 -->
+                <button
+                  v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
+                  type="button"
+                  class="btn btn-xs btn-outline btn-error"
+                  @click="clearAtomicFieldConfig(columnName)"
+                  title="清除原子配置"
+                >
+                  清除配置
+                </button>
+              </div>
+              <template v-if="conditionFieldSet.has(columnName)">
+                <div class="space-y-2">
+                  <SearchableDropdown
+                    v-if="!conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
+                    :options="filteredAtomClassOptions"
+                    :search-keyword="atomClassSearchKeyword"
+                    :open="openAtomClassDropdown === columnName"
+                    placeholder="搜索原子类型..."
+                    @update:search-keyword="atomClassSearchKeyword = $event"
+                    @update:open="openAtomClassDropdown = $event ? columnName : null"
+                    @select="(value, option) => handleSelectAtomClass(columnName, value)"
+                  />
+                </div>
+                
+                <!-- 如果已有配置，显示详细编辑界面 -->
+                <template v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed">
+                   <div class="space-y-2">
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-sm font-semibold">原始表达式</span>
+                      </label>
+                      <textarea
+                        :value="editableRecord[columnName] as string"
+                        readonly
+                        class="textarea textarea-bordered textarea-sm h-10 font-mono text-xs resize"
+                      ></textarea>
+                    </div>
+                  
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-sm font-semibold">解析后 JSON</span>
+                      </label>
+                      <textarea
+                        :value="formatJson(conditionFieldsMap[selectedRowName][columnName]?.parsed)"
+                        readonly
+                        class="textarea textarea-bordered textarea-sm h-32 font-mono text-xs resize"
+                      ></textarea>
+                    </div>
+                  </div> 
+                  <DynamicObjectForm
+                    :class-name="((conditionFieldsMap[selectedRowName][columnName]?.parsed)?. _ClassName as string) || 'UnknownCondition'"
+                    :registry="classRegistry"
+                    :subclass-options="subclassOptions"
+                    :model-value="(conditionFieldsMap[selectedRowName][columnName]?.parsed) as Record<string, unknown>"
+                    @update:model-value="(value) => applyNormalizedObjectByColumnName(value as ParsedClassObject, columnName)"
+                  />
+                </template>
+              </template>
+              <template v-else>
+                <input v-model="editableRecord[columnName]" type="text" class="input input-bordered" />
+              </template>
             </div>
+
+
           </div>
 
           <div v-else class="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-base-300 bg-base-200/60 p-16 text-base-content/60">
             <p>暂无选中条目，请在左侧列表中选择一个 RowName。</p>
           </div>
 
-          <div class="card bg-base-200/60 shadow-inner">
+          <!-- <div class="card bg-base-200/60 shadow-inner">
             <div class="card-body space-y-4">
               <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
                 <div class="scrollbar max-h-[420px] overflow-y-auto pr-1">
@@ -847,16 +1046,26 @@ async function saveWorkbookAs() {
                   </div>
                   <textarea
                     v-model="rawConfigText"
-                    class="textarea textarea-bordered h-72 font-mono text-xs"
+                    class="textarea textarea-bordered h-72 font-mono text-xs resize"
                     placeholder="粘贴 JSON 配置"
                   ></textarea>
                   <p v-if="parseErrorMessage" class="text-sm text-error">{{ parseErrorMessage }}</p>
                 </div>
               </div>
             </div>
-          </div>
+          </div> -->
         </div>
       </section>
     </main>
+
+    <SettingsModal
+      :is-open="isSettingsModalOpen"
+      :current-theme="currentTheme"
+      :show-only-atomic-fields="showOnlyAtomicFields"
+      :theme-options="themeOptions"
+      @update:is-open="isSettingsModalOpen = $event"
+      @update:current-theme="currentTheme = $event"
+      @update:show-only-atomic-fields="showOnlyAtomicFields = $event"
+    />
   </div>
 </template>

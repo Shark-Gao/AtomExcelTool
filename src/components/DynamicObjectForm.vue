@@ -33,12 +33,18 @@ export type ClassInfo = {
 
 export type ClassRegistry = Record<string, ClassInfo>
 
-const props = defineProps<{
-  className: string
-  registry: ClassRegistry
-  modelValue: Record<string, unknown>
-  subclassOptions: Record<string, FieldOption[]>
-}>()
+const props = withDefaults(
+  defineProps<{
+    className: string
+    registry: ClassRegistry
+    modelValue: Record<string, unknown>
+    subclassOptions: Record<string, FieldOption[]>
+    readonly?: boolean
+  }>(),
+  {
+    readonly: false
+  }
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: Record<string, unknown>]
@@ -46,8 +52,24 @@ const emit = defineEmits<{
 
 const localValue = reactive<Record<string, unknown>>({})
 const isHydrating = ref(false)
+const isUpdatingFromParent = ref(false)
 
-const classInfo = computed(() => props.registry[props.className])
+const classInfo = computed(() => {
+  // 如果 className 为空，直接返回 undefined
+  if (!props.className || typeof props.className !== 'string') {
+    return undefined
+  }
+  
+  const info = props.registry[props.className]
+  if (!info) {
+    console.warn(`[DynamicObjectForm] classInfo not found for className: "${props.className}"`, {
+      className: props.className,
+      registryKeys: Object.keys(props.registry),
+      registrySize: Object.keys(props.registry).length
+    })
+  }
+  return info
+})
 const fields = computed(() => classInfo.value?.fields ?? {})
 const rootSubclassOptions = computed<FieldOption[]>(() => {
   const info = classInfo.value
@@ -72,6 +94,7 @@ async function updateRootClass(newClassName: string) {
 
   isHydrating.value = true
   setLocalValue(normalized)
+  
   emit(
     'update:modelValue',
     JSON.parse(JSON.stringify(localValue)) as Record<string, unknown>
@@ -130,27 +153,41 @@ function normalizeClassInstance(className: string, raw: Record<string, unknown>)
 
     if (fieldMeta.type === 'object') {
       const options = getSubclassOptions(fieldMeta.baseClass)
-      const defaultClass = options[0]?.value ?? fieldMeta.baseClass
       const rawObject = typeof rawValue === 'object' && rawValue !== null ? (rawValue as Record<string, unknown>) : {}
-      const requestedClass = typeof rawObject._ClassName === 'string' ? rawObject._ClassName : defaultClass
+      const requestedClass = typeof rawObject._ClassName === 'string' ? rawObject._ClassName : ''
+      
+      // 如果请求的类在选项中存在，使用它；否则保持空值，让用户选择
       const selectedClass = options.some((option) => option.value === requestedClass)
         ? requestedClass
-        : defaultClass
-      normalized[fieldKey] = normalizeClassInstance(selectedClass, rawObject)
+        : ''
+      
+      if (selectedClass) {
+        normalized[fieldKey] = normalizeClassInstance(selectedClass, rawObject)
+      } else {
+        // 保持空值，让用户从下拉框选择
+        normalized[fieldKey] = { _ClassName: '' }
+      }
       return
     }
 
     if (fieldMeta.type === 'array') {
       const options = getSubclassOptions(fieldMeta.baseClass)
-      const defaultClass = options[0]?.value ?? fieldMeta.baseClass
       const items = Array.isArray(rawValue) ? rawValue : []
       normalized[fieldKey] = items.map((item) => {
         const rawObject = typeof item === 'object' && item !== null ? (item as Record<string, unknown>) : {}
-        const requestedClass = typeof rawObject._ClassName === 'string' ? rawObject._ClassName : defaultClass
+        const requestedClass = typeof rawObject._ClassName === 'string' ? rawObject._ClassName : ''
+        
+        // 如果请求的类在选项中存在，使用它；否则保持空值
         const selectedClass = options.some((option) => option.value === requestedClass)
           ? requestedClass
-          : defaultClass
-        return normalizeClassInstance(selectedClass, rawObject)
+          : ''
+        
+        if (selectedClass) {
+          return normalizeClassInstance(selectedClass, rawObject)
+        } else {
+          // 保持空值，让用户从下拉框选择
+          return { _ClassName: '' }
+        }
       })
       return
     }
@@ -193,10 +230,24 @@ function ensureLocalValue() {
 
 ensureLocalValue()
 
+// 监听 modelValue 变化，重新执行规范化
+watch(
+  () => props.modelValue,
+  async () => {
+    if (!isHydrating.value) {
+      isUpdatingFromParent.value = true
+      ensureLocalValue()
+      await nextTick()
+      isUpdatingFromParent.value = false
+    }
+  },
+  { deep: true }
+)
+
 watch(
   localValue,
   () => {
-    if (isHydrating.value) {
+    if (isHydrating.value || isUpdatingFromParent.value) {
       return
     }
     emit(
@@ -268,7 +319,6 @@ async function updateArrayItemClass(
   isHydrating.value = false
 }
 
-
 </script>
 
 <template>
@@ -289,7 +339,7 @@ async function updateArrayItemClass(
             <span class="transition-transform" :class="{ 'rotate-90': !isRootCollapsed }">▶</span>
           </button>
           <label
-            v-if="rootSubclassOptions.length"
+            v-if="rootSubclassOptions.length && !readonly"
             class="flex items-center gap-2 rounded-lg border border-base-200 bg-base-200/40 px-3 py-1 text-xs text-base-content/70"
           >
             <span class="text-[11px] uppercase tracking-wide text-base-content/60">原子</span>
@@ -334,7 +384,7 @@ async function updateArrayItemClass(
                   <div class="flex items-center justify-between">
                     <h3 class="text-sm font-semibold text-base-content">{{ fieldMeta.label }}</h3>
                     <button
-                      v-if="fieldMeta.type === 'array'"
+                      v-if="fieldMeta.type === 'array' && !readonly"
                       type="button"
                       class="btn btn-outline btn-ghost btn-2xs"
                       @click="addArrayItem(fieldKey, fieldMeta as Extract<FieldMeta, { type: 'array' }>)"
@@ -353,22 +403,22 @@ async function updateArrayItemClass(
 
               <div class="mt-3">
                 <template v-if="fieldMeta.type === 'string'">
-                  <input v-model="localValue[fieldKey]" type="text" class="input input-bordered w-full" />
+                  <input v-model="localValue[fieldKey]" type="text" class="input input-bordered w-full" :disabled="readonly" />
                 </template>
 
                 <template v-else-if="fieldMeta.type === 'number'">
-                  <input v-model.number="localValue[fieldKey]" type="number" class="input input-bordered w-full" />
+                  <input v-model.number="localValue[fieldKey]" type="number" class="input input-bordered w-full" :disabled="readonly" />
                 </template>
 
                 <template v-else-if="fieldMeta.type === 'boolean'">
-                  <label class="flex items-center gap-3">
-                    <input v-model="localValue[fieldKey]" type="checkbox" class="toggle toggle-primary" />
+                  <label class="flex items-center gap-3" :class="{ 'opacity-60 cursor-not-allowed': readonly }">
+                    <input v-model="localValue[fieldKey]" type="checkbox" class="toggle toggle-primary" :disabled="readonly" />
                     <span class="text-xs text-base-content/70">启用开关</span>
                   </label>
                 </template>
 
                 <template v-else-if="fieldMeta.type === 'select'">
-                  <select v-model="localValue[fieldKey]" class="select select-bordered w-full">
+                  <select v-model="localValue[fieldKey]" class="select select-bordered w-full" :disabled="readonly">
                     <option v-for="option in fieldMeta.options" :key="option.value" :value="option.value">
                       {{ option.label }}
                     </option>
@@ -376,9 +426,32 @@ async function updateArrayItemClass(
                 </template>
 
                 <template v-else-if="fieldMeta.type === 'object'">
+                  <div class="mt-3 space-y-3">
+                    <!-- 类选择下拉框 -->
+                    <select
+                      v-if="!readonly"
+                      :value="(localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName ?? ''"
+                      class="select select-bordered w-full"
+                      @change="(event) => {
+                        const newClassName = (event.target as HTMLSelectElement).value;
+                        if (newClassName) {
+                          const normalized = normalizeClassInstance(newClassName, (localValue[fieldKey] as Record<string, unknown>) ?? {});
+                          localValue[fieldKey] = normalized;
+                        } else {
+                          localValue[fieldKey] = { _ClassName: '' };
+                        }
+                      }"
+                    >
+                      <option value="">-- 请选择 --</option>
+                      <option v-for="option in getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'object' }>).baseClass)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </option>
+                    </select>
+                  </div>
+                  
                   <Transition name="fade" mode="out-in">
                     <div
-                      v-show="isSectionExpanded(fieldKey)"
+                      v-show="isSectionExpanded(fieldKey) && (localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName"
                       class="mt-3 rounded-lg border border-base-300 bg-base-200/70 px-4 py-3 shadow-inner"
                     >
                       <DynamicObjectForm
@@ -388,6 +461,7 @@ async function updateArrayItemClass(
                         :registry="registry"
                         :subclass-options="subclassOptions"
                         :model-value="localValue[fieldKey] as Record<string, unknown>"
+                        :readonly="readonly"
                         @update:model-value="(value) => {
                           console.log('Old:', (localValue[fieldKey] as Record<string, unknown>)._ClassName, 'New:', value._ClassName);
                           localValue[fieldKey] = value;
@@ -416,6 +490,7 @@ async function updateArrayItemClass(
                           </button>
                           <span class="badge badge-outline badge-sm">{{ (item as Record<string, unknown>)._ClassName }}</span>
                           <select
+                            v-if="!readonly"
                             :value="(item as Record<string, unknown>)._ClassName as string"
                             class="select select-bordered select-xs w-44"
                             @mousedown.stop
@@ -438,6 +513,7 @@ async function updateArrayItemClass(
                             </option>
                           </select>
                           <button
+                            v-if="!readonly"
                             type="button"
                             class="btn btn-ghost btn-2xs text-error"
                             @click="removeArrayItem(fieldKey, index)"
@@ -454,13 +530,14 @@ async function updateArrayItemClass(
                             :registry="registry"
                             :subclass-options="subclassOptions"
                             :model-value="item as Record<string, unknown>"
+                            :readonly="readonly"
                             @update:model-value="(value) => updateArrayItemValue(fieldKey, index, value)"
                           />
                         </div>
                       </div>
 
                       <p v-if="getArrayItems(fieldKey).length === 0" class="rounded-lg border border-dashed border-base-200 bg-base-100/50 px-4 py-6 text-center text-xs text-base-content/60">
-                        暂无子项，点击“新增项+”创建新的对象。
+                        暂无子项，点击"新增项+"创建新的对象。
                       </p>
                     </div>
                   </Transition>

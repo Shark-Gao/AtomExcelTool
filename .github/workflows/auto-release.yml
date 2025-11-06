@@ -1,26 +1,39 @@
-name: Auto Release EXE
+name: Build and Release EXE
 
 on:
   workflow_dispatch: # 手动触发
   push:
     tags:
-      - 'v*' # 当 push tag v开头时自动触发（如：v1.0.0）
+      - 'v*' # 当 push tag 时自动触发（如：v1.0.0）
 
 jobs:
-  release:
+  build:
     runs-on: windows-latest
+    
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag
+        id: tag
+        run: |
+          $version = "${{ github.ref }}".Replace('refs/tags/v', '').Replace('refs/tags/', '')
+          echo "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Version: $version"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build Vue app
         run: npm run vite:build
@@ -31,7 +44,20 @@ jobs:
       - name: Package Electron app
         run: npm run app:build
 
-      - name: Upload EXE to GitHub Release
+      - name: List generated files
+        run: |
+          Write-Host "=== Checking for EXE files ==="
+          if (Test-Path "release") {
+            Get-ChildItem -Path "release" -Recurse -Include "*.exe", "*.yml", "*.blockmap" | ForEach-Object {
+              Write-Host $_.FullName
+            }
+          } else {
+            Write-Host "ERROR: release directory not found!"
+            exit 1
+          }
+
+      - name: Create GitHub Release
+        id: create_release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
@@ -41,5 +67,13 @@ jobs:
             release/**/*.yml
           draft: false
           prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release Info
+        if: success()
+        run: |
+          Write-Host "✅ Release created successfully!"
+          Write-Host "📦 Version: ${{ steps.tag.outputs.version }}"
+          Write-Host "🔗 Download: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"

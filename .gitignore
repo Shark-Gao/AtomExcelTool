@@ -11,8 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
-win-unpacked
-*.exe.blockmap
+release
+
 
 # Editor directories and files
 .vscode/*
@@ -25,6 +25,3 @@ win-unpacked
 *.njsproj
 *.sln
 *.sw?
-release/0.0.1/builder-debug.yml
-release/0.0.1/builder-effective-config.yaml
-release/0.0.1/latest.yml

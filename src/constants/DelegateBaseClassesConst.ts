@@ -84,5 +84,5 @@ export function getAllowedBaseClassesForFieldName(fieldName: string): string[] {
  * @returns 如果是原子字段则返回 true，否则返回 false
  */
 export function isAtomicField(fieldName: string): boolean {
-  return getAllowedBaseClassesForFieldName(fieldName).length > 0;
+  return getAllowedBaseClassesForFieldName(fieldName).length > 0 || fieldName.endsWith('.e');
 }

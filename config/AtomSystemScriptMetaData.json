@@ -1213,7 +1213,7 @@
                 "ParentAtomClassName": "CustomActionDealDamageDelegate",
                 "OrdinalIndex": 3,
                 "bLastParameter": false,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "SpecifiedBoneName",
                 "AtomType": {
@@ -1226,7 +1226,7 @@
                 "ParentAtomClassName": "CustomActionDealDamageDelegate",
                 "OrdinalIndex": 4,
                 "bLastParameter": false,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "bInterruptSleepStatusEffect",
                 "AtomType": {
@@ -1239,7 +1239,7 @@
                 "ParentAtomClassName": "CustomActionDealDamageDelegate",
                 "OrdinalIndex": 5,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "AdventurerHealthClaimingType",
                 "AtomType": {
@@ -1347,7 +1347,7 @@
                 "ParentAtomClassName": "CustomActionDealDamageByBuffHitConfigID",
                 "OrdinalIndex": 4,
                 "bLastParameter": false,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "SpecifiedBoneName",
                 "AtomType": {
@@ -1360,7 +1360,7 @@
                 "ParentAtomClassName": "CustomActionDealDamageByBuffHitConfigID",
                 "OrdinalIndex": 5,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "bInterruptSleepStatusEffect",
                 "AtomType": {
@@ -2271,7 +2271,7 @@
                 "ParentAtomClassName": "NumberValueBowgunAmmoType",
                 "OrdinalIndex": 0,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "AmmoSource",
                 "AtomType": {
@@ -3135,7 +3135,7 @@
                 "ParentAtomClassName": "ActionTakeConditionalActionExDelegate",
                 "OrdinalIndex": 2,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "ActionRhs",
                 "AtomType": {
@@ -4535,7 +4535,7 @@
                 "ParentAtomClassName": "ActionStartCounterAttackDelegate",
                 "OrdinalIndex": 1,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "bReset",
                 "AtomType": {
@@ -4568,7 +4568,7 @@
                 "ParentAtomClassName": "ActionPauseCounterAttackDelegate",
                 "OrdinalIndex": 1,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "bReset",
                 "AtomType": {
@@ -4713,7 +4713,7 @@
                 "ParentAtomClassName": "BoolValueActorIsInCertainMonsterBuffState",
                 "OrdinalIndex": 2,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "BuffStateStage",
                 "AtomType": {
@@ -5007,7 +5007,7 @@
                 "ParentAtomClassName": "ActionSpawnFieldDelegate",
                 "OrdinalIndex": 2,
                 "bLastParameter": false,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "BuildFromType",
                 "AtomType": {
@@ -5020,7 +5020,7 @@
                 "ParentAtomClassName": "ActionSpawnFieldDelegate",
                 "OrdinalIndex": 3,
                 "bLastParameter": false,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "bSpawnInServerFromServerRequest",
                 "AtomType": {
@@ -5622,7 +5622,7 @@
                 "ParentAtomClassName": "ActionDispelCertainCharacterStatusEffectDelegate",
                 "OrdinalIndex": 2,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "bReset",
                 "AtomType": {
@@ -6640,7 +6640,7 @@
                 "ParentAtomClassName": "EventBeginToSatisfyTheConditionDelegate",
                 "OrdinalIndex": 1,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "TimeRequired",
                 "AtomType": {
@@ -7331,7 +7331,7 @@
                 "ParentAtomClassName": "DuyaoniaoSpecialShootTaskDelegate",
                 "OrdinalIndex": 6,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "bInterruptSleepStatusEffect",
                 "AtomType": {
@@ -7364,7 +7364,7 @@
                 "ParentAtomClassName": "PartyBuffTaskDelegate",
                 "OrdinalIndex": 1,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "IgnoreBuffSource",
                 "AtomType": {
@@ -7486,7 +7486,7 @@
                 "ParentAtomClassName": "ConditionControlledBuffTaskDelegate",
                 "OrdinalIndex": 2,
                 "bLastParameter": false,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "ThresholdTime",
                 "AtomType": {
@@ -7499,7 +7499,7 @@
                 "ParentAtomClassName": "ConditionControlledBuffTaskDelegate",
                 "OrdinalIndex": 3,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "DurationAfterOutOfCondition",
                 "AtomType": {
@@ -8746,7 +8746,7 @@
                 "ParentAtomClassName": "DynamicDurationTaskDelegate",
                 "OrdinalIndex": 1,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "bFixed",
                 "AtomType": {
@@ -11019,7 +11019,7 @@
                 "ParentAtomClassName": "SendTutorialTipsUnlockEventActionDelegate",
                 "OrdinalIndex": 1,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "DelayTime",
                 "AtomType": {
@@ -11078,7 +11078,7 @@
                 "ParentAtomClassName": "CheckConditionTickActionDelegate",
                 "OrdinalIndex": 3,
                 "bLastParameter": false,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "TickInterval",
                 "AtomType": {
@@ -11091,7 +11091,7 @@
                 "ParentAtomClassName": "CheckConditionTickActionDelegate",
                 "OrdinalIndex": 4,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "MaxTickTime",
                 "AtomType": {

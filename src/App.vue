@@ -6,6 +6,7 @@ import SettingsModal from './components/SettingsModal.vue'
 import Toast from './components/Toast.vue'
 import ProgressModal from './components/ProgressModal.vue'
 import SkeletonLoader from './components/SkeletonLoader.vue'
+import DynamicObjectFormInline from './components/DynamicObjectFormInline.vue'
 import { loadSettingsFromStorage, saveSettingsToStorage } from './utils/settingsStorage'
 import type { ClassRegistry, ClassMetadata as DelegateClassMetadata } from './types/MetaDefine'
 import { getAllowedBaseClassesForFieldName, isAtomicField } from './constants/DelegateBaseClassesConst'
@@ -54,6 +55,7 @@ const rowButtonRefs = reactive<Record<string, HTMLButtonElement>>({})
 const isSettingsModalOpen = ref(false)
 const showOnlyAtomicFields = ref(initialSettings.showOnlyAtomicFields)
 const isDebugMode = ref(initialSettings.isDebugMode)
+const activeMainTab = ref<'config' | 'debug'>('config')
 
 // 进度控件相关
 const isProgressVisible = ref(false)
@@ -79,6 +81,7 @@ const mockObjectValue = reactive<Record<string, unknown>>({})
 const mockClassName = ref<string>(mockJsonObject._ClassName)
 const rawConfigText = ref(JSON.stringify(mockJsonObject, null, 2))
 const parseErrorMessage = ref<string | null>(null)
+const showInlineMockForm = ref(true)
 
 // 表达式解析相关
 const expressionInput = ref<string>('')
@@ -502,6 +505,9 @@ watch(showOnlyAtomicFields, (newValue) => {
 })
 
 watch(isDebugMode, (newValue) => {
+  if (!newValue) {
+    activeMainTab.value = 'config'
+  }
   saveSettingsToStorage({
     theme: currentTheme.value,
     showOnlyAtomicFields: showOnlyAtomicFields.value,
@@ -1114,17 +1120,24 @@ async function saveWorkbookAs() {
         <div class="px-6 pt-6 pb-4 space-y-4">
           <header class="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 class="card-title text-2xl font-bold">配置详情</h2>
+              <h2 class="card-title text-2xl font-bold">
+                {{ activeMainTab === 'config' ? '配置详情' : '调试工具' }}
+              </h2>
               <p class="text-sm text-base-content/60">
-                {{ selectedRowName ? `正在查看 RowName：${selectedRowName}` : '请选择左侧的 RowName 以查看详细配置。' }}
+                <template v-if="activeMainTab === 'config'">
+                  {{ selectedRowName ? `正在查看 RowName：${selectedRowName}` : '请选择左侧的 RowName 以查看详细配置。' }}
+                </template>
+                <template v-else>
+                  调试工具提供表达式解析与对象构建能力，需开启调试模式。
+                </template>
               </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
-              <label class="input input-bordered flex items-center gap-2 w-64" :class="{ 'input-disabled opacity-60': !selectedRowName }">
+              <label class="input input-bordered flex items-center gap-2 w-64" :class="{ 'input-disabled opacity-60': !selectedRowName || activeMainTab !== 'config' }">
                 <input
                   ref="columnSearchInputRef"
                   v-model="columnSearchKeyword"
-                  :disabled="!selectedRowName"
+                  :disabled="!selectedRowName || activeMainTab !== 'config'"
                   type="text"
                   class="grow"
                   placeholder="搜索属性"
@@ -1134,15 +1147,36 @@ async function saveWorkbookAs() {
                 <kbd class="kbd kbd-xs">L</kbd>
               </label>
               <div class="join">
-                <button class="btn join-item" :disabled="!selectedRowName" @click="resetEditableRecord">重置</button>
+                <button class="btn join-item" :disabled="!selectedRowName || activeMainTab !== 'config'" @click="resetEditableRecord">重置</button>
                 <!-- <button class="btn join-item btn-primary" :disabled="!selectedRowName" @click="saveEditableRecord">保存修改</button> -->
               </div>
             </div>
           </header>
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="join">
+              <button
+                type="button"
+                class="btn btn-sm join-item"
+                :class="activeMainTab === 'config' ? 'btn-primary' : 'btn-outline'"
+                @click="activeMainTab = 'config'"
+              >
+                配置详情
+              </button>
+              <button
+                v-if="isDebugMode"
+                type="button"
+                class="btn btn-sm join-item"
+                :class="activeMainTab === 'debug' ? 'btn-primary' : 'btn-outline'"
+                @click="activeMainTab = 'debug'"
+              >
+                调试工具
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="flex flex-1 flex-col min-h-0 overflow-hidden">
-          <div class="flex-1 overflow-y-auto px-6 pb-4">
+          <div v-if="activeMainTab === 'config'" class="flex-1 overflow-y-auto px-6 pb-4">
             <div v-if="selectedRowName" class="pt-4">
               <div class="divider my-2"></div>
               <div class="grid grid-cols-none gap-4 auto-cols-max" style="grid-auto-flow: column;">
@@ -1229,65 +1263,95 @@ async function saveWorkbookAs() {
             <div v-else class="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-base-300 bg-base-200/60 p-16 text-base-content/60">
               <p>暂无选中条目，请在左侧列表中选择一个 RowName。</p>
             </div>
-          
-        </div>
+          </div>
 
-          <div class="card bg-base-200/60 shadow-inner" v-if="isDebugMode">
-            <div class="card-body space-y-4">
-              <!-- 表达式解析器 -->
-              <div class="divider my-2">表达式解析器</div>
+          <div
+            v-else
+            class="flex-1 overflow-y-auto px-6 pb-4"
+          >
+            <div class="divider my-2">表达式解析器</div>
+            <div class="form-control gap-2">
+              <label class="label">
+                <span class="label-text">输入表达式</span>
+              </label>
+              <div class="flex gap-2">
+                <textarea
+                  v-model="expressionInput"
+                  class="textarea textarea-bordered font-mono text-xs flex-1"
+                  placeholder="输入 Atom 表达式，例如: GetCombatTime() > 5"
+                  rows="4"
+                ></textarea>
+                <div class="flex flex-col gap-2">
+                  <button
+                    class="btn btn-primary btn-sm"
+                    @click="parseAtomExpression"
+                    :disabled="!expressionInput.trim()"
+                  >
+                    刷新解析
+                  </button>
+                  <button
+                    class="btn btn-outline btn-sm"
+                    @click="expressionInput = ''; expressionParseResult = ''; expressionParseError = null"
+                  >
+                    清空
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
               <div class="form-control gap-2">
                 <label class="label">
-                  <span class="label-text">输入表达式</span>
+                  <span class="label-text">解析结果 (JSON)</span>
                 </label>
-                <div class="flex gap-2">
-                  <textarea
-                    v-model="expressionInput"
-                    class="textarea textarea-bordered font-mono text-xs flex-1"
-                    placeholder="输入 Atom 表达式，例如: GetCombatTime() > 5"
-                    rows="4"
-                  ></textarea>
-                  <div class="flex flex-col gap-2">
+                <textarea
+                  v-model="expressionParseResult"
+                  class="textarea textarea-bordered font-mono text-xs resize"
+                  placeholder="解析结果将在此显示"
+                  readonly
+                ></textarea>
+                <p v-if="expressionParseError" class="text-sm text-error">
+                  {{ expressionParseError }}
+                </p>
+              </div>
+            </div>
+
+            <div class="divider my-2">对象表单与 JSON</div>
+
+            <!-- 对象表单与 JSON 编辑 -->
+            <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
+              <div class="scrollbar max-h-[420px] overflow-y-auto pr-1">
+                <div class="flex flex-col gap-3">
+                  <div class="join self-start">
                     <button
-                      class="btn btn-primary btn-sm"
-                      @click="parseAtomExpression"
-                      :disabled="!expressionInput.trim()"
+                      type="button"
+                      class="btn btn-xs join-item"
+                      :class="showInlineMockForm ? 'btn-primary' : 'btn-outline'"
+                      @click="showInlineMockForm = true"
                     >
-                      刷新解析
+                      水平展示
                     </button>
                     <button
-                      class="btn btn-outline btn-sm"
-                      @click="expressionInput = ''; expressionParseResult = ''; expressionParseError = null"
+                      type="button"
+                      class="btn btn-xs join-item"
+                      :class="!showInlineMockForm ? 'btn-primary' : 'btn-outline'"
+                      @click="showInlineMockForm = false"
                     >
-                      清空
+                      垂直展示
                     </button>
                   </div>
-                </div>
-              </div>
 
-              <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
-                <div class="form-control gap-2">
-                  <label class="label">
-                    <span class="label-text">解析结果 (JSON)</span>
-                  </label>
-                  <textarea
-                    v-model="expressionParseResult"
-                    class="textarea textarea-bordered font-mono text-xs resize"
-                    placeholder="解析结果将在此显示"
-                    readonly
-                  ></textarea>
-                  <p v-if="expressionParseError" class="text-sm text-error">
-                    {{ expressionParseError }}
-                  </p>
-                </div>
-              </div>
+                  <DynamicObjectFormInline
+                    v-if="showInlineMockForm"
+                    :class-name="mockClassName"
+                    :registry="classRegistry"
+                    :subclass-options="subclassOptions"
+                    :model-value="mockObjectValue"
+                    @update:model-value="(value) => applyNormalizedObject(value as ParsedClassObject)"
+                  />
 
-              <div class="divider my-2">对象表单与 JSON</div>
-
-              <!-- 对象表单与 JSON 编辑 -->
-              <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
-                <div class="scrollbar max-h-[420px] overflow-y-auto pr-1">
                   <DynamicObjectForm
+                    v-else
                     :class-name="mockClassName"
                     :registry="classRegistry"
                     :subclass-options="subclassOptions"

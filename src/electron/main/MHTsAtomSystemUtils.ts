@@ -6424,13 +6424,11 @@ class FAtomExpressionParser {
     }
 
     if (stack.length > 1)
-      console.warn(
-        `\
+      throw new Error(`\
 [AtomSystem] expression parsing resulted in MORE THAN ONE elements:\
 expr: ${expr} \
 result stack: ${stack.join(", ")}\
-`
-      ); // todo: toString()s of delegates
+`)
     return stack[0] as DelegateBase;
   }
 

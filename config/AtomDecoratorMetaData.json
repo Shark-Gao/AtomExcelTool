@@ -21,6 +21,19 @@
 		],
 		"baseClass": "EventDelegateEx"
 	},
+	"BoolValueNotDelegate": {
+		"className": "BoolValueNotDelegate",
+		"isDelegate": true,
+		"fields": [
+			{
+				"key": "Value",
+				"label": "Value",
+				"type": "string"
+			}
+		],
+		"displayName": "!",
+		"baseClass": "BoolValueDelegate"
+	},
 	"ActionTakeConditionalActionExDelegate": {
 		"className": "ActionTakeConditionalActionExDelegate",
 		"isDelegate": true,

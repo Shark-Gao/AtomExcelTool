@@ -301,10 +301,10 @@ async function updateArrayItemClass(
   <div v-if="classInfo" class="space-y-4">
     <div class="rounded-xl border border-base-300 bg-base-100 shadow-sm">
       <div class="flex items-center justify-between gap-4 border-b border-base-200 px-4 py-3">
-        <div>
+        <!-- <div>
           <div class="text-sm font-semibold text-base-content">{{ classInfo.displayName }}</div>
           <div class="text-[11px] uppercase tracking-[0.2em] text-base-content/40">{{ classInfo.baseClass }}</div>
-        </div>
+        </div> -->
         <div class="flex items-center gap-3">
           <button
             type="button"
@@ -318,7 +318,7 @@ async function updateArrayItemClass(
             v-if="rootSubclassOptions.length && !readonly"
             class="flex items-center gap-2 rounded-lg border border-base-200 bg-base-200/40 px-3 py-1 text-xs text-base-content/70"
           >
-            <span class="text-[11px] uppercase tracking-wide text-base-content/60">原子</span>
+            <!-- <span class="text-[11px] uppercase tracking-wide text-base-content/60">原子</span> -->
             <select
               :value="rootClassName"
               class="select select-bordered select-xs w-48"
@@ -354,7 +354,7 @@ async function updateArrayItemClass(
                   :aria-expanded="isSectionExpanded(fieldKey)"
                   @click="toggleSection(fieldKey)"
                 >
-                  <span class="transition-transform" :class="{ 'rotate-90': isSectionExpanded(fieldKey) }">▶</span>
+                  <!-- <span class="transition-transform" :class="{ 'rotate-90': isSectionExpanded(fieldKey) }">▶</span> -->
                 </button>
                 <div class="flex-1">
                   <div class="flex items-center justify-between">

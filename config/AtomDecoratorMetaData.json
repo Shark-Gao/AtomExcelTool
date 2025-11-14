@@ -1,0 +1,48 @@
+﻿{
+	"EventTriggerRepeatedWithinDurationDelegate": {
+		"className": "EventTriggerRepeatedWithinDurationDelegate",
+		"isDelegate": true,
+		"fields": [
+			{
+				"key": "Event",
+				"label": "Event",
+				"type": "string"
+			},
+			{
+				"key": "Duration",
+				"label": "Duration",
+				"type": "string"
+			},
+			{
+				"key": "RepeatedCount",
+				"label": "RepeatedCount",
+				"type": "string"
+			}
+		],
+		"baseClass": "EventDelegateEx"
+	},
+	"ActionTakeConditionalActionExDelegate": {
+		"className": "ActionTakeConditionalActionExDelegate",
+		"isDelegate": true,
+		"fields": [
+			{
+				"key": "条件",
+				"label": "Condition",
+				"type": "string"
+			},
+			{
+				"key": "true执行动作",
+				"label": "ActionLhs",
+				"type": "string"
+			},
+			{
+				"key": "false执行动作",
+				"label": "ActionRhs",
+				"type": "string"
+			}
+		],
+		"displayName": "条件分支动作",
+		"description": "Condition为true则执行ActionLhs，否则执行ActionRhs",
+		"baseClass": "ActionDelegate"
+	}
+}

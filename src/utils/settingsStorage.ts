@@ -5,13 +5,15 @@
 export interface AppSettings {
   theme: string
   showOnlyAtomicFields: boolean
+  isDebugMode: boolean
 }
 
 const SETTINGS_STORAGE_KEY = 'mhatomexceltool_settings'
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dracula_custom',
-  showOnlyAtomicFields: true
+  showOnlyAtomicFields: true,
+  isDebugMode: false
 }
 
 /**
@@ -24,7 +26,8 @@ export function loadSettingsFromStorage(): AppSettings {
       const settings = JSON.parse(stored) as Partial<AppSettings>
       return {
         theme: settings.theme ?? DEFAULT_SETTINGS.theme,
-        showOnlyAtomicFields: settings.showOnlyAtomicFields ?? DEFAULT_SETTINGS.showOnlyAtomicFields
+        showOnlyAtomicFields: settings.showOnlyAtomicFields ?? DEFAULT_SETTINGS.showOnlyAtomicFields,
+        isDebugMode: settings.isDebugMode ?? DEFAULT_SETTINGS.isDebugMode
       }
     }
   } catch (error) {

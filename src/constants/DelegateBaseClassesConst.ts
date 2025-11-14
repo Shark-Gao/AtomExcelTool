@@ -3,6 +3,8 @@
  * 用于在 DelegateMetadataGenerator 和前端 UI 中统一使用
  */
 
+import { ActionDelegate, ActorValueDelegate, BoolValueDelegate, EventDelegateEx, NumberValueDelegate, TaskDelegate } from "../electron/main/MHTsAtomSystemUtils";
+
 // 所有支持的基类名称
 export const DELEGATE_BASE_CLASSES = {
   NumberValueDelegate: 'NumberValueDelegate',
@@ -11,6 +13,16 @@ export const DELEGATE_BASE_CLASSES = {
   EventDelegateEx: 'EventDelegateEx',
   ActionDelegate: 'ActionDelegate',
   TaskDelegate: 'TaskDelegate',
+} as const;
+
+// 所有支持的基类名称
+export const DELEGATE_BASE_CLASSES_Def = {
+  NumberValueDelegate: NumberValueDelegate,
+  BoolValueDelegate: BoolValueDelegate,
+  ActorValueDelegate: ActorValueDelegate,
+  EventDelegateEx: EventDelegateEx,
+  ActionDelegate: ActionDelegate,
+  TaskDelegate: TaskDelegate,
 } as const;
 
 // 基类优先级匹配顺序（用于检测类型时的匹配顺序）
@@ -29,10 +41,8 @@ export const FIELD_SUFFIX_TO_BASE_CLASS_MAP: Record<string, string[]> = {
   '.Action': [DELEGATE_BASE_CLASSES.ActionDelegate],
   '.Task': [DELEGATE_BASE_CLASSES.TaskDelegate],
   '.Event': [DELEGATE_BASE_CLASSES.EventDelegateEx],
-  '.BufActLhs': [DELEGATE_BASE_CLASSES.ActionDelegate],
   '.ActionLhs': [DELEGATE_BASE_CLASSES.ActionDelegate],
   '.ActionRhs': [DELEGATE_BASE_CLASSES.ActionDelegate],
-  
 };
 
 // 字段前缀与基类的映射规则

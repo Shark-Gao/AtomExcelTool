@@ -2,7 +2,7 @@
 import { join } from 'path';
 import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron';
 import ExcelJS from 'exceljs';
-import { FAtomExpressionParser, FunctionNameToDelegate } from './MHTsAtomSystemUtils';
+import { FAtomExpressionParser } from './MHTsAtomSystemUtils';
 import {DelegateMetadataGenerator} from './DelegateMetadataGenerator';
 import { deParseJsonToExpression } from './DeParseJsonToExpression';
 import { runAllTests } from './DeParseJsonToExpression.test';
@@ -295,22 +295,21 @@ ipcMain.handle('excel:save-as', async (_event, payload: { defaultPath?: string; 
 
 ipcMain.handle('delegate:get-metadata', async () => {
     try {
-        const metadata = DelegateMetadataGenerator.generateMetadataFromFunctionMap(FunctionNameToDelegate);
+        const metadata = DelegateMetadataGenerator.generateMetadataFromMetaJsonConfig();//.generateMetadataFromFunctionMap(FunctionNameToDelegate);
         const registry = DelegateMetadataGenerator.generateClassRegistry(metadata);
         const grouped = DelegateMetadataGenerator.groupMetadataByBaseClass(metadata);
 
         // const delegate = FAtomExpressionParser.main("ConditionalAction(CheckInteractActionType(1),NOP(),Heal(Self(), GetAttr(MaxHealth) * 0.02))");
-        const delegate = FAtomExpressionParser.main("NOP()");
-        const defaultJson = JSON.stringify(delegate, undefined, '  ');
-        console.log(defaultJson);
-        runAllTests()
+        // // const delegate = FAtomExpressionParser.main("NOP()");
+        // const defaultJson = JSON.stringify(delegate, undefined, '  ');
+        // console.log(`delegate:get-metadata>>>>` + defaultJson);
+        // runAllTests()
 
         return {
             ok: true,
             metadata,
             registry,
             grouped,
-            defaultJson,
             count: metadata.length
         };
     } catch (error) {
@@ -399,6 +398,20 @@ function createWindow() {
         mainWindow.loadFile(join(__dirname, '../../index.html'));
     }
 
+    // 生产模式：通过快捷键打开开发者工具
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+        // F12 或 Ctrl+Shift+I 打开开发者工具
+        if ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i') {
+            mainWindow.webContents.toggleDevTools();
+            event.preventDefault();
+        }
+        // F12 打开开发者工具
+        if (input.key === 'F12') {
+            mainWindow.webContents.toggleDevTools();
+            event.preventDefault();
+        }
+    });
+    
     // 初始 HTML 解析完成即显示（可看到 index.html 中的 Skeleton）
     mainWindow.webContents.once('dom-ready', () => {
         if (!mainWindow.isDestroyed()) {
@@ -411,10 +424,29 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+    // // 初始化配置管理系统
+    // registerConfigIpcHandlers(ipcMain);
+    
+    // // 启动元数据热更新监听
+    // let stopWatching: (() => void) | null = null;
+    // stopWatching = watchMetadataConfig((config) => {
+    //     // 广播元数据更新事件给所有窗口
+    //     BrowserWindow.getAllWindows().forEach(win => {
+    //         win.webContents.send('config:metadata-changed', config);
+    //     });
+    // });
+    
     createWindow();
     app.on('activate', function () {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
+    
+    // // 当应用退出时停止监听
+    // app.on('before-quit', () => {
+    //     if (stopWatching) {
+    //         stopWatching();
+    //     }
+    // });
 });
 
 app.on('window-all-closed', () => {

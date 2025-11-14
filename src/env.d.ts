@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { ClassMetadata, ClassRegistry } from './types/DynamicObjectForm'
+import type { ClassMetadata, ClassRegistry } from './types/MetaDefine'
 
 // ============ 通用类型 ============
 type RowRecord = Record<string, string>

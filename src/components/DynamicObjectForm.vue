@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { normalizeClassInstance as normalizeClassInstanceUtil } from '../utils/ClassNormalizer'
+import { ClassRegistry, FieldMeta, BaseClassNativeType, isBaseClassNative, BaseClassType } from '../types/MetaDefine'
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object' | 'array'
 
@@ -9,30 +10,29 @@ export type FieldOption = {
   value: string
 }
 
-export type FieldMeta =
-  | {
-      label: string
-      type: Exclude<FieldType, 'object' | 'array'>
-      options?: FieldOption[]
-    }
-  | {
-      label: string
-      type: 'object'
-      baseClass: string
-    }
-  | {
-      label: string
-      type: 'array'
-      baseClass: string
-    }
+// export type FieldMeta =
+//   | {
+//       label: string
+//       type: Exclude<FieldType, 'object' | 'array'>
+//       options?: FieldOption[]
+//     }
+//   | {
+//       label: string
+//       type: 'object'
+//       baseClass: string
+//     }
+//   | {
+//       label: string
+//       type: 'array'
+//       baseClass?: string
+//       elementType?: 'string' | 'number' | 'boolean' | 'object'
+//     }
 
-export type ClassInfo = {
-  displayName: string
-  baseClass: string
-  fields: Record<string, FieldMeta>
-}
-
-export type ClassRegistry = Record<string, ClassInfo>
+// export type ClassInfo = {
+//   displayName: string
+//   baseClass: string
+//   fields: Record<string, FieldMeta>
+// }
 
 const props = withDefaults(
   defineProps<{
@@ -105,12 +105,32 @@ async function updateRootClass(newClassName: string) {
   isHydrating.value = false
 }
 
-function getArrayItems(fieldKey: string): Record<string, unknown>[] {
+function getArrayItems(fieldKey: string): any[] {
   const value = localValue[fieldKey]
   if (!Array.isArray(value)) {
     return []
   }
-  return value as Record<string, unknown>[]
+  return value as any[]
+}
+
+function isArrayOfObjects(fieldMeta: Extract<FieldMeta, { type: 'array' }>): boolean {
+  if (fieldMeta.type == 'array') {
+    return true
+  }
+  return false
+}
+
+function getArrayElementType(fieldMeta: Extract<FieldMeta, { type: 'array' }>): 'string' | 'number' | 'boolean' | 'object' | BaseClassType {
+  if (!fieldMeta.baseClass) {
+    return 'string';
+  }
+
+  // 检查 baseClass 是否为基础类型
+  if (isBaseClassNative(fieldMeta.baseClass)) {
+    return fieldMeta.baseClass;
+  }
+  
+  return 'object';
 }
 
 const isRootCollapsed = ref(false)
@@ -137,7 +157,10 @@ function toggleSection(fieldKey: string) {
   expandedSections[fieldKey] = !expandedSections[fieldKey]
 }
 
-function getSubclassOptions(baseClass: string): FieldOption[] {
+function getSubclassOptions(baseClass: string | undefined): FieldOption[] {
+  if (!baseClass) {
+    return []
+  }
   return props.subclassOptions[baseClass] ?? []
 }
 
@@ -210,11 +233,31 @@ function removeArrayItem(fieldKey: string, index: number) {
 }
 
 function addArrayItem(fieldKey: string, fieldMeta: Extract<FieldMeta, { type: 'array' }>) {
-  const options = getSubclassOptions(fieldMeta.baseClass)
-  const defaultClassName = options[0]?.value ?? fieldMeta.baseClass
-  const list = Array.isArray(localValue[fieldKey]) ? (localValue[fieldKey] as Record<string, unknown>[]) : []
-  const newItem = normalizeClassInstance(defaultClassName, {})
-  localValue[fieldKey] = [...list, newItem]
+  const list = Array.isArray(localValue[fieldKey]) ? (localValue[fieldKey] as any[]) : []
+  
+  // 判断是否为对象数组
+  const elementType = getArrayElementType(fieldMeta)
+  if (elementType == 'object') {
+    const options = getSubclassOptions(fieldMeta.baseClass)
+    const defaultClassName = options[0]?.value ?? fieldMeta.baseClass
+    const newItem = normalizeClassInstance(defaultClassName, {})
+    localValue[fieldKey] = [...list, newItem]
+  } else {
+    // 基础类型数组，添加默认值
+    let defaultValue: any
+    switch (elementType) {
+      case 'number':
+        defaultValue = 0
+        break
+      case 'boolean':
+        defaultValue = false
+        break
+      case 'string':
+      default:
+        defaultValue = ''
+    }
+    localValue[fieldKey] = [...list, defaultValue]
+  }
 }
 
 async function updateArrayItemClass(
@@ -359,8 +402,7 @@ async function updateArrayItemClass(
                 </template>
 
                 <template v-else-if="fieldMeta.type === 'object'">
-                  <div class="mt-3 space-y-3">
-                    <!-- 类选择下拉框 -->
+                  <!-- <div class="mt-3 space-y-3">
                     <select
                       v-if="!readonly"
                       :value="(localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName ?? ''"
@@ -380,7 +422,7 @@ async function updateArrayItemClass(
                         {{ option.label }}
                       </option>
                     </select>
-                  </div>
+                  </div> -->
                   
                   <Transition name="fade" mode="out-in">
                     <div
@@ -407,68 +449,83 @@ async function updateArrayItemClass(
                 <template v-else-if="fieldMeta.type === 'array'">
                   <Transition name="fade" mode="out-in">
                     <div v-show="isSectionExpanded(fieldKey)" class="mt-3 space-y-3">
+                      <!-- 对象数组 -->
                       <div
-                        v-for="(item, index) in getArrayItems(fieldKey)"
-                        :key="`${fieldKey}-${index}`"
-                        class="rounded-lg border border-base-300 bg-base-100 shadow-sm"
+                      v-for="(item, index) in getArrayItems(fieldKey)"
+                      :key="`${fieldKey}-${index}`"
+                      class="rounded-lg border border-base-300 bg-base-100 shadow-sm"
                       >
-                        <header class="flex items-center gap-2 border-b border-base-200 px-3 py-2 text-xs font-semibold">
-                          <button
-                            type="button"
-                            class="btn btn-circle btn-ghost btn-2xs"
-                            :aria-expanded="isSectionExpanded(`${fieldKey}-array-${index}`)"
-                            @click="toggleSection(`${fieldKey}-array-${index}`)"
-                          >
-                            <span class="transition-transform" :class="{ 'rotate-90': isSectionExpanded(`${fieldKey}-array-${index}`) }">▶</span>
-                          </button>
-                          <span class="badge badge-outline badge-sm">{{ (item as Record<string, unknown>)._ClassName }}</span>
-                          <select
-                            v-if="!readonly"
-                            :value="(item as Record<string, unknown>)._ClassName as string"
-                            class="select select-bordered select-xs w-44"
-                            @mousedown.stop
-                            @click.stop
-                            @change="(event) =>
-                              updateArrayItemClass(
-                                fieldKey,
-                                fieldMeta as Extract<FieldMeta, { type: 'array' }>,
-                                index,
-                                (event.target as HTMLSelectElement).value
-                              )
-                            "
-                          >
-                            <option
-                              v-for="option in getSubclassOptions(fieldMeta.baseClass)"
-                              :key="option.value"
-                              :value="option.value"
-                            >
-                              {{ option.label }}
-                            </option>
-                          </select>
-                          <button
+                        <template v-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'object'">
+                          <div v-show="isSectionExpanded(`${fieldKey}-array-${index}`)" class="px-3 pb-2 pt-3">
+                            
+                            <DynamicObjectForm
+                              v-if="(item as Record<string, unknown>)._ClassName"
+                              :key="`${fieldKey}-array-${index}-${(item as Record<string, unknown>)._ClassName as string}`"
+                              :class-name="(item as Record<string, unknown>)._ClassName as string"
+                              :registry="registry"
+                              :subclass-options="subclassOptions"
+                              :model-value="item as Record<string, unknown>"
+                              :readonly="readonly"
+                              @update:model-value="(value) => updateArrayItemValue(fieldKey, index, value)"
+                            />
+                          </div>
+                        </template>
+
+                        <template v-else>
+                          <template v-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'string'">
+                            <input
+                              :value="item as string"
+                              type="text"
+                              class="input input-bordered input-sm flex-1"
+                              :disabled="readonly"
+                              @input="(event) => {
+                                const list = [...getArrayItems(fieldKey)];
+                                list[index] = (event.target as HTMLInputElement).value;
+                                localValue[fieldKey] = list;
+                              }"
+                            />
+                          </template>
+
+                          <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'number'">
+                            <input
+                              :value="item as number"
+                              type="number"
+                              class="input input-bordered input-sm flex-1"
+                              :disabled="readonly"
+                              @input="(event) => {
+                                const list = [...getArrayItems(fieldKey)];
+                                list[index] = Number((event.target as HTMLInputElement).value);
+                                localValue[fieldKey] = list;
+                              }"
+                            />
+                          </template>
+
+                          <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'boolean'">
+                            <label class="flex items-center gap-2">
+                              <input
+                                :checked="item as boolean"
+                                type="checkbox"
+                                class="checkbox checkbox-sm"
+                                :disabled="readonly"
+                                @change="(event) => {
+                                  const list = [...getArrayItems(fieldKey)];
+                                  list[index] = (event.target as HTMLInputElement).checked;
+                                  localValue[fieldKey] = list;
+                                }"
+                              />
+                            </label>
+                          </template>
+                        </template>
+                            
+                        <button
                             v-if="!readonly"
                             type="button"
                             class="btn btn-ghost btn-2xs text-error"
                             @click="removeArrayItem(fieldKey, index)"
                           >
                             删除
-                          </button>
-                        </header>
-
-                        <div v-show="isSectionExpanded(`${fieldKey}-array-${index}`)" class="px-3 pb-2 pt-3">
-                          <DynamicObjectForm
-                            v-if="(item as Record<string, unknown>)._ClassName"
-                            :key="`${fieldKey}-array-${index}-${(item as Record<string, unknown>)._ClassName as string}`"
-                            :class-name="(item as Record<string, unknown>)._ClassName as string"
-                            :registry="registry"
-                            :subclass-options="subclassOptions"
-                            :model-value="item as Record<string, unknown>"
-                            :readonly="readonly"
-                            @update:model-value="(value) => updateArrayItemValue(fieldKey, index, value)"
-                          />
-                        </div>
+                        </button>
                       </div>
-
                       <p v-if="getArrayItems(fieldKey).length === 0" class="rounded-lg border border-dashed border-base-200 bg-base-100/50 px-4 py-6 text-center text-xs text-base-content/60">
                         暂无子项，点击"新增项+"创建新的对象。
                       </p>

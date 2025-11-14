@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type ComponentPublicInstance } from 'vue'
-import DynamicObjectForm, { type ClassRegistry, type FieldMeta, type FieldOption } from './components/DynamicObjectForm.vue'
+import DynamicObjectForm, { type FieldOption } from './components/DynamicObjectForm.vue'
 import SearchableDropdown from './components/SearchableDropdown.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import Toast from './components/Toast.vue'
 import ProgressModal from './components/ProgressModal.vue'
 import SkeletonLoader from './components/SkeletonLoader.vue'
 import { loadSettingsFromStorage, saveSettingsToStorage } from './utils/settingsStorage'
-import type { ClassMetadata as DelegateClassMetadata } from './types/DynamicObjectForm'
+import type { ClassRegistry, ClassMetadata as DelegateClassMetadata } from './types/MetaDefine'
 import { getAllowedBaseClassesForFieldName, isAtomicField } from './constants/DelegateBaseClassesConst'
 import { normalizeClassInstance } from './utils/ClassNormalizer'
 
@@ -53,7 +53,7 @@ const currentTheme = ref<string>(initialSettings.theme)
 const rowButtonRefs = reactive<Record<string, HTMLButtonElement>>({})
 const isSettingsModalOpen = ref(false)
 const showOnlyAtomicFields = ref(initialSettings.showOnlyAtomicFields)
-const isDebugMode = ref(false)
+const isDebugMode = ref(initialSettings.isDebugMode)
 
 // 进度控件相关
 const isProgressVisible = ref(false)
@@ -79,6 +79,11 @@ const mockObjectValue = reactive<Record<string, unknown>>({})
 const mockClassName = ref<string>(mockJsonObject._ClassName)
 const rawConfigText = ref(JSON.stringify(mockJsonObject, null, 2))
 const parseErrorMessage = ref<string | null>(null)
+
+// 表达式解析相关
+const expressionInput = ref<string>('')
+const expressionParseResult = ref<string>('')
+const expressionParseError = ref<string | null>(null)
 
 // 条件字段相关
 type ConditionFieldInfo = {
@@ -137,53 +142,56 @@ function formatJson(parsed: any, indent: number = 2): string {
   }
 }
 
-function convertDelegateFieldMeta(fieldMeta: DelegateClassMetadata['fields'][number]): FieldMeta {
-  const label = fieldMeta.label ?? fieldMeta.key
+// function convertDelegateFieldMeta(fieldMeta: DelegateClassMetadata['fields'][number]): FieldMeta {
+//   const label = fieldMeta.label ?? fieldMeta.key
 
-  if (fieldMeta.type === 'object' || fieldMeta.type === 'array') {
-    return {
-      label,
-      type: fieldMeta.type,
-      baseClass: fieldMeta.baseClass ?? 'DelegateBase'
-    }
-  }
+//   if (fieldMeta.type === 'object' || fieldMeta.type === 'array') {
+//     return {
+//       label,
+//       type: fieldMeta.type,
+//       baseClass: fieldMeta.baseClass ?? 'DelegateBase'
+//     }
+//   }
 
-  if ('options' in fieldMeta && Array.isArray(fieldMeta.options)) {
-    const options = fieldMeta.options.map((option) => ({
-      label: option.label,
-      value: String(option.value)
-    }))
+//   if ('options' in fieldMeta && Array.isArray(fieldMeta.options)) {
+//     const options = fieldMeta.options.map((option) => ({
+//       label: option.label,
+//       value: String(option.value)
+//     }))
 
-    return {
-      label,
-      type: 'select',
-      options
-    }
-  }
+//     return {
+//       label,
+//       type: 'select',
+//       options
+//     }
+//   }
 
-  return {
-    label,
-    type: fieldMeta.type
-  }
-}
+//   return {
+//     label,
+//     type: fieldMeta.type
+//   }
+// }
 
 function applyDelegateMetadata(
-  metadataList: DelegateClassMetadata[],
-  grouped: Record<string, DelegateClassMetadata[]> | undefined
-) {
+metadataList: DelegateClassMetadata[], grouped: Record<string, DelegateClassMetadata[]> | undefined, registry: ClassRegistry) {
   clearClassRegistry()
-  metadataList.forEach((classMeta) => {
-    const fieldsRecord = classMeta.fields.reduce<Record<string, FieldMeta>>((accumulator, fieldMeta) => {
-      accumulator[fieldMeta.key] = convertDelegateFieldMeta(fieldMeta)
-      return accumulator
-    }, {})
+  // metadataList.forEach((classMeta) => {
+  //   const fieldsRecord = classMeta.fields.reduce<Record<string, FieldMeta>>((accumulator, fieldMeta) => {
+  //     accumulator[fieldMeta.key] = convertDelegateFieldMeta(fieldMeta)
+  //     return accumulator
+  //   }, {})
 
-    console.log(classMeta.className)
-    classRegistry[classMeta.className] = {
-      displayName: classMeta.displayName ?? classMeta.className,
-      baseClass: classMeta.baseClass,
-      fields: fieldsRecord
-    }
+    
+  //   // classRegistry[classMeta.className] = {
+  //   //   displayName: classMeta.displayName ?? classMeta.className,
+  //   //   baseClass: classMeta.baseClass,
+  //   //   fields: fieldsRecord
+  //   // }
+  // })
+
+  // 遍历registry
+  Object.keys(registry).forEach((key) => {
+    classRegistry[key] = registry[key]
   })
 
   clearSubclassOptions()
@@ -252,10 +260,10 @@ async function loadDelegateMetadata() {
     }
 
     updateProgress(70)
-    applyDelegateMetadata(result.metadata, result.grouped ?? {})
+    applyDelegateMetadata(result.metadata, result.grouped ?? {}, result.registry)
 
-    updateProgress(85)
-    rawConfigText.value = result.defaultJson;
+    // updateProgress(85)
+    // rawConfigText.value = result.defaultJson;
 
     updateProgress(95)
     syncMockObjectValueFromJson()
@@ -288,10 +296,8 @@ const mockClassOptions = computed<FieldOption[]>(() => {
 })
 
 function applyNormalizedObject(normalized: ParsedClassObject) {
-  if (typeof normalized._ClassName === 'string') {
-    mockClassName.value = normalized._ClassName
-  }
   rawConfigText.value = JSON.stringify(normalized, null, 2)
+  syncMockObjectValueFromJson()
 }
 
 async function applyNormalizedObjectByColumnName(normalized: ParsedClassObject, updateColumnName: string) {
@@ -482,14 +488,24 @@ watch(currentTheme, (newTheme) => {
   applyTheme(newTheme)
   saveSettingsToStorage({
     theme: newTheme,
-    showOnlyAtomicFields: showOnlyAtomicFields.value
+    showOnlyAtomicFields: showOnlyAtomicFields.value,
+    isDebugMode: isDebugMode.value
   })
 })
 
 watch(showOnlyAtomicFields, (newValue) => {
   saveSettingsToStorage({
     theme: currentTheme.value,
-    showOnlyAtomicFields: newValue
+    showOnlyAtomicFields: newValue,
+    isDebugMode: isDebugMode.value
+  })
+})
+
+watch(isDebugMode, (newValue) => {
+  saveSettingsToStorage({
+    theme: currentTheme.value,
+    showOnlyAtomicFields: showOnlyAtomicFields.value,
+    isDebugMode: newValue
   })
 })
 
@@ -593,6 +609,51 @@ watch(
 
 function isConditionField(columnName: string): boolean {
     return columnName.endsWith('.Condition');
+}
+
+/**
+ * 解析 Atom 表达式
+ */
+async function parseAtomExpression() {
+  const expression = expressionInput.value.trim()
+  if (!expression) {
+    expressionParseError.value = '请输入表达式'
+    return
+  }
+
+  if (!window.delegateBridge) {
+    expressionParseError.value = '当前环境未暴露 Delegate 接口，请检查配置。'
+    return
+  }
+
+  try {
+    expressionParseError.value = null
+    expressionParseResult.value = '解析中...'
+
+    const result = await window.delegateBridge.parseExpression({
+      expression
+    })
+
+    if (result.ok && result.json) {
+      expressionParseResult.value = result.json
+      expressionParseError.value = null
+
+      // 解析成功，同时更新 DynamicObjectForm 测试界面
+      try {
+        const parsedJson = JSON.parse(result.json) as ParsedClassObject
+        applyNormalizedObject(parsedJson)
+      } catch (parseError) {
+        console.warn('Failed to parse JSON result:', parseError)
+      }
+    } else {
+      expressionParseResult.value = ''
+      expressionParseError.value = result.error || '表达式解析失败'
+    }
+  } catch (error) {
+    expressionParseResult.value = ''
+    expressionParseError.value = error instanceof Error ? error.message : '未知错误'
+    console.error('[parseAtomExpression]', error)
+  }
 }
 
 /**
@@ -1106,7 +1167,7 @@ async function saveWorkbookAs() {
                       清除配置
                     </button>
                   </div>
-                  <p class="text-xs text-base-content/50 mb-2 min-h-[1rem]" :title="columnDescriptions[columnName] || ''">
+                  <p class="text-xs text-base-content/50 mb-2 min-h-4" :title="columnDescriptions[columnName] || ''">
                     {{ columnDescriptions[columnName] || '' }}
                   </p>
                   <template v-if="conditionFieldSet.has(columnName)">
@@ -1173,6 +1234,57 @@ async function saveWorkbookAs() {
 
           <div class="card bg-base-200/60 shadow-inner" v-if="isDebugMode">
             <div class="card-body space-y-4">
+              <!-- 表达式解析器 -->
+              <div class="divider my-2">表达式解析器</div>
+              <div class="form-control gap-2">
+                <label class="label">
+                  <span class="label-text">输入表达式</span>
+                </label>
+                <div class="flex gap-2">
+                  <textarea
+                    v-model="expressionInput"
+                    class="textarea textarea-bordered font-mono text-xs flex-1"
+                    placeholder="输入 Atom 表达式，例如: GetCombatTime() > 5"
+                    rows="4"
+                  ></textarea>
+                  <div class="flex flex-col gap-2">
+                    <button
+                      class="btn btn-primary btn-sm"
+                      @click="parseAtomExpression"
+                      :disabled="!expressionInput.trim()"
+                    >
+                      刷新解析
+                    </button>
+                    <button
+                      class="btn btn-outline btn-sm"
+                      @click="expressionInput = ''; expressionParseResult = ''; expressionParseError = null"
+                    >
+                      清空
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
+                <div class="form-control gap-2">
+                  <label class="label">
+                    <span class="label-text">解析结果 (JSON)</span>
+                  </label>
+                  <textarea
+                    v-model="expressionParseResult"
+                    class="textarea textarea-bordered font-mono text-xs resize"
+                    placeholder="解析结果将在此显示"
+                    readonly
+                  ></textarea>
+                  <p v-if="expressionParseError" class="text-sm text-error">
+                    {{ expressionParseError }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="divider my-2">对象表单与 JSON</div>
+
+              <!-- 对象表单与 JSON 编辑 -->
               <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
                 <div class="scrollbar max-h-[420px] overflow-y-auto pr-1">
                   <DynamicObjectForm
@@ -1182,18 +1294,6 @@ async function saveWorkbookAs() {
                     :model-value="mockObjectValue"
                     @update:model-value="(value) => applyNormalizedObject(value as ParsedClassObject)"
                   />
-                </div>
-                <div class="flex flex-col gap-3">
-                  <div class="flex items-center justify-between">
-                    <div class="badge badge-outline badge-sm">原始 JSON 文本</div>
-                    <button class="btn btn-xs" @click="syncMockObjectValueFromJson">刷新表单</button>
-                  </div>
-                  <textarea
-                    v-model="rawConfigText"
-                    class="textarea textarea-bordered h-72 font-mono text-xs resize"
-                    placeholder="粘贴 JSON 配置"
-                  ></textarea>
-                  <p v-if="parseErrorMessage" class="text-sm text-error">{{ parseErrorMessage }}</p>
                 </div>
               </div>
             </div>

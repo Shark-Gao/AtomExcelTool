@@ -1,5 +1,6 @@
-import { FunctionNameToDelegate } from './MHTsAtomSystemUtils';
+// import { FunctionNameToDelegate } from './MHTsAtomSystemUtils';
 import { getConstructorParamNames } from './DelegateDecorators';
+import { DelegateFactory } from './DelegateFactory';
 
 /**
  * 类名到函数名的缓存映射
@@ -7,21 +8,21 @@ import { getConstructorParamNames } from './DelegateDecorators';
  */
 let classNameToFunctionNameCache: Map<string, string> | null = null;
 
-/**
- * 初始化类名到函数名的缓存映射
- * 只在第一次调用时执行，之后使用缓存数据
- */
-function initializeClassNameCache(): Map<string, string> {
-  if (classNameToFunctionNameCache === null) {
-    classNameToFunctionNameCache = new Map();
-    for (const [functionName, delegateClass] of FunctionNameToDelegate.entries()) {
-      if (delegateClass.name) {
-        classNameToFunctionNameCache.set(delegateClass.name, functionName);
-      }
-    }
-  }
-  return classNameToFunctionNameCache;
-}
+// /**
+//  * 初始化类名到函数名的缓存映射
+//  * 只在第一次调用时执行，之后使用缓存数据
+//  */
+// function initializeClassNameCache(): Map<string, string> {
+//   if (classNameToFunctionNameCache === null) {
+//     classNameToFunctionNameCache = new Map();
+//     for (const [functionName, delegateClass] of FunctionNameToDelegate.entries()) {
+//       if (delegateClass.name) {
+//         classNameToFunctionNameCache.set(delegateClass.name, functionName);
+//       }
+//     }
+//   }
+//   return classNameToFunctionNameCache;
+// }
 
 /**
  * 反向解析 JSON 对象为表达式字符串
@@ -111,26 +112,27 @@ export function deParseJsonToExpression(jsonObject: any): string {
  * 根据类名查找函数名（使用缓存）
  */
 function findFunctionNameByClassName(className: string): string | null {
-  const cache = initializeClassNameCache();
-  return cache.get(className) ?? null;
+  const metadata = DelegateFactory.getMetadataByDelegateName(className);
+  return metadata?.funcName ?? null;
 }
 
 /**
  * 构建函数调用表达式
  */
 function buildFunctionCall(functionName: string, className: string, jsonObject: any): string {
-  const delegateClass = FunctionNameToDelegate.get(functionName);
+  const delegateClass = DelegateFactory.getMetadataByFuncName(functionName);// FunctionNameToDelegate.get(functionName);
   if (!delegateClass) {
     return functionName;
   }
 
+  
   // 获取参数名称
-  const paramNames = getConstructorParamNames(delegateClass);
+  const fields = delegateClass.fields;//getConstructorParamNames(delegateClass);
   const params: string[] = [];
 
   // 为每个参数生成表达式
-  for (const paramName of paramNames) {
-    const paramValue = jsonObject[paramName];
+  for (const field of fields) {
+    const paramValue = jsonObject[field.key];
 
     if (paramValue === undefined || paramValue === null) {
       continue;

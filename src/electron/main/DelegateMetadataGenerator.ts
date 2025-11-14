@@ -1,9 +1,11 @@
 import 'reflect-metadata';
-import type { ClassMetadata, FieldMeta, ParamMetadata } from '../../types/DynamicObjectForm';
+import type { ClassMetadata, FieldMeta, ParamMetadata, RawAtomTSMetaMap, ScriptFunctionParameterMetaData, FAtomTypeBase, FAtomTypeArray, FAtomTypeUnion, BaseClassType } from '../../types/MetaDefine';
+import { EAtomType } from '../../types/MetaDefine';
 import { getConstructorParamNames, getConstructorRawParamName, getConstructorRawParamNames, PARAM_METADATA_KEY } from './DelegateDecorators';
-import { DELEGATE_BASE_CLASSES, DELEGATE_BASE_CLASS_DETECTION_ORDER } from '../../constants/DelegateBaseClassesConst';
-
-
+import { DELEGATE_BASE_CLASSES, DELEGATE_BASE_CLASSES_Def, DELEGATE_BASE_CLASS_DETECTION_ORDER } from '../../constants/DelegateBaseClassesConst';
+import { loadMetadataConfig } from './ConfigManager';
+import { DelegateFactory } from './DelegateFactory';
+import { NumberValueDelegate } from './MHTsAtomSystemUtils';
 
 
 /**
@@ -263,6 +265,7 @@ export class DelegateMetadataGenerator {
 
       return {
         className: ueClassName || className,
+        funcName: delegateConfigKey,
         baseClass,
         displayName,
         fields,
@@ -276,6 +279,223 @@ export class DelegateMetadataGenerator {
     }
   }
 
+  /**
+   * 将 RawAtomTSMetaMap 转换为 ClassMetadata[]
+   * RawAtomTSMetaMap 是从 TS AST 解析出的元信息
+   * 需要转换为编辑器可用的 ClassMetadata 格式
+   */
+  private static convertRawAtomTSMetaToClassMetadata(rawMeta: RawAtomTSMetaMap, decoratorMeta: Record<string, ClassMetadata>): ClassMetadata[] {
+    const result: ClassMetadata[] = [];
+    const byClassNameMetas: Record<string, ClassMetadata> = {};
+    const byDelegateKeyMetas: Record<string, ClassMetadata> = {};
+    for (const [className, scriptFunctionMeta] of Object.entries(rawMeta)) {
+      console.log(`[DelegateMetadataGenerator] Converting class: ${className}`);
+      const fields: FieldMeta[] = [];
+      const decoratorMetaItem: ClassMetadata = decoratorMeta[scriptFunctionMeta.AtomClassName];
+
+      // 转换参数列表为字段列表
+      for (const param of scriptFunctionMeta.ParameterList) {
+        const fieldMeta = this.convertScriptParameterToFieldMeta(param, decoratorMetaItem);
+        if (fieldMeta) {
+          fields[param.OrdinalIndex] = fieldMeta;
+        }
+      }
+
+      // 构建 ClassMetadata
+      const classMetadata: ClassMetadata = {
+        className: scriptFunctionMeta.AtomClassName,
+        funcName: scriptFunctionMeta.FunctionName,
+        displayName: decoratorMetaItem? decoratorMetaItem.displayName: scriptFunctionMeta.FunctionName,
+        description: decoratorMetaItem? decoratorMetaItem.description: scriptFunctionMeta.FunctionName,
+        baseClass: this.getAtomTypeClass({AtomType: scriptFunctionMeta.AtomType}), // 默认基类，可根据需要调整
+        fields
+      };
+      byClassNameMetas[scriptFunctionMeta.AtomClassName] = classMetadata;
+      byDelegateKeyMetas[scriptFunctionMeta.FunctionName] = classMetadata;
+      result.push(classMetadata);
+    }
+
+    DelegateFactory.initialize(byClassNameMetas, byDelegateKeyMetas);
+
+    return result;
+  }
+
+  /**
+   * 判断 Union 类型是否为字符串枚举（所有成员都是 SpecificString 或 LiteralString）
+   */
+  private static isStringEnumUnion(unionType: FAtomTypeUnion): boolean {
+    return unionType.UnionTypes.every(t =>
+      t.AtomType === EAtomType.SpecificString || t.AtomType === EAtomType.LiteralString
+    );
+  }
+
+  /**
+   * 从 Union 类型提取字符串选项
+   */
+  private static extractStringEnumOptions(
+    unionType: FAtomTypeUnion
+  ): Array<{ label: string; value: any }> {
+    const options: Array<{ label: string; value: any }> = [];
+    
+    for (const type of unionType.UnionTypes) {
+      if (type.AtomType === EAtomType.SpecificString) {
+        const specificType = type as any; // SpecificString 有 SpecificString 属性
+        if (specificType.SpecificString) {
+          options.push({
+            label: specificType.SpecificString,
+            value: specificType.SpecificString
+          });
+        }
+      } else if (type.AtomType === EAtomType.LiteralString) {
+        // LiteralString 是字面字符串类型，需要从其他地方获取值
+        // 这里暂时跳过，或者从 TypeString 解析
+      }
+    }
+    
+    return options;
+  }
+
+  /**
+   * 根据 FAtomTypeBase 获取类型类
+   */
+  private static getAtomTypeClass(atomType: FAtomTypeBase): BaseClassType {
+    switch (atomType.AtomType) {
+      case EAtomType.SpecificNumber:
+      case EAtomType.LiteralNumber:
+        return 'number';
+      case EAtomType.LiteralBoolean:
+        return 'boolean';
+      case EAtomType.SpecificString:
+      case EAtomType.LiteralString:
+        return 'string';
+      case EAtomType.Number:
+        return DELEGATE_BASE_CLASSES.NumberValueDelegate;
+      case EAtomType.Action:
+        return DELEGATE_BASE_CLASSES.ActionDelegate;
+      case EAtomType.Actor:
+        return DELEGATE_BASE_CLASSES.ActorValueDelegate;
+      case EAtomType.Event:
+        return DELEGATE_BASE_CLASSES.EventDelegateEx;
+      case EAtomType.Boolean:
+        return DELEGATE_BASE_CLASSES.BoolValueDelegate;
+      case EAtomType.Task:
+        return DELEGATE_BASE_CLASSES.TaskDelegate;
+      case EAtomType.Array:
+        // 对于数组类型，递归获取元素类型
+        const arrayType = atomType as FAtomTypeArray;
+        return this.getAtomTypeClass(arrayType.ElementType);
+      default:
+        return 'string';
+    }
+  }
+
+  /**
+   * 将 ScriptFunctionParameterMetaData 转换为 FieldMeta
+   * 使用 AtomType 作为主要判断依据
+   */
+  private static convertScriptParameterToFieldMeta(param: ScriptFunctionParameterMetaData, decoratorMetaItem: ClassMetadata): FieldMeta | null {
+    const key = param.ParameterName;
+    const label = decoratorMetaItem? decoratorMetaItem.fields[param.OrdinalIndex]?.label: param.ParameterName;
+    const description = decoratorMetaItem? decoratorMetaItem.fields[param.OrdinalIndex]?.description: param.TypeString;
+    let fieldMeta: FieldMeta | null = null;
+    
+    // 根据 AtomType 判断字段类型
+    switch (param.AtomType.AtomType) {
+      case EAtomType.SpecificNumber:
+      case EAtomType.LiteralNumber:
+      case EAtomType.LiteralBoolean:
+      case EAtomType.SpecificString:
+      case EAtomType.LiteralString:
+        fieldMeta = {
+          key,
+          label,
+          type: 'string',
+          description: description
+        };
+        break;
+
+      case EAtomType.Array:
+        // 数组类型：获取元素类型并设置到 baseClass
+        const arrayType = param.AtomType as FAtomTypeArray;
+        const elementTypeName = this.getAtomTypeClass(arrayType.ElementType);
+        fieldMeta = {
+          key,
+          label,
+          type: 'array',
+          baseClass: elementTypeName,
+          description: description
+        };
+        break;
+
+      case EAtomType.Number:
+      case EAtomType.Action:
+      case EAtomType.Actor:
+      case EAtomType.Event:
+      case EAtomType.Boolean:
+      case EAtomType.Task:
+        // Delegate 类型字段
+        const typeName = this.getAtomTypeClass(param.AtomType);
+        fieldMeta = {
+          key,
+          label,
+          type: 'object',
+          baseClass: typeName,
+          description: description
+        };
+        break;
+
+      case EAtomType.Union:
+        // Union 类型：检查是否为字符串枚举
+        const unionType = param.AtomType as FAtomTypeUnion;
+        if (this.isStringEnumUnion(unionType)) {
+          // 字符串枚举：转换为 select 类型
+          const options = this.extractStringEnumOptions(unionType);
+          fieldMeta = {
+            key,
+            label,
+            type: 'select',
+            options,
+            description: description
+          };
+        } else {
+          // 其他 Union 类型：作为对象类型处理
+          fieldMeta = {
+            key,
+            label,
+            type: 'string',
+            description: description
+          };
+        }
+        break;
+
+      case EAtomType.Any:
+      case EAtomType.Unknown:
+      case EAtomType.Tuple:
+      default:
+        // 其他对象类型或未知类型
+        fieldMeta = {
+          key,
+          label,
+          type: 'string',
+          description: description
+        };
+        break;
+    }
+    fieldMeta.isRest = param.bRest;
+    fieldMeta.isOptional = param.bOptional;
+
+    return fieldMeta;
+  }
+
+  static generateMetadataFromMetaJsonConfig(): ClassMetadata[] {
+    const decoratorMeta = loadMetadataConfig("AtomDecoratorMetaData.json") as Record<string, ClassMetadata>;
+    const RawAtomTSMetaMap = loadMetadataConfig("AtomSystemScriptMetaData.json") as RawAtomTSMetaMap;
+    
+    // 将 RawAtomTSMetaMap 转换为 ClassMetadata[]
+    const convertedMeta = this.convertRawAtomTSMetaToClassMetadata(RawAtomTSMetaMap, decoratorMeta);
+    
+    return convertedMeta;
+  }
 
 
   /**

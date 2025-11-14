@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import type { FieldMeta, ParamMetadata } from '../../types/DynamicObjectForm'
+import type { FieldMeta, ParamMetadata } from '../../types/MetaDefine'
 
 /**
  * 存储参数元数据的 Symbol

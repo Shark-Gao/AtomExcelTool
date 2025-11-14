@@ -32,7 +32,6 @@ contextBridge.exposeInMainWorld('delegateBridge', {
         registry?: Record<string, any>;
         grouped?: Record<string, any[]>;
         count?: number;
-        defaultJson?:string;
         error?: string;
     }>,
     parseExpression: (payload: { expression: string }) => ipcRenderer.invoke('condition:parse-expression', payload) as Promise<{

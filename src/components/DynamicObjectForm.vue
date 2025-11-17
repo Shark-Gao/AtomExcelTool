@@ -2,6 +2,7 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { normalizeClassInstance as normalizeClassInstanceUtil } from '../utils/ClassNormalizer'
 import { ClassRegistry, FieldMeta, BaseClassNativeType, isBaseClassNative, BaseClassType } from '../types/MetaDefine'
+import SearchableAtomSelect from './SearchableAtomSelect.vue'
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object' | 'array'
 
@@ -319,15 +320,15 @@ async function updateArrayItemClass(
             class="flex items-center gap-2 rounded-lg border border-base-200 bg-base-200/40 px-3 py-1 text-xs text-base-content/70"
           >
             <!-- <span class="text-[11px] uppercase tracking-wide text-base-content/60">原子</span> -->
-            <select
-              :value="rootClassName"
-              class="select select-bordered select-xs w-48"
-              @change="(event) => updateRootClass((event.target as HTMLSelectElement).value)"
-            >
-              <option v-for="option in rootSubclassOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
+            <SearchableAtomSelect
+              :model-value="rootClassName ?? ''"
+              :options="rootSubclassOptions"
+              :registry="registry"
+              empty-label="请选择类型"
+              allow-empty
+              :disabled="readonly"
+              @update:model-value="(value) => updateRootClass(value)"
+            />
           </label>
         </div>
       </div>
@@ -358,7 +359,6 @@ async function updateArrayItemClass(
                 </button>
                 <div class="flex-1">
                   <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-semibold text-base-content">{{ fieldMeta.label }}</h3>
                     <button
                       v-if="fieldMeta.type === 'array' && !readonly"
                       type="button"
@@ -368,60 +368,66 @@ async function updateArrayItemClass(
                       新增项+
                     </button>
                   </div>
-                  <p class="mt-1 text-xs text-base-content/50" v-if="fieldMeta.type === 'array'">
+                  <!-- <p class="mt-1 text-xs text-base-content/50" v-if="fieldMeta.type === 'array'">
                     列表类型，可新增多个子实例。
-                  </p>
-                  <p class="mt-1 text-xs text-base-content/50" v-else-if="fieldMeta.type === 'object'">
+                  </p> -->
+                  <!-- <p class="mt-1 text-xs text-base-content/50" v-else-if="fieldMeta.type === 'object'">
                     嵌套对象，展开以编辑详细字段。
-                  </p>
+                  </p> -->
                 </div>
               </header>
-
+              <h3 class="text-sm font-semibold text-base-content">{{ fieldMeta.label }}</h3>
               <div class="mt-3">
                 <template v-if="fieldMeta.type === 'string'">
-                  <input v-model="localValue[fieldKey]" type="text" class="input input-bordered w-full" :disabled="readonly" />
+                  <div class="flex flex-col gap-2">
+                    
+                    <input v-model="localValue[fieldKey]" type="text" class="input input-bordered w-full" :disabled="readonly" />
+                  </div>
                 </template>
 
                 <template v-else-if="fieldMeta.type === 'number'">
-                  <input v-model.number="localValue[fieldKey]" type="number" class="input input-bordered w-full" :disabled="readonly" />
+                  <div class="flex flex-col gap-2">
+                    <input v-model.number="localValue[fieldKey]" type="number" class="input input-bordered w-full" :disabled="readonly" />
+                  </div>
                 </template>
 
                 <template v-else-if="fieldMeta.type === 'boolean'">
-                  <label class="flex items-center gap-3" :class="{ 'opacity-60 cursor-not-allowed': readonly }">
-                    <input v-model="localValue[fieldKey]" type="checkbox" class="toggle toggle-primary" :disabled="readonly" />
-                    <span class="text-xs text-base-content/70">启用开关</span>
-                  </label>
+                  <div class="flex flex-col gap-2">
+                    <label class="flex items-center gap-3" :class="{ 'opacity-60 cursor-not-allowed': readonly }">
+                      <input v-model="localValue[fieldKey]" type="checkbox" class="toggle toggle-primary" :disabled="readonly" />
+                      <span class="text-xs text-base-content/70">启用开关</span>
+                    </label>
+                  </div>
                 </template>
 
                 <template v-else-if="fieldMeta.type === 'select'">
-                  <select v-model="localValue[fieldKey]" class="select select-bordered w-full" :disabled="readonly">
-                    <option v-for="option in fieldMeta.options" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </option>
-                  </select>
+                  <div class="flex flex-col gap-2">
+                    <select v-model="localValue[fieldKey]" class="select select-bordered w-full" :disabled="readonly">
+                      <option v-for="option in fieldMeta.options" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </option>
+                    </select>
+                  </div>
                 </template>
 
                 <template v-else-if="fieldMeta.type === 'object'">
                   <!-- <div class="mt-3 space-y-3">
-                    <select
+                    <SearchableAtomSelect
                       v-if="!readonly"
-                      :value="(localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName ?? ''"
-                      class="select select-bordered w-full"
-                      @change="(event) => {
-                        const newClassName = (event.target as HTMLSelectElement).value;
-                        if (newClassName) {
-                          const normalized = normalizeClassInstance(newClassName, (localValue[fieldKey] as Record<string, unknown>) ?? {});
-                          localValue[fieldKey] = normalized;
+                      :model-value="(localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName ?? ''"
+                      :options="getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'object' }>).baseClass)"
+                      :registry="registry"
+                      empty-label="请选择类型"
+                      allow-empty
+                      @update:model-value="(value) => {
+                        if (value) {
+                          const normalized = normalizeClassInstance(value, (localValue[fieldKey] as Record<string, unknown>) ?? {})
+                          localValue[fieldKey] = normalized
                         } else {
-                          localValue[fieldKey] = { _ClassName: '' };
+                          localValue[fieldKey] = { _ClassName: '' }
                         }
                       }"
-                    >
-                      <option value="">-- 请选择 --</option>
-                      <option v-for="option in getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'object' }>).baseClass)" :key="option.value" :value="option.value">
-                        {{ option.label }}
-                      </option>
-                    </select>
+                    />
                   </div> -->
                   
                   <Transition name="fade" mode="out-in">
@@ -455,21 +461,35 @@ async function updateArrayItemClass(
                       :key="`${fieldKey}-${index}`"
                       class="rounded-lg border border-base-300 bg-base-100 shadow-sm"
                       >
-                        <template v-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'object'">
-                          <div v-show="isSectionExpanded(`${fieldKey}-array-${index}`)" class="px-3 pb-2 pt-3">
-                            
-                            <DynamicObjectForm
-                              v-if="(item as Record<string, unknown>)._ClassName"
-                              :key="`${fieldKey}-array-${index}-${(item as Record<string, unknown>)._ClassName as string}`"
-                              :class-name="(item as Record<string, unknown>)._ClassName as string"
-                              :registry="registry"
-                              :subclass-options="subclassOptions"
-                              :model-value="item as Record<string, unknown>"
-                              :readonly="readonly"
-                              @update:model-value="(value) => updateArrayItemValue(fieldKey, index, value)"
-                            />
-                          </div>
-                        </template>
+                          <template v-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'object'">
+                            <div class="flex items-center gap-3 px-3 pb-2 pt-3">
+                              <SearchableAtomSelect
+                                v-if="!readonly"
+                                :model-value="(item as Record<string, unknown>)._ClassName as string"
+                                :options="getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'array' }>).baseClass)"
+                                :registry="registry"
+                                empty-label="请选择类型"
+                                allow-empty
+                                @update:model-value="(value) => updateArrayItemClass(
+                                  fieldKey,
+                                  fieldMeta as Extract<FieldMeta, { type: 'array' }>,
+                                  index,
+                                  value
+                                )"
+                              />
+
+                              <DynamicObjectForm
+                                v-if="(item as Record<string, unknown>)._ClassName"
+                                :key="`${fieldKey}-array-${index}-${(item as Record<string, unknown>)._ClassName as string}`"
+                                :class-name="(item as Record<string, unknown>)._ClassName as string"
+                                :registry="registry"
+                                :subclass-options="subclassOptions"
+                                :model-value="item as Record<string, unknown>"
+                                :readonly="readonly"
+                                @update:model-value="(value) => updateArrayItemValue(fieldKey, index, value)"
+                              />
+                            </div>
+                          </template>
 
                         <template v-else>
                           <template v-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'string'">
@@ -502,20 +522,20 @@ async function updateArrayItemClass(
 
                           <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'boolean'">
                             <label class="flex items-center gap-2">
-                              <input
-                                :checked="item as boolean"
-                                type="checkbox"
-                                class="checkbox checkbox-sm"
-                                :disabled="readonly"
-                                @change="(event) => {
-                                  const list = [...getArrayItems(fieldKey)];
-                                  list[index] = (event.target as HTMLInputElement).checked;
-                                  localValue[fieldKey] = list;
-                                }"
-                              />
-                            </label>
-                          </template>
-                        </template>
+                          <input
+                            :checked="item as boolean"
+                            type="checkbox"
+                            class="checkbox checkbox-sm"
+                            :disabled="readonly"
+                            @change="(event) => {
+                              const list = [...getArrayItems(fieldKey)];
+                              list[index] = (event.target as HTMLInputElement).checked;
+                              localValue[fieldKey] = list;
+                            }"
+                          />
+                        </label>
+                      </template>
+                    </template>
                             
                         <button
                             v-if="!readonly"

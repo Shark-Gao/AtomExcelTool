@@ -87,6 +87,8 @@ export interface ClassMetadata {
   className: string;
   funcName:string;
   displayName: string;
+  category?: string;
+  richDescription?: string;
   isDelegate?: boolean;
   description?: string;
   baseClass: BaseClassType;
@@ -100,6 +102,7 @@ export interface ClassInfo {
   displayName: string;
   baseClass: string;
   fields: Record<string, FieldMeta>;
+  classMeta: ClassMetadata;
 }
 
 /**

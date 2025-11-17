@@ -6,7 +6,6 @@ import SettingsModal from './components/SettingsModal.vue'
 import Toast from './components/Toast.vue'
 import ProgressModal from './components/ProgressModal.vue'
 import SkeletonLoader from './components/SkeletonLoader.vue'
-import DynamicObjectFormInline from './components/DynamicObjectFormInline.vue'
 import { loadSettingsFromStorage, saveSettingsToStorage } from './utils/settingsStorage'
 import type { ClassRegistry, ClassMetadata as DelegateClassMetadata } from './types/MetaDefine'
 import { getAllowedBaseClassesForFieldName, isAtomicField } from './constants/DelegateBaseClassesConst'
@@ -81,7 +80,6 @@ const mockObjectValue = reactive<Record<string, unknown>>({})
 const mockClassName = ref<string>(mockJsonObject._ClassName)
 const rawConfigText = ref(JSON.stringify(mockJsonObject, null, 2))
 const parseErrorMessage = ref<string | null>(null)
-const showInlineMockForm = ref(true)
 
 // 表达式解析相关
 const expressionInput = ref<string>('')
@@ -1211,6 +1209,7 @@ async function saveWorkbookAs() {
                         :options="filteredAtomClassOptions"
                         :search-keyword="atomClassSearchKeyword"
                         :open="openAtomClassDropdown === columnName"
+                        :registry="classRegistry"
                         placeholder="搜索原子类型..."
                         @update:search-keyword="atomClassSearchKeyword = $event"
                         @update:open="openAtomClassDropdown = $event ? columnName : null"
@@ -1321,44 +1320,13 @@ async function saveWorkbookAs() {
             <!-- 对象表单与 JSON 编辑 -->
             <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
               <div class="scrollbar max-h-[420px] overflow-y-auto pr-1">
-                <div class="flex flex-col gap-3">
-                  <div class="join self-start">
-                    <button
-                      type="button"
-                      class="btn btn-xs join-item"
-                      :class="showInlineMockForm ? 'btn-primary' : 'btn-outline'"
-                      @click="showInlineMockForm = true"
-                    >
-                      水平展示
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-xs join-item"
-                      :class="!showInlineMockForm ? 'btn-primary' : 'btn-outline'"
-                      @click="showInlineMockForm = false"
-                    >
-                      垂直展示
-                    </button>
-                  </div>
-
-                  <DynamicObjectFormInline
-                    v-if="showInlineMockForm"
-                    :class-name="mockClassName"
-                    :registry="classRegistry"
-                    :subclass-options="subclassOptions"
-                    :model-value="mockObjectValue"
-                    @update:model-value="(value) => applyNormalizedObject(value as ParsedClassObject)"
-                  />
-
-                  <DynamicObjectForm
-                    v-else
-                    :class-name="mockClassName"
-                    :registry="classRegistry"
-                    :subclass-options="subclassOptions"
-                    :model-value="mockObjectValue"
-                    @update:model-value="(value) => applyNormalizedObject(value as ParsedClassObject)"
-                  />
-                </div>
+                <DynamicObjectForm
+                  :class-name="mockClassName"
+                  :registry="classRegistry"
+                  :subclass-options="subclassOptions"
+                  :model-value="mockObjectValue"
+                  @update:model-value="(value) => applyNormalizedObject(value as ParsedClassObject)"
+                />
               </div>
             </div>
           </div>

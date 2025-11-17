@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import type { ClassMetadata, FieldMeta, ParamMetadata, RawAtomTSMetaMap, ScriptFunctionParameterMetaData, FAtomTypeBase, FAtomTypeArray, FAtomTypeUnion, BaseClassType } from '../../types/MetaDefine';
+import type { ClassMetadata, FieldMeta, ParamMetadata, RawAtomTSMetaMap, ScriptFunctionParameterMetaData, FAtomTypeBase, FAtomTypeArray, FAtomTypeUnion, BaseClassType, ClassInfo } from '../../types/MetaDefine';
 import { EAtomType } from '../../types/MetaDefine';
 import { getConstructorParamNames, getConstructorRawParamName, getConstructorRawParamNames, PARAM_METADATA_KEY } from './DelegateDecorators';
 import { DELEGATE_BASE_CLASSES, DELEGATE_BASE_CLASSES_Def, DELEGATE_BASE_CLASS_DETECTION_ORDER } from '../../constants/DelegateBaseClassesConst';
@@ -173,7 +173,7 @@ export class DelegateMetadataGenerator {
   }
 
   /**
-   * 从Delegate类生成ClassMetadata
+   * 从Delegate类生成ClassMetadata 废弃旧接口
    */
   static generateMetadataFromDelegate(
     delegateConfigKey: string,
@@ -289,6 +289,9 @@ export class DelegateMetadataGenerator {
     const byClassNameMetas: Record<string, ClassMetadata> = {};
     const byDelegateKeyMetas: Record<string, ClassMetadata> = {};
     for (const [className, scriptFunctionMeta] of Object.entries(rawMeta)) {
+      if (scriptFunctionMeta.FunctionName == "__test") {
+        continue;
+      }
       console.log(`[DelegateMetadataGenerator] Converting class: ${className}`);
       const fields: FieldMeta[] = [];
       const decoratorMetaItem: ClassMetadata = decoratorMeta[scriptFunctionMeta.AtomClassName];
@@ -307,6 +310,8 @@ export class DelegateMetadataGenerator {
         funcName: scriptFunctionMeta.FunctionName,
         displayName: decoratorMetaItem? decoratorMetaItem.displayName: scriptFunctionMeta.FunctionName,
         description: decoratorMetaItem? decoratorMetaItem.description: scriptFunctionMeta.FunctionName,
+        category: decoratorMetaItem? decoratorMetaItem.category: '',
+        richDescription: decoratorMetaItem? decoratorMetaItem.richDescription: '',
         baseClass: this.getAtomTypeClass({AtomType: scriptFunctionMeta.AtomType}), // 默认基类，可根据需要调整
         fields
       };
@@ -395,7 +400,10 @@ export class DelegateMetadataGenerator {
    */
   private static convertScriptParameterToFieldMeta(param: ScriptFunctionParameterMetaData, decoratorMetaItem: ClassMetadata): FieldMeta | null {
     const key = param.ParameterName;
-    const label = decoratorMetaItem? decoratorMetaItem.fields[param.OrdinalIndex]?.label: param.ParameterName;
+    let label = decoratorMetaItem? decoratorMetaItem.fields[param.OrdinalIndex]?.label : param.ParameterName;
+    if (label === undefined) {
+      label = param.ParameterName;
+    }
     const description = decoratorMetaItem? decoratorMetaItem.fields[param.OrdinalIndex]?.description: param.TypeString;
     let fieldMeta: FieldMeta | null = null;
     
@@ -549,8 +557,8 @@ export class DelegateMetadataGenerator {
    */
   static generateClassRegistry(
     metadata: ClassMetadata[]
-  ): Record<string, any> {
-    const registry: Record<string, any> = {};
+  ): Record<string, ClassInfo> {
+    const registry: Record<string, ClassInfo> = {};
 
     for (const classMeta of metadata) {
       registry[classMeta.className] = {
@@ -563,6 +571,7 @@ export class DelegateMetadataGenerator {
           },
           {}
         ),
+        classMeta: classMeta,
       };
     }
 

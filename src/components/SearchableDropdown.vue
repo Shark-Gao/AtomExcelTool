@@ -1,5 +1,7 @@
 <script setup lang="ts" generic="T extends { label: string; value: any }">
-import { computed, defineEmits, defineProps, ref, watch, withDefaults } from 'vue'
+import { Transition } from 'vue'
+import { computed, defineEmits, defineProps, reactive, ref, withDefaults } from 'vue'
+import { ClassRegistry } from '../types/MetaDefine'
 
 interface Props {
   modelValue?: string
@@ -8,6 +10,7 @@ interface Props {
   searchKeyword?: string
   open?: boolean
   disabled?: boolean
+  registry: ClassRegistry
 }
 
 interface Emits {
@@ -27,8 +30,13 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 let blurTimeoutId: ReturnType<typeof setTimeout> | null = null
+const hoveredValue = ref<string>('')
+const tooltipPos = reactive({
+  x: 0,
+  y: 0
+})
+const tooltipRef = ref<HTMLElement | null>(null)
 
-// 使用 props 中的值作为真实来源，不维护本地状态
 // 过滤选项（支持搜索）
 const filteredOptions = computed(() => {
   const keyword = props.searchKeyword.trim().toLowerCase()
@@ -58,11 +66,20 @@ const hasResults = computed(() => {
   return Object.values(filteredOptions.value).some(options => options.length > 0)
 })
 
+const hoveredDescription = computed(() => {
+  if (!hoveredValue.value) {
+    return ''
+  }
+  const info = props.registry[hoveredValue.value]
+  return info?.classMeta.description ?? ''
+})
+
 function handleSelect(value: string, option: T) {
   emit('update:modelValue', value)
   emit('select', value, option)
   emit('update:searchKeyword', '')
   emit('update:open', false)
+  hoveredValue.value = ''
 }
 
 function handleSearchInput(value: string) {
@@ -78,11 +95,22 @@ function handleFocus() {
 }
 
 function handleBlur() {
-  // 延迟关闭，保证点击事件有机会先触发
-  blurTimeoutId = setTimeout(() => {
-    emit('update:open', false)
-    blurTimeoutId = null
-  }, 200)
+  hoveredValue.value = ''
+  emit('update:open', false)
+}
+
+function setHoveredValue(value: string) {
+  hoveredValue.value = value
+}
+
+function clearHoveredValue() {
+  hoveredValue.value = ''
+}
+
+function updateTooltipPosition(event: MouseEvent) {
+  const offset = 10
+  tooltipPos.x = event.clientX + offset
+  tooltipPos.y = event.clientY + offset
 }
 </script>
 
@@ -106,15 +134,52 @@ function handleBlur() {
         <li v-if="options.length > 0" class="menu-title sticky top-0 z-10 bg-base-100">
           <span class="text-xs font-semibold">{{ baseClass }}</span>
         </li>
-        <li v-for="option in options" :key="option.value" class="w-full">
+        <li
+          v-for="option in options"
+          :key="option.value"
+          class="w-full"
+          @mouseenter="(e) => {
+            setHoveredValue(option.value)
+            updateTooltipPosition(e as MouseEvent)
+          }"
+          @mousemove="updateTooltipPosition"
+          @mouseleave="clearHoveredValue"
+        >
           <a class="w-full" @mousedown.prevent="handleSelect(option.value, option)" @click.prevent>
             {{ option.label }}
           </a>
         </li>
       </template>
+
       <li v-if="!hasResults">
         <a class="text-base-content/50">无匹配结果</a>
       </li>
     </ul>
+
+    <Transition name="fade">
+      <div
+        v-if="hoveredDescription"
+        ref="tooltipRef"
+        class="fixed z-[10000] max-w-xs rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-[12px] leading-relaxed text-base-content shadow-lg pointer-events-none"
+        :style="{
+          left: `${tooltipPos.x}px`,
+          top: `${tooltipPos.y}px`
+        }"
+      >
+        {{ hoveredDescription }}
+      </div>
+    </Transition>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

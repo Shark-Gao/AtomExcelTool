@@ -1222,7 +1222,7 @@ async function saveWorkbookAs() {
                       <div class="space-y-2">
                         <div>
                           <label class="label">
-                            <span class="label-text text-sm font-semibold">原始表达式</span>
+                            <span class="label-text text-sm font-semibold">表达式</span>
                           </label>
                           <input
                             :value="editableRecord[columnName] as string"

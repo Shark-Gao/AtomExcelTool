@@ -2,7 +2,6 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { normalizeClassInstance as normalizeClassInstanceUtil } from '../utils/ClassNormalizer'
 import { ClassRegistry, FieldMeta, BaseClassType, isBaseClassNative } from '../types/MetaDefine'
-import SearchableAtomSelect from './SearchableAtomSelect.vue'
 
 defineOptions({ name: 'DynamicObjectFormInline' })
 
@@ -48,8 +47,12 @@ const classInfo = computed(() => {
   return info
 })
 
-const fields = computed<Record<string, FieldMeta>>(() => {
-  return classInfo.value?.fields ?? ({} as Record<string, FieldMeta>)
+const fields = computed(() => classInfo.value?.fields ?? {})
+const flattenedFields = computed(() => {
+  return Object.entries(fields.value).map(([fieldKey, fieldMeta]) => ({
+    fieldKey,
+    fieldMeta,
+  }))
 })
 const expandedInlineMap = reactive<Record<string, boolean>>({})
 
@@ -107,9 +110,9 @@ function getArrayElementType(fieldMeta: Extract<FieldMeta, { type: 'array' }>): 
 
 function getSubclassOptions(baseClass: string | undefined): FieldOption[] {
   if (!baseClass) {
-    return [] as FieldOption[]
+    return []
   }
-  return (props.subclassOptions[baseClass] ?? []) as FieldOption[]
+  return props.subclassOptions[baseClass] ?? []
 }
 
 function normalizeClassInstance(className: string, raw: Record<string, unknown>): Record<string, unknown> {
@@ -271,19 +274,6 @@ const shouldRenderOperatorOnlyFields = computed(() => {
   return operatorOnlyClassNames.has(activeClassName)
 })
 
-const renderableFields = computed(() => {
-  const entries = Object.entries(fields.value).map(([fieldKey, fieldMeta]) => ({
-    fieldKey,
-    fieldMeta,
-  }))
-
-  if (!shouldRenderOperatorOnlyFields.value) {
-    return entries
-  }
-
-  return entries.filter(({ fieldMeta }) => fieldMeta.type === 'select')
-})
-
 function getObjectClassName(value: unknown): string | undefined {
   if (typeof value !== 'object' || value === null) {
     return undefined
@@ -329,258 +319,273 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
       <!-- </label> -->
     <!-- </div> -->
 
-    <div class="flex flex-col gap-2">
-      <div class="flex flex-col gap-2">
-        <SearchableAtomSelect
-          :model-value="rootClassName ?? ''"
-          :options="rootSubclassOptions"
-          :registry="registry"
-          empty-label="请选择类型"
-          allow-empty
-          :disabled="readonly"
-          @update:model-value="(value) => updateRootClass(value)"
-        />
-
-      </div>
-
-      <div class="flex flex-wrap items-start gap-2">
-        <div
-          v-for="{ fieldMeta, fieldKey } in renderableFields"
-          :key="fieldKey"
-          class="inline-flex flex-wrap items-start gap-3 rounded-lg border border-base-200 bg-base-100/70 px-3 py-2"
+    <div class="flex flex-wrap items-start gap-2">
+        <select
+            :value="rootClassName"
+            class="select select-bordered select-sm w-48"
+            @change="(event) => updateRootClass((event.target as HTMLSelectElement).value)"
         >
-            <div class="flex items-center gap-2">
-                <button
-                    v-if="fieldMeta.type === 'object' || fieldMeta.type === 'array'"
-                    type="button"
-                    class="btn btn-xs btn-ghost"
-                    @click="expandedInlineMap[fieldKey] = !expandedInlineMap[fieldKey]"
-                >
-                    <span class="inline-block transition-transform" :class="expandedInlineMap[fieldKey] ? 'rotate-90' : ''">▶</span>
-                </button>
-                <div class="flex flex-col gap-1 whitespace-nowrap">
-                    <span class="text-[11px] font-semibold uppercase tracking-wide text-base-content/60">
-                    {{ fieldMeta.label }}
-                    </span>
-                    <span class="text-[10px] text-base-content/40">{{ fieldMeta.type }}</span>
-                </div>
-            </div>
-
-            <div class="flex flex-1 flex-wrap items-stretch gap-3">
-            <template v-if="fieldMeta.type === 'string'">
-                <input
-                v-model="localValue[fieldKey]"
-                type="text"
-                class="input input-sm input-bordered"
-                :disabled="readonly"
-                />
-            </template>
-
-            <template v-else-if="fieldMeta.type === 'number'">
-                <input
-                v-model.number="localValue[fieldKey]"
-                type="number"
-                class="input input-sm input-bordered"
-                :disabled="readonly"
-                />
-            </template>
-
-            <template v-else-if="fieldMeta.type === 'boolean'">
-                <label class="flex items-center gap-2 text-sm" :class="{ 'opacity-60': readonly }">
-                <input
-                    v-model="localValue[fieldKey]"
-                    type="checkbox"
-                    class="toggle toggle-primary toggle-sm"
-                    :disabled="readonly"
-                />
-                <span class="text-xs text-base-content/70">启用</span>
-                </label>
-            </template>
-
-            <template v-else-if="fieldMeta.type === 'select'">
-                <select
-                v-model="localValue[fieldKey]"
-                class="select select-sm select-bordered"
-                :disabled="readonly"
-                >
-                <option v-for="option in fieldMeta.options" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                </option>
-                </select>
-            </template>
-
-            <template v-else-if="fieldMeta.type === 'object'">
-                <div class="flex flex-wrap items-stretch gap-2">
-                <div 
-                    v-if="!expandedInlineMap[fieldKey] || !((localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName)"
-                    class="flex items-center gap-2">
-                    <!-- <span class="badge badge-outline badge-sm">
-                    {{ (localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName ?? '未选择' }}
-                    </span> -->
-                    <SearchableAtomSelect
-                    v-if="getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'object' }>).baseClass).length && !readonly"
-                    :model-value="((localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName as string) ?? ''"
-                    :options="getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'object' }>).baseClass)"
-                    :registry="registry"
-                    empty-label="请选择类型"
-                    allow-empty
-                    :disabled="readonly"
-                    @update:model-value="(value) => updateObjectFieldClass(
-                        fieldKey,
-                        fieldMeta as Extract<FieldMeta, { type: 'object' }>,
-                        value
-                    )"
-                    />
-                </div>
-                    <!-- border-l-2 border-dashed border-primary/40 pl-3 -->
-                <div
-                    v-if="expandedInlineMap[fieldKey] && (localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName"
-                    class="flex flex-1 flex-wrap items-start gap-2 "
-                    
-                >
-                    <DynamicObjectFormInline
-                    :key="`${fieldKey}-${(localValue[fieldKey] as Record<string, unknown>)._ClassName as string}`"
-                    :class-name="(localValue[fieldKey] as Record<string, unknown>)._ClassName as string"
-                    :registry="registry"
-                    :subclass-options="subclassOptions"
-                    :model-value="localValue[fieldKey] as Record<string, unknown>"
-                    :readonly="readonly"
-                    @update:model-value="(value) => {
-                        localValue[fieldKey] = value
-                    }"
-                    />
-                </div>
-                </div>
-            </template>
-
-            <template v-else-if="fieldMeta.type === 'array'">
-                <div class="flex flex-1 flex-col gap-2">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs text-base-content/50">共 {{ getArrayItems(fieldKey).length }} 项</span>
-                    <button
-                    v-if="!readonly"
-                    type="button"
-                    class="btn btn-ghost btn-xs"
-                    @click="addArrayItem(fieldKey, fieldMeta as Extract<FieldMeta, { type: 'array' }>)"
-                    >
-                    新增
-                    </button>
-                </div>
-                <div
-                    v-if="expandedInlineMap[fieldKey]"
-                    class="flex flex-wrap items-start gap-2 border-l-2 border-dashed border-info/40 pl-3"
-                >
-                    <div
-                    v-for="(item, itemIndex) in getArrayItems(fieldKey)"
-                    :key="`${fieldKey}-${itemIndex}`"
-                    class="inline-flex flex-wrap items-start gap-2 rounded-lg border border-base-300 bg-base-100 px-3 py-2"
-                    :class="{ 'bg-secondary/10 border-secondary/50': expandedInlineMap[`${fieldKey}-${itemIndex}`] }"
-                    >
-                    <span class="text-xs text-base-content/50">{{ itemIndex + 1 }}</span>
-                    <template v-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'object'">
-                        <div class="flex items-center gap-2">
-                        <SearchableAtomSelect
-                            v-if="!readonly"
-                            :model-value="(item as Record<string, unknown>)._ClassName as string"
-                            :options="getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'array' }>).baseClass)"
-                            :registry="registry"
-                            empty-label="请选择类型"
-                            allow-empty
-                            @update:model-value="(value) => updateArrayItemClass(
-                            fieldKey,
-                            fieldMeta as Extract<FieldMeta, { type: 'array' }>,
-                            itemIndex,
-                            value
-                            )"
-                        />
-                        <button
-                            type="button"
-                            class="btn btn-ghost btn-2xs"
-                            @click="expandedInlineMap[`${fieldKey}-${itemIndex}`] = !expandedInlineMap[`${fieldKey}-${itemIndex}`]"
-                        >
-                            <span class="inline-block transition-transform" :class="expandedInlineMap[`${fieldKey}-${itemIndex}`] ? 'rotate-90' : ''">▶</span>
-                        </button>
-                        <button
-                            v-if="!readonly"
-                            type="button"
-                            class="btn btn-ghost btn-2xs text-error"
-                            @click="removeArrayItem(fieldKey, itemIndex)"
-                        >
-                            删除
-                        </button>
-                        </div>
-                        <DynamicObjectFormInline
-                        v-if="expandedInlineMap[`${fieldKey}-${itemIndex}`] && (item as Record<string, unknown>)._ClassName"
-                        :key="`${fieldKey}-${itemIndex}-${(item as Record<string, unknown>)._ClassName as string}`"
-                        class="border-l-2 border-dashed border-secondary/40 pl-3"
-                        :class-name="(item as Record<string, unknown>)._ClassName as string"
-                        :registry="registry"
-                        :subclass-options="subclassOptions"
-                        :model-value="item as Record<string, unknown>"
-                        :readonly="readonly"
-                        @update:model-value="(value) => updateArrayItemValue(fieldKey, itemIndex, value)"
-                        />
-                    </template>
-
-                    <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'string'">
-                        <input
-                        :value="item as string"
-                        type="text"
-                        class="input input-sm input-bordered"
-                        :disabled="readonly"
-                        @input="(event) => {
-                            const list = [...getArrayItems(fieldKey)]
-                            list[itemIndex] = (event.target as HTMLInputElement).value
-                            localValue[fieldKey] = list
-                        }"
-                        />
-                    </template>
-
-                    <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'number'">
-                        <input
-                        :value="item as number"
-                        type="number"
-                        class="input input-sm input-bordered"
-                        :disabled="readonly"
-                        @input="(event) => {
-                            const list = [...getArrayItems(fieldKey)]
-                            list[itemIndex] = Number((event.target as HTMLInputElement).value)
-                            localValue[fieldKey] = list
-                        }"
-                        />
-                    </template>
-
-                    <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'boolean'">
-                        <label class="flex items-center gap-2 text-sm" :class="{ 'opacity-60': readonly }">
-                        <input
-                            :checked="item as boolean"
-                            type="checkbox"
-                            class="checkbox checkbox-sm"
-                            :disabled="readonly"
-                            @change="(event) => {
-                            const list = [...getArrayItems(fieldKey)]
-                            list[itemIndex] = (event.target as HTMLInputElement).checked
-                            localValue[fieldKey] = list
-                            }"
-                        />
-                        <span class="text-xs">启用</span>
-                        </label>
-                    </template>
-                    </div>
-                </div>
-
-                <p
-                    v-if="getArrayItems(fieldKey).length === 0"
-                    class="rounded-lg border border-dashed border-base-200 bg-base-100/60 px-4 py-6 text-center text-xs text-base-content/60"
-                >
-                    暂无子项，点击“新增”创建。
-                </p>
-                </div>
-            </template>
-            </div>
+            <option v-for="option in rootSubclassOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+            </option>
+        </select>
+        <template v-if="shouldShowParenthesesForObject(localValue)">
+            <span class="text-base font-semibold text-info">(</span>
+        </template>
+      <div
+        v-for="({ fieldKey, fieldMeta }, index) in flattenedFields"
+        :key="fieldKey"
+        class="inline-flex flex-wrap items-start gap-3 rounded-lg border border-base-200 bg-base-100/70 px-3 py-0"
+      >
+        <div class="flex items-center gap-2">
+          <button
+            v-if="fieldMeta.type === 'object' || fieldMeta.type === 'array'"
+            type="button"
+            class="btn btn-xs btn-ghost"
+            @click="expandedInlineMap[fieldKey] = !expandedInlineMap[fieldKey]"
+          >
+            <span class="inline-block transition-transform" :class="expandedInlineMap[fieldKey] ? 'rotate-90' : ''">▶</span>
+          </button>
+          <!-- <div class="flex flex-col min-w-[140px]">
+            <span class="text-[11px] font-semibold uppercase tracking-wide text-base-content/60">
+              {{ fieldMeta.label }}
+            </span>
+            <span class="text-[10px] text-base-content/40">{{ fieldMeta.type }}</span>
+          </div> -->
         </div>
-      </div>          
-    </div>      
+
+        <div class="flex flex-1 flex-wrap items-stretch gap-3">
+          <template v-if="fieldMeta.type === 'string'">
+            <input
+              v-model="localValue[fieldKey]"
+              type="text"
+              class="input input-sm input-bordered"
+              :disabled="readonly"
+            />
+          </template>
+
+          <template v-else-if="fieldMeta.type === 'number'">
+            <input
+              v-model.number="localValue[fieldKey]"
+              type="number"
+              class="input input-sm input-bordered"
+              :disabled="readonly"
+            />
+          </template>
+
+          <template v-else-if="fieldMeta.type === 'boolean'">
+            <label class="flex items-center gap-2 text-sm" :class="{ 'opacity-60': readonly }">
+              <input
+                v-model="localValue[fieldKey]"
+                type="checkbox"
+                class="toggle toggle-primary toggle-sm"
+                :disabled="readonly"
+              />
+              <span class="text-xs text-base-content/70">启用</span>
+            </label>
+          </template>
+
+          <template v-else-if="fieldMeta.type === 'select'">
+            <select
+              v-model="localValue[fieldKey]"
+              class="select select-sm select-bordered"
+              :disabled="readonly"
+            >
+              <option v-for="option in fieldMeta.options" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </template>
+
+          <template v-else-if="fieldMeta.type === 'object'">
+            <div class="flex flex-wrap items-stretch gap-2">
+              <div 
+                v-if="!expandedInlineMap[fieldKey] || !((localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName)"
+                class="flex items-center gap-2">
+                <!-- <span class="badge badge-outline badge-sm">
+                  {{ (localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName ?? '未选择' }}
+                </span> -->
+                <select
+                  v-if="getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'object' }>).baseClass).length && !readonly"
+                  :value="(localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName ?? ''"
+                  class="select select-xs select-bordered"
+                  @change="(event) => updateObjectFieldClass(
+                    fieldKey,
+                    fieldMeta as Extract<FieldMeta, { type: 'object' }>,
+                    (event.target as HTMLSelectElement).value
+                  )"
+                >
+                  <option value="">请选择类型</option>
+                  <option
+                    v-for="option in getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'object' }>).baseClass)"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+                <!-- border-l-2 border-dashed border-primary/40 pl-3 -->
+              <div
+                v-if="expandedInlineMap[fieldKey] && (localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName"
+                class="flex flex-1 flex-wrap items-start gap-2 "
+                
+              >
+                <DynamicObjectFormInline
+                  :key="`${fieldKey}-${(localValue[fieldKey] as Record<string, unknown>)._ClassName as string}`"
+                  :class-name="(localValue[fieldKey] as Record<string, unknown>)._ClassName as string"
+                  :registry="registry"
+                  :subclass-options="subclassOptions"
+                  :model-value="localValue[fieldKey] as Record<string, unknown>"
+                  :readonly="readonly"
+                  @update:model-value="(value) => {
+                    localValue[fieldKey] = value
+                  }"
+                />
+              </div>
+            </div>
+          </template>
+
+          <template v-else-if="fieldMeta.type === 'array'">
+            <div class="flex flex-1 flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-base-content/50">共 {{ getArrayItems(fieldKey).length }} 项</span>
+                <button
+                  v-if="!readonly"
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  @click="addArrayItem(fieldKey, fieldMeta as Extract<FieldMeta, { type: 'array' }>)"
+                >
+                  新增
+                </button>
+              </div>
+              <div
+                v-if="expandedInlineMap[fieldKey]"
+                class="flex flex-wrap items-start gap-2 border-l-2 border-dashed border-info/40 pl-3"
+              >
+                <div
+                  v-for="(item, itemIndex) in getArrayItems(fieldKey)"
+                  :key="`${fieldKey}-${itemIndex}`"
+                  class="inline-flex flex-wrap items-start gap-2 rounded-lg border border-base-300 bg-base-100 px-3 py-2"
+                  :class="{ 'bg-secondary/10 border-secondary/50': expandedInlineMap[`${fieldKey}-${itemIndex}`] }"
+                >
+                  <span class="text-xs text-base-content/50">{{ itemIndex + 1 }}</span>
+                  <template v-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'object'">
+                    <div class="flex items-center gap-2">
+                      <select
+                        v-if="!readonly"
+                        :value="(item as Record<string, unknown>)._ClassName as string"
+                        class="select select-xs select-bordered"
+                        @change="(event) => updateArrayItemClass(
+                          fieldKey,
+                          fieldMeta as Extract<FieldMeta, { type: 'array' }>,
+                          itemIndex,
+                          (event.target as HTMLSelectElement).value
+                        )"
+                      >
+                        <option
+                          v-for="option in getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'array' }>).baseClass)"
+                          :key="option.value"
+                          :value="option.value"
+                        >
+                          {{ option.label }}
+                        </option>
+                      </select>
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-2xs"
+                        @click="expandedInlineMap[`${fieldKey}-${itemIndex}`] = !expandedInlineMap[`${fieldKey}-${itemIndex}`]"
+                      >
+                        <span class="inline-block transition-transform" :class="expandedInlineMap[`${fieldKey}-${itemIndex}`] ? 'rotate-90' : ''">▶</span>
+                      </button>
+                      <button
+                        v-if="!readonly"
+                        type="button"
+                        class="btn btn-ghost btn-2xs text-error"
+                        @click="removeArrayItem(fieldKey, itemIndex)"
+                      >
+                        删除
+                      </button>
+                    </div>
+                    <DynamicObjectFormInline
+                      v-if="expandedInlineMap[`${fieldKey}-${itemIndex}`] && (item as Record<string, unknown>)._ClassName"
+                      :key="`${fieldKey}-${itemIndex}-${(item as Record<string, unknown>)._ClassName as string}`"
+                      class="border-l-2 border-dashed border-secondary/40 pl-3"
+                      :class-name="(item as Record<string, unknown>)._ClassName as string"
+                      :registry="registry"
+                      :subclass-options="subclassOptions"
+                      :model-value="item as Record<string, unknown>"
+                      :readonly="readonly"
+                      @update:model-value="(value) => updateArrayItemValue(fieldKey, itemIndex, value)"
+                    />
+                  </template>
+
+                  <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'string'">
+                    <input
+                      :value="item as string"
+                      type="text"
+                      class="input input-sm input-bordered"
+                      :disabled="readonly"
+                      @input="(event) => {
+                        const list = [...getArrayItems(fieldKey)]
+                        list[itemIndex] = (event.target as HTMLInputElement).value
+                        localValue[fieldKey] = list
+                      }"
+                    />
+                  </template>
+
+                  <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'number'">
+                    <input
+                      :value="item as number"
+                      type="number"
+                      class="input input-sm input-bordered"
+                      :disabled="readonly"
+                      @input="(event) => {
+                        const list = [...getArrayItems(fieldKey)]
+                        list[itemIndex] = Number((event.target as HTMLInputElement).value)
+                        localValue[fieldKey] = list
+                      }"
+                    />
+                  </template>
+
+                  <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'boolean'">
+                    <label class="flex items-center gap-2 text-sm" :class="{ 'opacity-60': readonly }">
+                      <input
+                        :checked="item as boolean"
+                        type="checkbox"
+                        class="checkbox checkbox-sm"
+                        :disabled="readonly"
+                        @change="(event) => {
+                          const list = [...getArrayItems(fieldKey)]
+                          list[itemIndex] = (event.target as HTMLInputElement).checked
+                          localValue[fieldKey] = list
+                        }"
+                      />
+                      <span class="text-xs">启用</span>
+                    </label>
+                  </template>
+                </div>
+              </div>
+
+              <p
+                v-if="getArrayItems(fieldKey).length === 0"
+                class="rounded-lg border border-dashed border-base-200 bg-base-100/60 px-4 py-6 text-center text-xs text-base-content/60"
+              >
+                暂无子项，点击“新增”创建。
+              </p>
+            </div>
+          </template>
+
+          
+        </div>
+        <template v-if="shouldShowParenthesesForObject(localValue) && index !== flattenedFields.length - 1" >
+            <span class="text-base font-semibold text-info">，</span>
+        </template>
+      </div>
+      <template v-if="shouldShowParenthesesForObject(localValue) ">
+            <span class="text-base font-semibold text-info">)</span>
+        </template>
+    </div>
   </div>
 
   <div v-else class="alert alert-warning">

@@ -47,7 +47,7 @@ export const FIELD_SUFFIX_TO_BASE_CLASS_MAP: Record<string, string[]> = {
 
 // 字段前缀与基类的映射规则
 export const FIELD_PREFIX_TO_BASE_CLASS_MAP: Record<string, string[]> = {
-  'EventActionEx': [DELEGATE_BASE_CLASSES.ActionDelegate],
+  // 'EventActionEx': [DELEGATE_BASE_CLASSES.ActionDelegate],
 };
 
 // 字段全名与基类的映射规则

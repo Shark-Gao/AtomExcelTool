@@ -10,6 +10,7 @@ import { loadSettingsFromStorage, saveSettingsToStorage } from './utils/settings
 import type { ClassRegistry, ClassMetadata as DelegateClassMetadata } from './types/MetaDefine'
 import { getAllowedBaseClassesForFieldName, isAtomicField } from './constants/DelegateBaseClassesConst'
 import { normalizeClassInstance } from './utils/ClassNormalizer'
+import DynamicObjectFormInline from './components/DynamicObjectFormInline.vue'
 
 type RowRecord = Record<string, string>
 
@@ -1318,6 +1319,17 @@ async function saveWorkbookAs() {
             <div class="divider my-2">对象表单与 JSON</div>
 
             <!-- 对象表单与 JSON 编辑 -->
+            <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
+              <div class="scrollbar max-h-[420px] overflow-y-auto pr-1">
+                <DynamicObjectFormInline
+                  :class-name="mockClassName"
+                  :registry="classRegistry"
+                  :subclass-options="subclassOptions"
+                  :model-value="mockObjectValue"
+                  @update:model-value="(value) => applyNormalizedObject(value as ParsedClassObject)"
+                />
+              </div>
+            </div>
             <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
               <div class="scrollbar max-h-[420px] overflow-y-auto pr-1">
                 <DynamicObjectForm

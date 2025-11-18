@@ -11,6 +11,11 @@ type ConditionFieldInfo = {
   json: string
 }
 
+type DeParseExpressonType = {
+  expression: string
+  expressionDesc: string
+}
+
 // ============ Excel 相关类型 ============
 type ExcelOpenResult =
   | { canceled: true }
@@ -81,7 +86,7 @@ declare global {
     getMetadata: () => Promise<DelegateMetadataSuccess | DelegateMetadataFailure>
     parseExpression: (payload: { expression: string }) => Promise<{ ok: boolean; parsed?: any; json?: string; error?: string }>
     parseConditionField: (payload: { fieldName: string; rawValue: string }) => Promise<{ ok: boolean; parsed?: any; error?: string }>
-    deParseJsonToExpression: (payload: { json: any }) => Promise<{ ok: boolean; expression?: string; error?: string }>
+    deParseJsonToExpression: (payload: { json: any }) => Promise<{ ok: boolean; expression?: DeParseExpressonType; error?: string }>
   }
 
   interface Window {

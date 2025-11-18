@@ -5,7 +5,7 @@ import ExcelJS from 'exceljs';
 import { FAtomExpressionParser } from './MHTsAtomSystemUtils';
 import {DelegateMetadataGenerator} from './DelegateMetadataGenerator';
 import { deParseJsonToExpression } from './DeParseJsonToExpression';
-import { runAllTests } from './DeParseJsonToExpression.test';
+// import { runAllTests } from './DeParseJsonToExpression.test';
 
 type RowRecord = Record<string, string>;
 

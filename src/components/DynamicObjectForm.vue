@@ -134,7 +134,7 @@ function getArrayElementType(fieldMeta: Extract<FieldMeta, { type: 'array' }>): 
   return 'object';
 }
 
-const isRootCollapsed = ref(false)
+const isRootCollapsed = ref(true)
 
 function toggleRootSection() {
   isRootCollapsed.value = !isRootCollapsed.value
@@ -348,15 +348,6 @@ async function updateArrayItemClass(
               ]"
             >
               <header class="flex items-start gap-3">
-                <button
-                  v-if="fieldMeta.type === 'object' || fieldMeta.type === 'array'"
-                  type="button"
-                  class="btn btn-circle btn-ghost btn-xs"
-                  :aria-expanded="isSectionExpanded(fieldKey)"
-                  @click="toggleSection(fieldKey)"
-                >
-                  <!-- <span class="transition-transform" :class="{ 'rotate-90': isSectionExpanded(fieldKey) }">▶</span> -->
-                </button>
                 <div class="flex-1">
                   <div class="flex items-center justify-between">
                     <button

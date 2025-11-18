@@ -66,6 +66,12 @@ const progressType = ref<'saving' | 'loading' | 'processing'>('processing')
 // Skeleton 加载界面相关
 const isSkeletonVisible = ref(true)
 
+// 字段宽度控制
+const columnWidths = reactive<Record<string, number>>({})
+const draggedColumnName = ref<string | null>(null)
+const dragStartX = ref(0)
+const dragStartWidth = ref(0)
+
 type ParsedClassObject = {
   _ClassName: string
   [key: string]: unknown
@@ -92,6 +98,7 @@ type ConditionFieldInfo = {
   raw: string
   parsed: any
   json: string
+  expressionDesc?:string
 }
 const conditionFieldsMap = reactive<Record<string, Record<string, ConditionFieldInfo>>>({})
 const selectedConditionField = ref<string | null>(null)
@@ -308,11 +315,13 @@ async function applyNormalizedObjectByColumnName(normalized: ParsedClassObject, 
       const result = await window.delegateBridge.deParseJsonToExpression({ json: normalized });
       if (result.ok && result.expression) {
         conditionFieldsMap[selectedRowName.value][updateColumnName] = {
-          raw: result.expression,
+          raw: result.expression.expression,
           parsed: normalized,
-          json: JSON.stringify(normalized, null, 2)
+          json: JSON.stringify(normalized, null, 2),
+          expressionDesc: result.expression.expressionDesc
         }
-        editableRecord[updateColumnName] = result.expression
+        editableRecord[updateColumnName] = result.expression.expression
+        
       } else {
         console.error('反向解析失败:', result.error);
       }
@@ -422,6 +431,28 @@ const displayColumnNames = computed(() => {
   return []
 })
 
+const currentRecordColumnCount = computed(() => {
+  return currentRecord.value ? Object.keys(currentRecord.value).length : 0
+})
+
+/**
+ * 获取当前可见的字段列表
+ * 考虑 showOnlyAtomicFields 过滤条件
+ */
+const visibleColumnNames = computed(() => {
+  if (!currentRecord.value) {
+    return []
+  }
+  
+  const allColumns = Object.keys(currentRecord.value)
+  
+  if (showOnlyAtomicFields.value) {
+    return allColumns.filter((columnName) => conditionFieldSet.value.has(columnName))
+  }
+  
+  return allColumns
+})
+
 const currentConditionFields = computed(() => {
   if (!selectedRowName.value) {
     return {}
@@ -484,6 +515,30 @@ watch(currentRecord, (newRecord) => {
 
 function applyTheme(themeName: string) {
   document.documentElement.setAttribute('data-theme', themeName)
+}
+
+function startResizeColumn(columnName: string, event: MouseEvent) {
+  event.preventDefault()
+  draggedColumnName.value = columnName
+  dragStartX.value = event.clientX
+  dragStartWidth.value = columnWidths[columnName] || 300
+  document.body.style.userSelect = 'none'
+  document.addEventListener('mousemove', handleResizeMouseMove)
+  document.addEventListener('mouseup', handleResizeMouseUp)
+}
+
+function handleResizeMouseMove(event: MouseEvent) {
+  if (!draggedColumnName.value) return
+  const delta = event.clientX - dragStartX.value
+  const newWidth = Math.max(200, dragStartWidth.value + delta)
+  columnWidths[draggedColumnName.value] = newWidth
+}
+
+function handleResizeMouseUp() {
+  draggedColumnName.value = null
+  document.body.style.userSelect = ''
+  document.removeEventListener('mousemove', handleResizeMouseMove)
+  document.removeEventListener('mouseup', handleResizeMouseUp)
 }
 
 watch(currentTheme, (newTheme) => {
@@ -1175,89 +1230,100 @@ async function saveWorkbookAs() {
         </div>
 
         <div class="flex flex-1 flex-col min-h-0 overflow-hidden">
-          <div v-if="activeMainTab === 'config'" class="flex-1 overflow-y-auto px-6 pb-4">
+          <div v-if="activeMainTab === 'config'" class="flex-1 overflow-x-auto px-6 pb-4 min-h-0">
             <div v-if="selectedRowName" class="pt-4">
               <div class="divider my-2"></div>
-              <div class="grid grid-cols-none gap-4 auto-cols-max" style="grid-auto-flow: column;">
-                <div
-                v-for="(value, columnName) in currentRecord"
-                v-show="!showOnlyAtomicFields || conditionFieldSet.has(columnName)"
-                :key="columnName"
-                :ref="(el) => setColumnInputRef(columnName, el)"
-                class="column-field-container rounded-lg px-3 py-2 transition-all duration-150 cursor-pointer border"
-                :class="{ 'bg-primary/10 border-primary/60': columnName === highlightColumnName, 'border-base-300 hover:border-base-400': columnName !== highlightColumnName }"
-                >
-                  <div class="text-sm font-semibold text-base-content/70 truncate mb-1" :title="columnName">
-                    {{ columnName }}
-                    <!-- 如果已有配置，显示清除按钮 -->
-                    <button
-                      v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
-                      type="button"
-                      class="btn btn-xs btn-outline btn-error ml-2"
-                      @click="clearAtomicFieldConfig(columnName)"
-                      title="清除原子配置"
+              <div class="flex gap-0 min-w-min pb-4">
+                <template v-for="(value, columnName, index) in currentRecord" :key="columnName">
+                  <div
+                    v-show="!showOnlyAtomicFields || conditionFieldSet.has(columnName)"
+                    :ref="(el) => setColumnInputRef(columnName, el)"
+                    class="column-field-container rounded-lg px-3 py-2 transition-all duration-150 cursor-pointer border flex-shrink-0 relative overflow-hidden"
+                    :class="{ 'bg-primary/10 border-primary/60': columnName === highlightColumnName, 'border-base-300 hover:border-base-400': columnName !== highlightColumnName }"
+                    :style="{ width: (columnWidths[columnName] || 300) + 'px' }"
                     >
-                      清除配置
-                    </button>
-                  </div>
-                  <p class="text-xs text-base-content/50 mb-2 min-h-4" :title="columnDescriptions[columnName] || ''">
-                    {{ columnDescriptions[columnName] || '' }}
-                  </p>
-                  <template v-if="conditionFieldSet.has(columnName)">
-                    <div class="space-y-2">
-                      <SearchableDropdown
-                        v-if="!conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
-                        :options="filteredAtomClassOptions"
-                        :search-keyword="atomClassSearchKeyword"
-                        :open="openAtomClassDropdown === columnName"
-                        :registry="classRegistry"
-                        placeholder="搜索原子类型..."
-                        @update:search-keyword="atomClassSearchKeyword = $event"
-                        @update:open="openAtomClassDropdown = $event ? columnName : null"
-                        @select="(value, option) => handleSelectAtomClass(columnName, value)"
-                      />
+                    <div class="text-sm font-semibold text-base-content/70 truncate mb-1" :title="columnName">
+                      {{ columnName }}
+                      <!-- 如果已有配置，显示清除按钮 -->
+                      <button
+                        v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
+                        type="button"
+                        class="btn btn-xs btn-outline btn-error ml-2"
+                        @click="clearAtomicFieldConfig(columnName)"
+                        title="清除原子配置"
+                      >
+                        清除配置
+                      </button>
                     </div>
-                  
-                    <!-- 如果已有配置，显示详细编辑界面 -->
-                    <template v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed">
+                    <p class="text-xs text-base-content/50 mb-2 min-h-4" :title="columnDescriptions[columnName] || ''">
+                      {{ columnDescriptions[columnName] || '' }}
+                    </p>
+                    <template v-if="conditionFieldSet.has(columnName)">
                       <div class="space-y-2">
-                        <div>
-                          <label class="label">
-                            <span class="label-text text-sm font-semibold">表达式</span>
-                          </label>
-                          <input
-                            :value="editableRecord[columnName] as string"
-                            readonly
-                            type="text"
-                            class="input input-bordered input-sm font-mono text-xs w-full"
-                          />
-                        </div>
-                      
-                        <div v-if="isDebugMode">
-                          <label class="label">
-                            <span class="label-text text-sm font-semibold">解析后 JSON</span>
-                          </label>
-                          <textarea
-                            :value="formatJson(conditionFieldsMap[selectedRowName][columnName]?.parsed)"
-                            readonly
-                            class="textarea textarea-bordered textarea-sm h-32 font-mono text-xs resize"
-                          ></textarea>
-                        </div>
-                      </div> 
-                      <DynamicObjectForm
-                        :class-name="((conditionFieldsMap[selectedRowName][columnName]?.parsed)?. _ClassName as string) || 'UnknownCondition'"
-                        :registry="classRegistry"
-                        :subclass-options="subclassOptions"
-                        :model-value="(conditionFieldsMap[selectedRowName][columnName]?.parsed) as Record<string, unknown>"
-                        @update:model-value="(value) => applyNormalizedObjectByColumnName(value as ParsedClassObject, columnName)"
-                      />
-                    </template>
+                        <SearchableDropdown
+                          v-if="!conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
+                          :options="filteredAtomClassOptions"
+                          :search-keyword="atomClassSearchKeyword"
+                          :open="openAtomClassDropdown === columnName"
+                          :registry="classRegistry"
+                          placeholder="搜索原子类型..."
+                          @update:search-keyword="atomClassSearchKeyword = $event"
+                          @update:open="openAtomClassDropdown = $event ? columnName : null"
+                          @select="(value, option) => handleSelectAtomClass(columnName, value)"
+                        />
+                      </div>
                     
-                  </template>
-                  <template v-else>
-                      <input v-model="editableRecord[columnName]" type="text" class="input input-bordered" />
-                  </template>
-                </div>
+                      <!-- 如果已有配置，显示详细编辑界面 -->
+                      <template v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed">
+                        <div class="space-y-2">
+                          <div>
+                            <label class="label">
+                              <span class="label-text text-sm font-semibold">表达式</span>
+                            </label>
+                            <input
+                              :value="editableRecord[columnName] as string"
+                              readonly
+                              type="text"
+                              class="input input-bordered input-sm font-mono text-xs w-full"
+                            />
+                            <p v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.expressionDesc" class="text-xs text-base-content/60 mt-1 leading-relaxed">
+                              <span class="font-semibold text-base-content/80">AI解读大致含义：</span>{{ conditionFieldsMap[selectedRowName][columnName].expressionDesc }}
+                            </p>
+                          </div>
+                        
+                          <div v-if="isDebugMode">
+                            <label class="label">
+                              <span class="label-text text-sm font-semibold">解析后 JSON</span>
+                            </label>
+                            <textarea
+                              :value="formatJson(conditionFieldsMap[selectedRowName][columnName]?.parsed)"
+                              readonly
+                              class="textarea textarea-bordered textarea-sm h-32 font-mono text-xs resize"
+                            ></textarea>
+                          </div>
+                        </div> 
+                        <DynamicObjectForm
+                          :class-name="((conditionFieldsMap[selectedRowName][columnName]?.parsed)?. _ClassName as string) || 'UnknownCondition'"
+                          :registry="classRegistry"
+                          :subclass-options="subclassOptions"
+                          :model-value="(conditionFieldsMap[selectedRowName][columnName]?.parsed) as Record<string, unknown>"
+                          @update:model-value="(value) => applyNormalizedObjectByColumnName(value as ParsedClassObject, columnName)"
+                        />
+                      </template>
+                      
+                    </template>
+                    <template v-else>
+                        <input v-model="editableRecord[columnName]" type="text" class="input input-bordered" />
+                    </template>
+                  </div>
+                  <!-- Split 拖动控件 -->
+                  <div
+                  v-if="visibleColumnNames.indexOf(columnName) < visibleColumnNames.length - 1 && (!showOnlyAtomicFields || conditionFieldSet.has(columnName))"
+                  class="w-1 bg-base-300 hover:bg-primary cursor-col-resize flex-shrink-0 transition-colors"
+                  @mousedown="startResizeColumn(columnName, $event)"
+                  :style="{ backgroundColor: draggedColumnName === columnName ? 'var(--fallback-p,oklch(53.95% 0.1624 275.8))' : '' }"
+                  ></div>
+                </template>
               </div>
             </div>
             <div v-else class="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-base-300 bg-base-200/60 p-16 text-base-content/60">
@@ -1376,3 +1442,18 @@ async function saveWorkbookAs() {
     />
   </div>
 </template>
+
+<style scoped>
+/* 拖动时禁用文本选择 */
+:global(body.resizing) {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* 分割条悬停效果 */
+.cursor-col-resize {
+  cursor: col-resize;
+}
+</style>

@@ -314,6 +314,9 @@ async function applyNormalizedObjectByColumnName(normalized: ParsedClassObject, 
     try {
       const result = await window.delegateBridge.deParseJsonToExpression({ json: normalized });
       if (result.ok && result.expression) {
+        if (!conditionFieldsMap[selectedRowName.value]) {
+          conditionFieldsMap[selectedRowName.value] = {}
+        }
         conditionFieldsMap[selectedRowName.value][updateColumnName] = {
           raw: result.expression.expression,
           parsed: normalized,
@@ -746,16 +749,19 @@ async function parseConditionFieldsFromRecord(record: Record<string, string>): P
     }
 
     try {
+
       const parseResult = await delegateBridge.parseConditionField({ 
         fieldName, 
         rawValue 
       })
-      
+
       if (parseResult.ok && parseResult.parsed) {
+        const deParseResult = await delegateBridge.deParseJsonToExpression({ json: parseResult.parsed });
         result[fieldName] = {
           raw: rawValue,
           parsed: parseResult.parsed,
-          json: JSON.stringify(parseResult.parsed)
+          json: JSON.stringify(parseResult.parsed),
+          expressionDesc: deParseResult.expression?.expressionDesc
         }
       }
     } catch (error) {
@@ -1287,7 +1293,7 @@ async function saveWorkbookAs() {
                               class="input input-bordered input-sm font-mono text-xs w-full"
                             />
                             <p v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.expressionDesc" class="text-xs text-base-content/60 mt-1 leading-relaxed">
-                              <span class="font-semibold text-base-content/80">AI解读大致含义：</span>{{ conditionFieldsMap[selectedRowName][columnName].expressionDesc }}
+                              <span class="font-semibold text-base-content/80">功能描述：</span>{{ conditionFieldsMap[selectedRowName][columnName].expressionDesc }}
                             </p>
                           </div>
                         

@@ -45,22 +45,22 @@ export function deParseJsonToExpression(jsonObject: any): DeParseExpressonType {
       return {expression:`{${constantKey}}`, expressionDesc:`{${constantKey}}`};
     }
     
-    return {expression:String(constant), expressionDesc:String(constant)};
+    return {expression:String(constant), expressionDesc:`{${constant}}`};
   }
 
   if (className === 'BoolValueConstDelegate') {
-    return {expression:String(jsonObject.BoolConst), expressionDesc:String(jsonObject.BoolConst)};
+    return {expression:String(jsonObject.BoolConst), expressionDesc:`{${jsonObject.BoolConst}}`};
   }
 
   // 处理一元操作符
   if (className === 'NumberValueUnaryOperatorDelegate') {
     const operand = deParseJsonToExpression(jsonObject.Value);
-    return {expression:`-(${operand})`, expressionDesc:`-(${operand})`};
+    return {expression:`-(${operand.expression})`, expressionDesc:`-(${operand.expressionDesc})`};
   }
 
   if (className === 'BoolValueNotDelegate') {
     const operand = deParseJsonToExpression(jsonObject.Value);
-    return {expression:`!(${operand})`, expressionDesc:`!(${operand})`};
+    return {expression:`!(${operand.expression})`, expressionDesc:`!(${operand.expressionDesc})`};
   }
 
   // 处理二元操作符（数值）
@@ -68,7 +68,7 @@ export function deParseJsonToExpression(jsonObject: any): DeParseExpressonType {
     const lhs = deParseJsonToExpression(jsonObject.lhs);
     const rhs = deParseJsonToExpression(jsonObject.rhs);
     const operator = getOperatorString(jsonObject.operator, 'number');
-    return {expression:`(${lhs} ${operator} ${rhs})`, expressionDesc:`(${lhs} ${operator} ${rhs})`};
+    return {expression:`(${lhs.expression} ${operator} ${rhs.expression})`, expressionDesc:`(${lhs.expressionDesc} ${operator} ${rhs.expressionDesc})`};
   }
 
   // 处理二元操作符（布尔值）
@@ -76,7 +76,7 @@ export function deParseJsonToExpression(jsonObject: any): DeParseExpressonType {
     const lhs = deParseJsonToExpression(jsonObject.lhs);
     const rhs = deParseJsonToExpression(jsonObject.rhs);
     const operator = getOperatorString(jsonObject.operator, 'bool');
-    return {expression:`(${lhs} ${operator} ${rhs})`, expressionDesc:`(${lhs} ${operator} ${rhs})`};;
+    return {expression:`(${lhs.expression} ${operator} ${rhs.expression})`, expressionDesc:`(${lhs.expressionDesc} ${operator} ${rhs.expressionDesc})`};;
   }
 
   // 处理二元操作符（数值比较）
@@ -84,7 +84,7 @@ export function deParseJsonToExpression(jsonObject: any): DeParseExpressonType {
     const lhs = deParseJsonToExpression(jsonObject.lhs);
     const rhs = deParseJsonToExpression(jsonObject.rhs);
     const operator = getOperatorString(jsonObject.operator, 'compare');
-    return {expression:`(${lhs} ${operator} ${rhs})`, expressionDesc:`(${lhs} ${operator} ${rhs})`};
+    return {expression:`(${lhs.expression} ${operator} ${rhs.expression})`, expressionDesc:`(${lhs.expressionDesc} ${operator} ${rhs.expressionDesc})`};
   }
 
   // 处理函数调用
@@ -142,7 +142,7 @@ function buildFunctionCall(functionName: string, className: string, jsonObject: 
       params.push({expression:`"${paramValue}"`, expressionDesc:`"${paramValue}"`});
     } else {
       // 数字、布尔值等直接转换
-      params.push({expression:String(paramValue), expressionDesc:String(paramValue)});
+      params.push({expression:String(paramValue), expressionDesc:`${paramValue}`});
     }
   }
 

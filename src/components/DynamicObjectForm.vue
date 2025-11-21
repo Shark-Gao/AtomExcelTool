@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { normalizeClassInstance as normalizeClassInstanceUtil } from '../utils/ClassNormalizer'
-import { ClassRegistry, FieldMeta, BaseClassNativeType, isBaseClassNative, BaseClassType } from '../types/MetaDefine'
+import { ClassRegistry, FieldMeta, BaseClassNativeType, isBaseClassNative, BaseClassType, resolveFieldMetaTypeByValue, fieldMetaSupportsType, getFieldMetaTypeList } from '../types/MetaDefine'
 import SearchableAtomSelect from './SearchableAtomSelect.vue'
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object' | 'array'
@@ -114,24 +114,20 @@ function getArrayItems(fieldKey: string): any[] {
   return value as any[]
 }
 
-function isArrayOfObjects(fieldMeta: Extract<FieldMeta, { type: 'array' }>): boolean {
-  if (fieldMeta.type == 'array') {
-    return true
+function getArrayElementType(fieldMeta: FieldMeta): 'string' | 'number' | 'boolean' | 'object' | BaseClassType {
+  if (!supportsFieldType(fieldMeta, 'array')) {
+    return 'string'
   }
-  return false
-}
-
-function getArrayElementType(fieldMeta: Extract<FieldMeta, { type: 'array' }>): 'string' | 'number' | 'boolean' | 'object' | BaseClassType {
   if (!fieldMeta.baseClass) {
-    return 'string';
+    return 'string'
   }
 
   // 检查 baseClass 是否为基础类型
   if (isBaseClassNative(fieldMeta.baseClass)) {
-    return fieldMeta.baseClass;
+    return fieldMeta.baseClass
   }
   
-  return 'object';
+  return 'object'
 }
 
 const isRootCollapsed = ref(true)
@@ -141,6 +137,18 @@ function toggleRootSection() {
 }
 
 const expandedSections = reactive<Record<string, boolean>>({})
+
+function getActiveFieldType(fieldKey: string, fieldMeta: FieldMeta): FieldType {
+  return resolveFieldMetaTypeByValue(fieldMeta, localValue[fieldKey])
+}
+
+function isFieldTypeActive(fieldKey: string, fieldMeta: FieldMeta, targetType: FieldType): boolean {
+  return getActiveFieldType(fieldKey, fieldMeta) === targetType
+}
+
+function supportsFieldType(fieldMeta: FieldMeta, targetType: FieldType): boolean {
+  return fieldMetaSupportsType(fieldMeta, targetType)
+}
 
 function ensureSectionState(fieldKey: string, defaultExpanded = true) {
   if (!(fieldKey in expandedSections)) {
@@ -233,7 +241,10 @@ function removeArrayItem(fieldKey: string, index: number) {
   localValue[fieldKey] = list
 }
 
-function addArrayItem(fieldKey: string, fieldMeta: Extract<FieldMeta, { type: 'array' }>) {
+function addArrayItem(fieldKey: string, fieldMeta: FieldMeta) {
+  if (!supportsFieldType(fieldMeta, 'array')) {
+    return
+  }
   const list = Array.isArray(localValue[fieldKey]) ? (localValue[fieldKey] as any[]) : []
   
   // 判断是否为对象数组
@@ -263,10 +274,13 @@ function addArrayItem(fieldKey: string, fieldMeta: Extract<FieldMeta, { type: 'a
 
 async function updateArrayItemClass(
   fieldKey: string,
-  fieldMeta: Extract<FieldMeta, { type: 'array' }>,
+  fieldMeta: FieldMeta,
   index: number,
   newClassName: string
 ) {
+  if (!supportsFieldType(fieldMeta, 'array')) {
+    return
+  }
   if (!Array.isArray(localValue[fieldKey])) {
     return
   }
@@ -351,10 +365,10 @@ async function updateArrayItemClass(
                 <div class="flex-1">
                   <div class="flex items-center justify-between">
                     <button
-                      v-if="fieldMeta.type === 'array' && !readonly"
+                      v-if="isFieldTypeActive(fieldKey, fieldMeta, 'array') && !readonly"
                       type="button"
                       class="btn btn-outline btn-ghost btn-2xs"
-                      @click="addArrayItem(fieldKey, fieldMeta as Extract<FieldMeta, { type: 'array' }>)"
+                      @click="addArrayItem(fieldKey, fieldMeta)"
                     >
                       新增项+
                     </button>
@@ -369,20 +383,20 @@ async function updateArrayItemClass(
               </header>
               <h3 class="text-sm font-semibold text-base-content">{{ fieldMeta.label }}</h3>
               <div class="mt-3">
-                <template v-if="fieldMeta.type === 'string'">
+                <template v-if="isFieldTypeActive(fieldKey, fieldMeta, 'string')">
                   <div class="flex flex-col gap-2">
                     
                     <input v-model="localValue[fieldKey]" type="text" class="input input-bordered w-full" :disabled="readonly" />
                   </div>
                 </template>
 
-                <template v-else-if="fieldMeta.type === 'number'">
+                <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'number')">
                   <div class="flex flex-col gap-2">
                     <input v-model.number="localValue[fieldKey]" type="number" class="input input-bordered w-full" :disabled="readonly" />
                   </div>
                 </template>
 
-                <template v-else-if="fieldMeta.type === 'boolean'">
+                <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'boolean')">
                   <div class="flex flex-col gap-2">
                     <label class="flex items-center gap-3" :class="{ 'opacity-60 cursor-not-allowed': readonly }">
                       <input v-model="localValue[fieldKey]" type="checkbox" class="toggle toggle-primary" :disabled="readonly" />
@@ -391,7 +405,7 @@ async function updateArrayItemClass(
                   </div>
                 </template>
 
-                <template v-else-if="fieldMeta.type === 'select'">
+                <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'select')">
                   <div class="flex flex-col gap-2">
                     <select v-model="localValue[fieldKey]" class="select select-bordered w-full" :disabled="readonly">
                       <option v-for="option in fieldMeta.options" :key="option.value" :value="option.value">
@@ -401,12 +415,12 @@ async function updateArrayItemClass(
                   </div>
                 </template>
 
-                <template v-else-if="fieldMeta.type === 'object'">
+                <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'object')">
                   <!-- <div class="mt-3 space-y-3">
                     <SearchableAtomSelect
                       v-if="!readonly"
                       :model-value="(localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName ?? ''"
-                      :options="getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'object' }>).baseClass)"
+                      :options="getSubclassOptions(fieldMeta.baseClass)"
                       :registry="registry"
                       empty-label="请选择类型"
                       allow-empty
@@ -443,7 +457,7 @@ async function updateArrayItemClass(
                   </Transition>
                 </template>
 
-                <template v-else-if="fieldMeta.type === 'array'">
+                <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'array')">
                   <Transition name="fade" mode="out-in">
                     <div v-show="isSectionExpanded(fieldKey)" class="mt-3 space-y-3">
                       <!-- 对象数组 -->
@@ -452,7 +466,7 @@ async function updateArrayItemClass(
                       :key="`${fieldKey}-${index}`"
                       class="rounded-lg border border-base-300 bg-base-100 shadow-sm"
                       >
-                          <template v-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'object'">
+                          <template v-if="getArrayElementType(fieldMeta) === 'object'">
                             <div>
                               <DynamicObjectForm
                                 v-if="(item as Record<string, unknown>)._ClassName"
@@ -468,7 +482,7 @@ async function updateArrayItemClass(
                           </template>
 
                         <template v-else>
-                          <template v-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'string'">
+                          <template v-if="getArrayElementType(fieldMeta) === 'string'">
                             <input
                               :value="item as string"
                               type="text"
@@ -482,7 +496,7 @@ async function updateArrayItemClass(
                             />
                           </template>
 
-                          <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'number'">
+                          <template v-else-if="getArrayElementType(fieldMeta) === 'number'">
                             <input
                               :value="item as number"
                               type="number"
@@ -496,7 +510,7 @@ async function updateArrayItemClass(
                             />
                           </template>
 
-                          <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'boolean'">
+                          <template v-else-if="getArrayElementType(fieldMeta) === 'boolean'">
                             <label class="flex items-center gap-2">
                           <input
                             :checked="item as boolean"

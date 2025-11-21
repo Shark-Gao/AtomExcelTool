@@ -28,54 +28,44 @@ export function isBaseClassNative(type: BaseClassType | undefined): boolean {
 /**
  * 字段元数据 - 支持多种字段类型
  */
-export type FieldMeta =
-  | {
-      key: string;
-      label: string;
-      type: 'string' | 'number' | 'boolean';
-      description?: string;
-      baseClass?: BaseClassType;
-      isOptional?: boolean;
-      isRest?: boolean;
+export interface FieldMeta {
+  key: string;
+  label: string;
+  type: FieldType | FieldType[];
+  description?: string;
+  baseClass?: BaseClassType;
+  options?: Array<{ label: string; value: any }>;
+  isOptional?: boolean;
+  isRest?: boolean;
+}
+
+export function getFieldMetaTypeList(fieldMeta: FieldMeta): FieldType[] {
+  return Array.isArray(fieldMeta.type) ? fieldMeta.type : [fieldMeta.type];
+}
+
+export function fieldMetaSupportsType(fieldMeta: FieldMeta, type: FieldType): boolean {
+  return getFieldMetaTypeList(fieldMeta).includes(type);
+}
+
+export function resolveFieldMetaTypeByValue(fieldMeta: FieldMeta, value: unknown): FieldType {
+  const supportedTypes = getFieldMetaTypeList(fieldMeta);
+  const typeMatchers: Array<{ type: FieldType; predicate: (val: unknown) => boolean }> = [
+    { type: 'array', predicate: (val) => Array.isArray(val) },
+    { type: 'object', predicate: (val) => typeof val === 'object' && val !== null && !Array.isArray(val) },
+    { type: 'number', predicate: (val) => typeof val === 'number' && !Number.isNaN(val as number) },
+    { type: 'boolean', predicate: (val) => typeof val === 'boolean' },
+    { type: 'select', predicate: (val) => typeof val === 'string' || typeof val === 'number' },
+    { type: 'string', predicate: (val) => typeof val === 'string' }
+  ];
+
+  for (const matcher of typeMatchers) {
+    if (supportedTypes.includes(matcher.type) && matcher.predicate(value)) {
+      return matcher.type;
     }
-  | {
-      key: string;
-      label: string;
-      type: 'select';
-      baseClass?: BaseClassType;
-      options: Array<{ label: string; value: any }>;
-      description?: string;
-      isOptional?: boolean;
-      isRest?: boolean;
-    }
-  | {
-      key: string;
-      label: string;
-      type: 'object';
-      baseClass: BaseClassType;
-      description?: string;
-      isOptional?: boolean;
-      isRest?: boolean;
-    }
-  | {
-      key: string;
-      label: string;
-      type: 'array';
-      baseClass?: BaseClassType;
-      description?: string;
-      isOptional?: boolean;
-      isRest?: boolean;
-    }
-  | {
-      key: string;
-      label: string;
-      type: string;
-      baseClass?: BaseClassType;
-      description?: string;
-      options?: Array<{ label: string; value: any }>;
-      isOptional?: boolean;
-      isRest?: boolean;
-    };
+  }
+
+  return supportedTypes[0];
+}
 
 /**
  * 类元数据 - 包含类的完整信息

@@ -130,6 +130,8 @@ const validationResult = reactive<ValidationResult>({
   errors: []
 })
 
+let externalExcelListenerDisposer: (() => void) | null = null
+
 /**
  * 根据字段名确定其允许的基类集合
  * 异步版本：优先使用远程配置，降级到本地配置
@@ -1042,6 +1044,12 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 onMounted(() => {
+  externalExcelListenerDisposer = window.electronAPI?.onOpenExternalExcel?.((filePath) => {
+    if (filePath) {
+      openWorkbookFromMainProcess({ filePath })
+    }
+  }) ?? null
+
   window.addEventListener('keydown', handleKeydown)
   setTimeout(async () => {
     // 初始化原子字段配置系统
@@ -1053,21 +1061,28 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
+  externalExcelListenerDisposer?.()
+  externalExcelListenerDisposer = null
 })
 
-async function openWorkbookFromMainProcess() {
+async function openWorkbookFromMainProcess(options?: { filePath?: string }) {
   const excelBridge = window.excelBridge
   if (!excelBridge) {
     errorMessage.value = '当前环境未暴露 Excel 能力，请检查 Preload 配置。'
     return
   }
 
+  const targetFilePath = options?.filePath
+  const isExternalOpen = typeof targetFilePath === 'string' && targetFilePath.length > 0
+
   errorMessage.value = null
-  showProgress('正在打开 Excel 文件...', 'loading', 10)
+  showProgress(isExternalOpen ? '正在打开指定的 Excel 文件...' : '正在打开 Excel 文件...', 'loading', 10)
 
   try {
     updateProgress(20)
-    const result = await excelBridge.openWorkbook()
+    const result = isExternalOpen
+      ? await excelBridge.openWorkbookByPath({ filePath: targetFilePath })
+      : await excelBridge.openWorkbook()
     
     if (result.canceled) {
       hideProgress()
@@ -1123,11 +1138,14 @@ async function openWorkbookFromMainProcess() {
     
     updateProgress(100)
     hideProgress()
-    showSuccessMessage('Excel 文件已成功加载！')
+    const successText = isExternalOpen && result.filePath ? `已打开：${result.filePath}` : 'Excel 文件已成功加载！'
+    showSuccessMessage(successText)
   } catch (error) {
     hideProgress()
     errorMessage.value = error instanceof Error ? error.message : '打开 Excel 文件失败。'
-    clearWorkbookState()
+    if (!isExternalOpen) {
+      clearWorkbookState()
+    }
   }
 }
 
@@ -1215,12 +1233,40 @@ function showSuccessMessage(message: string) {
   }, 3000)
 }
 
+async function registerExcelContextMenu() {
+  const electronAPI = window.electronAPI
+  if (!electronAPI?.registerExcelContextMenu) {
+    errorMessage.value = '当前环境不支持注册右键菜单，请检查预加载配置。'
+    return
+  }
+
+  errorMessage.value = null
+  showProgress('正在注册 Excel 右键菜单...', 'processing', 15)
+
+  try {
+    updateProgress(40)
+    const result = await electronAPI.registerExcelContextMenu()
+    if (!result.ok) {
+      throw new Error(result.error ?? '注册右键菜单失败')
+    }
+
+    updateProgress(100)
+    showSuccessMessage('已添加“用此编辑器打开”右键菜单')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '注册右键菜单失败'
+    errorMessage.value = message
+  } finally {
+    hideProgress()
+  }
+}
+
 /**
  * 检查所有原子字段的解析是否有错误
  */
 async function checkAllAtomicFieldsValidation() {
-  if (!Object.keys(rowNameToRecord).length) {
-    errorMessage.value = '请先打开 Excel 文件'
+  const excelBridge = window.excelBridge
+  if (!excelBridge) {
+    errorMessage.value = '当前环境未暴露 Excel 能力，请检查 Preload 配置。'
     return
   }
 
@@ -1230,72 +1276,150 @@ async function checkAllAtomicFieldsValidation() {
     return
   }
 
+  let selectionResult: Awaited<ReturnType<typeof excelBridge.openMultipleWorkbooks>> | null = null
+
+  try {
+    selectionResult = await excelBridge.openMultipleWorkbooks()
+  } catch (selectionError) {
+    console.error('[checkAllAtomicFieldsValidation][select]', selectionError)
+    errorMessage.value = selectionError instanceof Error ? selectionError.message : '选择 Excel 文件失败'
+    return
+  }
+
+  if (!selectionResult || selectionResult.canceled) {
+    return
+  }
+
   validationResult.isOpen = true
   validationResult.isChecking = true
   validationResult.errors = []
   validationResult.errorCount = 0
+  validationResult.totalFields = 0
+  validationResult.totalRows = 0
+
+  const buildContentSnippet = (value: string) => value.substring(0, 100) + (value.length > 100 ? '...' : '')
 
   try {
-    const rowNamesToCheck = Object.keys(rowNameToRecord)
-    validationResult.totalRows = rowNamesToCheck.length
-
+    const workbooks = selectionResult.workbooks ?? []
     const errors: ValidationErrorItem[] = []
+    const atomicFieldCache = new Map<string, boolean>()
 
-    // 遍历所有行
-    for (const rowName of rowNamesToCheck) {
-      const record = rowNameToRecord[rowName]
-      const fieldNames = Object.keys(record)
+    if (!workbooks.length && !(selectionResult.errors?.length)) {
+      validationResult.isOpen = false
+      validationResult.isChecking = false
+      errorMessage.value = '未选择任何可检查的 Excel 文件'
+      return
+    }
 
-      // 识别原子字段
-      const atomicFieldNames: string[] = []
-      for (const fieldName of fieldNames) {
-        if (await isAtomicFieldAsync(fieldName, sheetName.value, openedFilePath.value || undefined)) {
-          atomicFieldNames.push(fieldName)
-        }
+    const getAtomicFlag = async (fieldName: string, targetSheetName?: string, targetFilePath?: string) => {
+      const cacheKey = `${targetFilePath ?? ''}::${targetSheetName ?? ''}::${fieldName}`
+      if (atomicFieldCache.has(cacheKey)) {
+        return atomicFieldCache.get(cacheKey)!
       }
+      const flag = await isAtomicFieldAsync(fieldName, targetSheetName, targetFilePath)
+      atomicFieldCache.set(cacheKey, flag)
+      return flag
+    }
 
-      validationResult.totalFields += atomicFieldNames.length
+    if (selectionResult.errors?.length) {
+      selectionResult.errors.forEach(({ filePath, error }) => {
+        errors.push({
+          filePath,
+          sheetName: undefined,
+          rowName: '文件读取失败',
+          fieldName: '-',
+          error: error ?? '未知错误'
+        })
+      })
+    }
 
-      // 逐个检查原子字段的解析
-      for (const fieldName of atomicFieldNames) {
-        const rawValue = record[fieldName]
+    let totalRowsCount = 0
+    let totalFieldsCount = 0
 
-        // 跳过空值
-        if (!rawValue || typeof rawValue !== 'string') {
+    for (const workbook of workbooks) {
+      const sheetErrors = workbook.sheetErrors ?? []
+      sheetErrors.forEach(({ sheetName, error }) => {
+        errors.push({
+          filePath: workbook.filePath,
+          sheetName,
+          rowName: '工作表解析失败',
+          fieldName: '-',
+          error
+        })
+      })
+
+      for (const sheet of workbook.sheets ?? []) {
+        const currentSheetName = sheet.sheetName ?? '未命名 Sheet'
+        const columnNames = sheet.columnNames ?? []
+        if (!columnNames.length) {
           continue
         }
 
-        try {
-          const parseResult = await delegateBridge.parseConditionField({
-            fieldName,
-            rawValue,
-            sheetName: sheetName.value,
-            fileName: openedFilePath.value || undefined
-          })
-
-          if (parseResult.ok && parseResult.parsed) {
-          } else {
-            validationResult.errorCount++
-            errors.push({
-              rowName,
-              fieldName,
-              error: parseResult.error || '解析失败',
-              content: rawValue.substring(0, 100) + (rawValue.length > 100 ? '...' : '')
-            })
+        const atomicColumns: string[] = []
+        for (const columnName of columnNames) {
+          if (await getAtomicFlag(columnName, currentSheetName, workbook.filePath)) {
+            atomicColumns.push(columnName)
           }
-        } catch (error) {
-          validationResult.errorCount++
-          errors.push({
-            rowName,
-            fieldName,
-            error: error instanceof Error ? error.message : '未知错误',
-            content: rawValue.substring(0, 100) + (rawValue.length > 100 ? '...' : '')
-          })
+        }
+
+        if (!atomicColumns.length) {
+          continue
+        }
+
+        const rows = sheet.rows ?? []
+        const rowNameKey = sheet.rowNameColumnName ?? 'RowName'
+
+        for (const row of rows) {
+          totalRowsCount += 1
+          totalFieldsCount += atomicColumns.length
+
+          const primaryRowName = typeof row[rowNameKey] === 'string' ? row[rowNameKey].trim() : ''
+          const fallbackRowName = typeof row.RowName === 'string' ? row.RowName.trim() : ''
+          const rowName = primaryRowName || fallbackRowName || '(未命名 RowName)'
+
+          for (const fieldName of atomicColumns) {
+            const rawValue = row[fieldName]
+            if (!rawValue || typeof rawValue !== 'string') {
+              continue
+            }
+
+            try {
+              const parseResult = await delegateBridge.parseConditionField({
+                fieldName,
+                rawValue,
+                sheetName: currentSheetName,
+                fileName: workbook.filePath
+              })
+
+              if (!parseResult.ok || !parseResult.parsed) {
+                errors.push({
+                  filePath: workbook.filePath,
+                  sheetName: currentSheetName,
+                  rowName,
+                  fieldName,
+                  error: parseResult.error || '解析失败',
+                  content: buildContentSnippet(rawValue)
+                })
+              }
+            } catch (parseError) {
+              errors.push({
+                filePath: workbook.filePath,
+                sheetName: currentSheetName,
+                rowName,
+                fieldName,
+                error: parseError instanceof Error ? parseError.message : '未知错误',
+                content: buildContentSnippet(rawValue)
+              })
+            }
+          }
         }
       }
     }
 
     validationResult.errors = errors
+    validationResult.errorCount = errors.length
+    validationResult.totalFields = totalFieldsCount
+    validationResult.totalRows = totalRowsCount
   } catch (error) {
     console.error('[checkAllAtomicFieldsValidation]', error)
     errorMessage.value = error instanceof Error ? error.message : '检查失败'
@@ -1421,10 +1545,15 @@ async function saveWorkbookAs() {
         <div class="flex flex-wrap items-center gap-3">
           <button 
             class="btn btn-sm btn-ghost gap-2 border border-warning/30"
-            :disabled="!Object.keys(rowNameToRecord).length"
             @click="checkAllAtomicFieldsValidation"
           >
             检查所有原子配置
+          </button>
+          <button
+            class="btn btn-sm btn-outline gap-2 border border-info/40"
+            @click="registerExcelContextMenu"
+          >
+            加入 Excel 右键菜单
           </button>
         </div>
 

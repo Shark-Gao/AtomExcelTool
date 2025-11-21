@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import type { ClassMetadata, FieldMeta, ParamMetadata, RawAtomTSMetaMap, ScriptFunctionParameterMetaData, FAtomTypeBase, FAtomTypeArray, FAtomTypeUnion, BaseClassType, ClassInfo } from '../../types/MetaDefine';
+import type { ClassMetadata, FieldMeta, ParamMetadata, RawAtomTSMetaMap, ScriptFunctionParameterMetaData, FAtomTypeBase, FAtomTypeArray, FAtomTypeUnion, BaseClassType, ClassInfo, FieldType } from '../../types/MetaDefine';
 import { EAtomType } from '../../types/MetaDefine';
 import { getConstructorParamNames, getConstructorRawParamName, getConstructorRawParamNames, PARAM_METADATA_KEY } from './DelegateDecorators';
 import { DELEGATE_BASE_CLASSES, DELEGATE_BASE_CLASSES_Def, DELEGATE_BASE_CLASS_DETECTION_ORDER } from '../../constants/DelegateBaseClassesConst';
@@ -7,6 +7,11 @@ import { loadMetadataConfig } from './ConfigManager';
 import { DelegateFactory } from './DelegateFactory';
 import { NumberValueDelegate } from './MHTsAtomSystemUtils';
 
+
+type FieldTypeInfo = {
+  type: FieldType;
+  baseClass?: BaseClassType;
+};
 
 /**
  * 从Delegate类生成编辑器元数据
@@ -334,12 +339,6 @@ export class DelegateMetadataGenerator {
     );
   }
 
-  private static isObjectUnionType(unionType: FAtomTypeUnion): boolean {
-    return unionType.UnionTypes.every(t =>
-      t.AtomType >= EAtomType.Number && t.AtomType <= EAtomType.Task
-    );
-  }
-
   /**
    * 从 Union 类型提取字符串选项
    */
@@ -364,6 +363,65 @@ export class DelegateMetadataGenerator {
     }
     
     return options;
+  }
+
+  private static collectFieldTypeInfo(atomType: FAtomTypeBase): { infos: FieldTypeInfo[]; options?: Array<{ label: string; value: any }> } {
+    if (!atomType) {
+      return { infos: [] };
+    }
+
+    if (atomType.AtomType === EAtomType.Union) {
+      const unionType = atomType as FAtomTypeUnion;
+
+      // if (this.isStringEnumUnion(unionType)) {
+      //   return {
+      //     infos: [{ type: 'select' }],
+      //     options: this.extractStringEnumOptions(unionType)
+      //   };
+      // }
+
+      const aggregatedInfos: FieldTypeInfo[] = [];
+      let aggregatedOptions: Array<{ label: string; value: any }> | undefined;
+
+      for (const innerType of unionType.UnionTypes) {
+        const innerResult = this.collectFieldTypeInfo(innerType);
+        aggregatedInfos.push(...innerResult.infos);
+        if (!aggregatedOptions && innerResult.options) {
+          aggregatedOptions = innerResult.options;
+        }
+      }
+
+      return { infos: aggregatedInfos, options: aggregatedOptions };
+    }
+
+    const info = this.mapNonUnionAtomType(atomType);
+    return info ? { infos: [info] } : { infos: [] };
+  }
+
+  private static mapNonUnionAtomType(atomType: FAtomTypeBase): FieldTypeInfo | null {
+    switch (atomType.AtomType) {
+      case EAtomType.SpecificNumber:
+      case EAtomType.LiteralNumber:
+      case EAtomType.SpecificBoolean:
+      case EAtomType.LiteralBoolean:
+      case EAtomType.SpecificString:
+      case EAtomType.LiteralString:
+        return { type: 'string' };
+      case EAtomType.Array: {
+        const arrayType = atomType as FAtomTypeArray;
+        const elementClass = this.getAtomTypeClass(arrayType.ElementType);
+        return { type: 'array', baseClass: elementClass };
+      }
+      case EAtomType.Number:
+      case EAtomType.Action:
+      case EAtomType.Actor:
+      case EAtomType.Event:
+      case EAtomType.Boolean:
+      case EAtomType.Task:
+        return { type: 'object', baseClass: this.getAtomTypeClass(atomType) };
+      default:
+        return { type: 'string' };
+    }
   }
 
   /**
@@ -406,99 +464,40 @@ export class DelegateMetadataGenerator {
    */
   private static convertScriptParameterToFieldMeta(param: ScriptFunctionParameterMetaData, decoratorMetaItem: ClassMetadata): FieldMeta | null {
     const key = param.ParameterName;
-    let label = decoratorMetaItem? decoratorMetaItem.fields[param.OrdinalIndex]?.label : param.ParameterName;
+    let label = decoratorMetaItem ? decoratorMetaItem.fields[param.OrdinalIndex]?.label : param.ParameterName;
     if (label === undefined) {
       label = param.ParameterName;
     }
-    const description = decoratorMetaItem? decoratorMetaItem.fields[param.OrdinalIndex]?.description: param.TypeString;
-    let fieldMeta: FieldMeta | null = null;
-    
-    // 根据 AtomType 判断字段类型
-    switch (param.AtomType.AtomType) {
-      case EAtomType.SpecificNumber:
-      case EAtomType.LiteralNumber:
-      case EAtomType.LiteralBoolean:
-      case EAtomType.SpecificString:
-      case EAtomType.LiteralString:
-        fieldMeta = {
-          key,
-          label,
-          type: 'string',
-          description: description
-        };
-        break;
+    const description = decoratorMetaItem ? decoratorMetaItem.fields[param.OrdinalIndex]?.description : param.TypeString;
 
-      case EAtomType.Array:
-        // 数组类型：获取元素类型并设置到 baseClass
-        const arrayType = param.AtomType as FAtomTypeArray;
-        const elementTypeName = this.getAtomTypeClass(arrayType.ElementType);
-        fieldMeta = {
-          key,
-          label,
-          type: 'array',
-          baseClass: elementTypeName,
-          description: description
-        };
-        break;
-
-      case EAtomType.Number:
-      case EAtomType.Action:
-      case EAtomType.Actor:
-      case EAtomType.Event:
-      case EAtomType.Boolean:
-      case EAtomType.Task:
-        // Delegate 类型字段
-        const typeName = this.getAtomTypeClass(param.AtomType);
-        fieldMeta = {
-          key,
-          label,
-          type: 'object',
-          baseClass: typeName,
-          description: description
-        };
-        break;
-
-      case EAtomType.Union:
-        // Union 类型：检查是否为字符串枚举
-        const unionType = param.AtomType as FAtomTypeUnion;
-        if (this.isObjectUnionType(unionType)) {
-          // 其他 Union 类型：作为对象类型处理
-          fieldMeta = {
-            key,
-            label,
-            type: 'object',
-            baseClass: typeName,
-            description: description
-          };
-        }
-        if (this.isStringEnumUnion(unionType)) {
-          // 字符串枚举：转换为 select 类型
-          const options = this.extractStringEnumOptions(unionType);
-          fieldMeta = {
-            key,
-            label,
-            type: 'select',
-            options,
-            description: description
-          };
-        } else {
-          
-        }
-        break;
-
-      case EAtomType.Any:
-      case EAtomType.Unknown:
-      case EAtomType.Tuple:
-      default:
-        // 其他对象类型或未知类型
-        fieldMeta = {
-          key,
-          label,
-          type: 'string',
-          description: description
-        };
-        break;
+    const typeResult = this.collectFieldTypeInfo(param.AtomType);
+    if (!typeResult.infos.length) {
+      return null;
     }
+
+    const typeSet = Array.from(new Set(typeResult.infos.map((info) => info.type)));
+    const resolvedType: FieldType | FieldType[] = typeSet.length === 1 ? typeSet[0] : typeSet;
+
+    const fieldMeta: FieldMeta = {
+      key,
+      label,
+      type: resolvedType,
+      description: description
+    };
+
+    const prioritizedTypes: FieldType[] = ['array', 'object'];
+    for (const targetType of prioritizedTypes) {
+      const matchedInfo = typeResult.infos.find((entry) => entry.type === targetType && entry.baseClass);
+      if (matchedInfo) {
+        fieldMeta.baseClass = matchedInfo.baseClass;
+        break;
+      }
+    }
+
+    if (typeResult.options && typeResult.options.length > 0) {
+      fieldMeta.options = typeResult.options;
+    }
+
     fieldMeta.isRest = param.bRest;
     fieldMeta.isOptional = param.bOptional;
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { normalizeClassInstance as normalizeClassInstanceUtil } from '../utils/ClassNormalizer'
-import { ClassRegistry, FieldMeta, BaseClassType, isBaseClassNative } from '../types/MetaDefine'
+import { ClassRegistry, FieldMeta, BaseClassType, isBaseClassNative, resolveFieldMetaTypeByValue, fieldMetaSupportsType, getFieldMetaTypeList } from '../types/MetaDefine'
 
 defineOptions({ name: 'DynamicObjectFormInline' })
 
@@ -56,6 +56,22 @@ const flattenedFields = computed(() => {
 })
 const expandedInlineMap = reactive<Record<string, boolean>>({})
 
+function formatFieldTypeLabel(fieldMeta: FieldMeta): string {
+  return getFieldMetaTypeList(fieldMeta).join(' | ')
+}
+
+function getActiveFieldType(fieldKey: string, fieldMeta: FieldMeta): FieldType {
+  return resolveFieldMetaTypeByValue(fieldMeta, localValue[fieldKey])
+}
+
+function isFieldTypeActive(fieldKey: string, fieldMeta: FieldMeta, targetType: FieldType): boolean {
+  return getActiveFieldType(fieldKey, fieldMeta) === targetType
+}
+
+function supportsFieldType(fieldMeta: FieldMeta, targetType: FieldType): boolean {
+  return fieldMetaSupportsType(fieldMeta, targetType)
+}
+
 const rootSubclassOptions = computed<FieldOption[]>(() => {
   const info = classInfo.value
   if (!info) {
@@ -98,7 +114,10 @@ function getArrayItems(fieldKey: string): any[] {
   return value as any[]
 }
 
-function getArrayElementType(fieldMeta: Extract<FieldMeta, { type: 'array' }>): 'string' | 'number' | 'boolean' | 'object' | BaseClassType {
+function getArrayElementType(fieldMeta: FieldMeta): 'string' | 'number' | 'boolean' | 'object' | BaseClassType {
+  if (!supportsFieldType(fieldMeta, 'array')) {
+    return 'string'
+  }
   if (!fieldMeta.baseClass) {
     return 'string'
   }
@@ -181,7 +200,10 @@ function removeArrayItem(fieldKey: string, index: number) {
   localValue[fieldKey] = list
 }
 
-function addArrayItem(fieldKey: string, fieldMeta: Extract<FieldMeta, { type: 'array' }>) {
+function addArrayItem(fieldKey: string, fieldMeta: FieldMeta) {
+  if (!supportsFieldType(fieldMeta, 'array')) {
+    return
+  }
   const list = Array.isArray(localValue[fieldKey]) ? (localValue[fieldKey] as any[]) : []
   const elementType = getArrayElementType(fieldMeta)
   if (elementType === 'object') {
@@ -208,10 +230,13 @@ function addArrayItem(fieldKey: string, fieldMeta: Extract<FieldMeta, { type: 'a
 
 async function updateArrayItemClass(
   fieldKey: string,
-  fieldMeta: Extract<FieldMeta, { type: 'array' }>,
+  fieldMeta: FieldMeta,
   index: number,
   newClassName: string
 ) {
+  if (!supportsFieldType(fieldMeta, 'array')) {
+    return
+  }
   if (!Array.isArray(localValue[fieldKey])) {
     return
   }
@@ -243,9 +268,12 @@ async function updateArrayItemClass(
 
 function updateObjectFieldClass(
   fieldKey: string,
-  fieldMeta: Extract<FieldMeta, { type: 'object' }>,
+  fieldMeta: FieldMeta,
   newClassName: string
 ) {
+  if (!supportsFieldType(fieldMeta, 'object')) {
+    return
+  }
   if (!newClassName) {
     return
   }
@@ -339,7 +367,7 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
       >
         <div class="flex items-center gap-2">
           <button
-            v-if="fieldMeta.type === 'object' || fieldMeta.type === 'array'"
+            v-if="isFieldTypeActive(fieldKey, fieldMeta, 'object') || isFieldTypeActive(fieldKey, fieldMeta, 'array')"
             type="button"
             class="btn btn-xs btn-ghost"
             @click="expandedInlineMap[fieldKey] = !expandedInlineMap[fieldKey]"
@@ -350,12 +378,12 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
             <span class="text-[11px] font-semibold uppercase tracking-wide text-base-content/60">
               {{ fieldMeta.label }}
             </span>
-            <span class="text-[10px] text-base-content/40">{{ fieldMeta.type }}</span>
+            <span class="text-[10px] text-base-content/40">{{ formatFieldTypeLabel(fieldMeta) }}</span>
           </div> -->
         </div>
 
         <div class="flex flex-1 flex-wrap items-stretch gap-3">
-          <template v-if="fieldMeta.type === 'string'">
+          <template v-if="isFieldTypeActive(fieldKey, fieldMeta, 'string')">
             <input
               v-model="localValue[fieldKey]"
               type="text"
@@ -364,7 +392,7 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
             />
           </template>
 
-          <template v-else-if="fieldMeta.type === 'number'">
+          <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'number')">
             <input
               v-model.number="localValue[fieldKey]"
               type="number"
@@ -373,7 +401,7 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
             />
           </template>
 
-          <template v-else-if="fieldMeta.type === 'boolean'">
+          <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'boolean')">
             <label class="flex items-center gap-2 text-sm" :class="{ 'opacity-60': readonly }">
               <input
                 v-model="localValue[fieldKey]"
@@ -385,7 +413,7 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
             </label>
           </template>
 
-          <template v-else-if="fieldMeta.type === 'select'">
+          <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'select')">
             <select
               v-model="localValue[fieldKey]"
               class="select select-sm select-bordered"
@@ -397,7 +425,7 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
             </select>
           </template>
 
-          <template v-else-if="fieldMeta.type === 'object'">
+          <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'object')">
             <div class="flex flex-wrap items-stretch gap-2">
               <div 
                 v-if="!expandedInlineMap[fieldKey] || !((localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName)"
@@ -406,18 +434,18 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
                   {{ (localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName ?? '未选择' }}
                 </span> -->
                 <select
-                  v-if="getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'object' }>).baseClass).length && !readonly"
+                  v-if="getSubclassOptions(fieldMeta.baseClass).length && !readonly"
                   :value="(localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName ?? ''"
                   class="select select-xs select-bordered"
                   @change="(event) => updateObjectFieldClass(
                     fieldKey,
-                    fieldMeta as Extract<FieldMeta, { type: 'object' }>,
+                    fieldMeta,
                     (event.target as HTMLSelectElement).value
                   )"
                 >
                   <option value="">请选择类型</option>
                   <option
-                    v-for="option in getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'object' }>).baseClass)"
+                    v-for="option in getSubclassOptions(fieldMeta.baseClass)"
                     :key="option.value"
                     :value="option.value"
                   >
@@ -446,7 +474,7 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
             </div>
           </template>
 
-          <template v-else-if="fieldMeta.type === 'array'">
+          <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'array')">
             <div class="flex flex-1 flex-col gap-2">
               <div class="flex items-center gap-2">
                 <span class="text-xs text-base-content/50">共 {{ getArrayItems(fieldKey).length }} 项</span>
@@ -454,7 +482,7 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
                   v-if="!readonly"
                   type="button"
                   class="btn btn-ghost btn-xs"
-                  @click="addArrayItem(fieldKey, fieldMeta as Extract<FieldMeta, { type: 'array' }>)"
+                  @click="addArrayItem(fieldKey, fieldMeta)"
                 >
                   新增
                 </button>
@@ -470,7 +498,7 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
                   :class="{ 'bg-secondary/10 border-secondary/50': expandedInlineMap[`${fieldKey}-${itemIndex}`] }"
                 >
                   <span class="text-xs text-base-content/50">{{ itemIndex + 1 }}</span>
-                  <template v-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'object'">
+                  <template v-if="getArrayElementType(fieldMeta) === 'object'">
                     <div class="flex items-center gap-2">
                       <select
                         v-if="!readonly"
@@ -478,13 +506,13 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
                         class="select select-xs select-bordered"
                         @change="(event) => updateArrayItemClass(
                           fieldKey,
-                          fieldMeta as Extract<FieldMeta, { type: 'array' }>,
+                          fieldMeta,
                           itemIndex,
                           (event.target as HTMLSelectElement).value
                         )"
                       >
                         <option
-                          v-for="option in getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'array' }>).baseClass)"
+                          v-for="option in getSubclassOptions(fieldMeta.baseClass)"
                           :key="option.value"
                           :value="option.value"
                         >
@@ -520,7 +548,7 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
                     />
                   </template>
 
-                  <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'string'">
+                  <template v-else-if="getArrayElementType(fieldMeta) === 'string'">
                     <input
                       :value="item as string"
                       type="text"
@@ -534,7 +562,7 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
                     />
                   </template>
 
-                  <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'number'">
+                  <template v-else-if="getArrayElementType(fieldMeta) === 'number'">
                     <input
                       :value="item as number"
                       type="number"
@@ -548,7 +576,7 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
                     />
                   </template>
 
-                  <template v-else-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'boolean'">
+                  <template v-else-if="getArrayElementType(fieldMeta) === 'boolean'">
                     <label class="flex items-center gap-2 text-sm" :class="{ 'opacity-60': readonly }">
                       <input
                         :checked="item as boolean"

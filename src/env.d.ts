@@ -57,6 +57,34 @@ type ExcelSaveAsResult =
   | { canceled: true }
   | { canceled: false; ok: boolean; filePath?: string; error?: string }
 
+type ExcelSheetScanResult = {
+  sheetName: string
+  rowCount: number
+  columnNames: string[]
+  rowNameColumnName: string
+  columnDescriptions: Record<string, string>
+  rows: RowRecord[]
+}
+
+type ExcelSheetScanError = {
+  sheetName: string
+  error: string
+}
+
+type ExcelWorkbookScanResult = {
+  filePath: string
+  sheets: ExcelSheetScanResult[]
+  sheetErrors?: ExcelSheetScanError[]
+}
+
+type ExcelMultiOpenResult =
+  | { canceled: true }
+  | {
+      canceled: false
+      workbooks: ExcelWorkbookScanResult[]
+      errors?: { filePath: string; error: string }[]
+    }
+
 // ============ Delegate 相关类型 ============
 type DelegateMetadataSuccess = {
   ok: true
@@ -91,6 +119,8 @@ declare global {
 
   interface ExcelBridge {
     openWorkbook: () => Promise<ExcelOpenResult>
+    openWorkbookByPath: (payload: { filePath: string }) => Promise<ExcelOpenResult>
+    openMultipleWorkbooks: () => Promise<ExcelMultiOpenResult>
     loadSheet: (payload: { filePath: string; sheetName: string }) => Promise<ExcelLoadSheetResult>
     readRow: (payload: { filePath: string; sheetName: string; rowName: string }) => Promise<ExcelReadRowResult>
     loadConditionFields: (payload: { record: RowRecord; columnNames: string[] }) => Promise<{ ok: boolean; conditionFields?: Record<string, ConditionFieldInfo>; error?: string }>
@@ -107,6 +137,8 @@ declare global {
 
   interface ElectronAPI {
     invoke: (channel: string, payload?: any) => Promise<any>
+    registerExcelContextMenu: () => Promise<{ ok: boolean; error?: string }>
+    onOpenExternalExcel: (callback: (filePath: string) => void) => () => void
     getLogInfo: () => Promise<{ ok: boolean; logDir?: string; logFilePath?: string; error?: string }>
   }
 

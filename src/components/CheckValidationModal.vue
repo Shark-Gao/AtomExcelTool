@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue'
 
 export type ValidationErrorItem = {
+  filePath?: string
+  sheetName?: string
   rowName: string
   fieldName: string
   error: string
@@ -30,6 +32,26 @@ const copyMessage = ref<string | null>(null)
 
 const hasErrors = computed(() => props.result.errors && props.result.errors.length > 0)
 
+const getFileDisplayName = (filePath?: string | null) => {
+  if (!filePath) {
+    return '未知文件'
+  }
+  const normalized = filePath.replace(/\\/g, '/')
+  const segments = normalized.split('/')
+  return segments.pop() || filePath
+}
+
+const formatErrorLocation = (error: ValidationErrorItem) => {
+  const segments: string[] = []
+  if (error.filePath) {
+    segments.push(getFileDisplayName(error.filePath))
+  }
+  if (error.sheetName) {
+    segments.push(error.sheetName)
+  }
+  return segments.length ? segments.join(' · ') : '位置未知'
+}
+
 const successPercentage = computed(() => {
   if (props.result.totalFields === 0) return 0
   return ((props.result.totalFields - props.result.errorCount) / props.result.totalFields) * 100
@@ -42,28 +64,38 @@ const successPercentageFormatted = computed(() => {
 const generateErrorText = () => {
   const lines: string[] = [
     '原子字段检查结果',
-    `\n总检查字段数: ${props.result.totalFields}`,
-    `\n失败字段数: ${props.result.errorCount}`,
-    `\n成功率: ${successPercentageFormatted.value}%`,
+    `总检查字段数: ${props.result.totalFields}`,
+    `失败字段数: ${props.result.errorCount}`,
+    `成功率: ${successPercentageFormatted.value}%`,
     ''
   ]
 
   if (hasErrors.value) {
-    lines.push(`\n检查失败的字段 (${props.result.errors.length}):`)
-    lines.push('\n')
+    lines.push(`检查失败的字段 (${props.result.errors.length}):`)
+    lines.push('')
     props.result.errors.forEach((error, index) => {
-      lines.push(`\n[${index + 1}] RowName:${error.rowName}  Field:${error.fieldName}`)
-      lines.push(`\n    错误: ${error.error}`)
-      if (error.content) {
-        lines.push(`\n    内容: ${error.content}`)
+      lines.push(`[${index + 1}] RowName:${error.rowName}  Field:${error.fieldName}`)
+      const locationSegments: string[] = []
+      if (error.filePath) {
+        locationSegments.push(`File: ${error.filePath}`)
       }
-      lines.push('\n')
+      if (error.sheetName) {
+        locationSegments.push(`Sheet: ${error.sheetName}`)
+      }
+      if (locationSegments.length) {
+        lines.push(`    ${locationSegments.join('  ')}`)
+      }
+      lines.push(`    错误: ${error.error}`)
+      if (error.content) {
+        lines.push(`    内容: ${error.content}`)
+      }
+      lines.push('')
     })
   } else {
     lines.push('\n所有原子字段解析检查通过！')
   }
 
-  return lines.join('')
+  return lines.join('\n')
 }
 
 const copyAllErrors = async () => {
@@ -147,7 +179,10 @@ const copyAllErrors = async () => {
                 <div class="font-semibold">
                   {{ error.rowName }} / {{ error.fieldName }}
                 </div>
-                <div class="text-sm mt-1">{{ error.error }}</div>
+                <div class="text-xs mt-1">
+                  {{ formatErrorLocation(error) }}
+                </div>
+                <div class="text-sm mt-2">{{ error.error }}</div>
                 <div v-if="error.content" class="text-xs mt-2 font-mono bg-black/20 p-2 rounded break-all">
                   内容: {{ error.content }}
                 </div>

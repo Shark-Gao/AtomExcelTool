@@ -6406,7 +6406,7 @@ class FAtomExpressionParser {
 
     if (stack.length > 1)
       throw new Error(`
-解析失败表达式: ${expr}，多出的元素: ${stack.map((item, index) => `[${index}] ${item}`).join(" ")}`)
+解析失败表达式: ${expr} 多出的元素: ${stack.map((item, index) => `[${index}] ${item}`).join(" ")}`)
     return stack[0] as DelegateBase;
   }
 

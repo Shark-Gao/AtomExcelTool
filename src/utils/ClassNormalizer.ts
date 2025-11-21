@@ -1,5 +1,5 @@
 import type { FieldOption } from '../components/DynamicObjectForm.vue'
-import { ClassRegistry } from '../types/MetaDefine'
+import { ClassRegistry, resolveFieldMetaTypeByValue } from '../types/MetaDefine'
 
 /**
  * 规范化类实例，确保所有字段都符合定义的结构
@@ -28,9 +28,10 @@ export function normalizeClassInstance(
 
   Object.entries(info.fields).forEach(([fieldKey, fieldMeta]) => {
     const rawValue = raw[fieldKey]
+    const effectiveType = resolveFieldMetaTypeByValue(fieldMeta, rawValue)
 
     // 处理数组类型字段
-    if (fieldMeta.type === 'array') {
+    if (effectiveType === 'array') {
       const baseClass = 'baseClass' in fieldMeta ? fieldMeta.baseClass : undefined
       if (baseClass) {
         const items = Array.isArray(rawValue) ? rawValue : []
@@ -58,7 +59,7 @@ export function normalizeClassInstance(
     }
 
     // 处理对象类型字段或其他带 baseClass 的字段
-    if (fieldMeta.type === 'object') {
+    if (effectiveType === 'object') {
       const baseClass = 'baseClass' in fieldMeta ? fieldMeta.baseClass : undefined
       const rawObject = typeof rawValue === 'object' && rawValue !== null ? (rawValue as Record<string, unknown>) : {}
       const requestedClass = typeof rawObject._ClassName === 'string' ? rawObject._ClassName : ''
@@ -79,7 +80,7 @@ export function normalizeClassInstance(
     }
 
     // 处理基础类型字段
-    if (fieldMeta.type === 'number') {
+    if (effectiveType === 'number') {
       if (rawValue === undefined || rawValue === null || rawValue === '') {
         normalized[fieldKey] = 0
         return
@@ -89,7 +90,7 @@ export function normalizeClassInstance(
       return
     }
 
-    if (fieldMeta.type === 'boolean') {
+    if (effectiveType === 'boolean') {
       normalized[fieldKey] = Boolean(rawValue)
       return
     }

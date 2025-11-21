@@ -1,4 +1,4 @@
-import { ClassMetadata } from "../../types/MetaDefine";
+import { ClassMetadata, getFieldMetaTypeList, resolveFieldMetaTypeByValue } from "../../types/MetaDefine";
 
 export interface DelegateMetadataRegistry {
   byClassName: Record<string, ClassMetadata>;
@@ -80,14 +80,14 @@ export class DelegateFactory {
 
     for (let i = 0; i < meta.fields.length && paramIndex < params.length; i++) {
       const field = meta.fields[i];
+      const supportedTypes = getFieldMetaTypeList(field);
+      const isPureArrayField = supportedTypes.length === 1 && supportedTypes[0] === 'array';
 
-      // 判断字段类型是否为 array
-      if (field.type === 'array') {
+      if (isPureArrayField) {
         // 对于 array 类型，收集后续所有类型匹配的参数
         const arrayValues: any[] = [];
         while (paramIndex < params.length) {
           const param = params[paramIndex];
-          // 如果 array 的元素是对象类型，需要检查是否需要构造
           const processedParam = field.baseClass 
             ? this.processParamByBaseClass(param, field.baseClass)
             : param;
@@ -103,11 +103,10 @@ export class DelegateFactory {
 
         matched.set(field.key, arrayValues);
       } else {
-        // 普通类型，单个参数对应一个字段
         let paramValue = params[paramIndex];
+        const resolvedType = resolveFieldMetaTypeByValue(field, paramValue);
         
-        // 如果字段有 baseClass（对象类型），检查是否需要构造
-        if (field.baseClass && field.type === 'object') {
+        if (field.baseClass && resolvedType === 'object') {
           paramValue = this.processParamByBaseClass(paramValue, field.baseClass);
         }
         

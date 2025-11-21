@@ -1,6 +1,9 @@
 // src/electron/main/main.ts
-import { join } from 'path';
+import { join, extname } from 'path';
+import { existsSync } from 'fs';
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import ExcelJS from 'exceljs';
 import { FAtomExpressionParser } from './MHTsAtomSystemUtils';
 import {DelegateMetadataGenerator} from './DelegateMetadataGenerator';
@@ -13,11 +16,144 @@ import { LogManager } from './LogManager';
 const logManager = LogManager.getInstance();
 logManager.initialize();
 
+const execFileAsync = promisify(execFile);
+const EXCEL_CONTEXT_EXTENSIONS = ['.xlsx', '.xls', '.xlsm', '.xlsb'];
+const EXCEL_CONTEXT_MENU_KEY = 'MHAtomExcelTool';
+const EXCEL_CONTEXT_MENU_TITLE = '原子Excel编辑器';
+const EXCEL_CONTEXT_BASE_KEY = 'HKCU\\Software\\Classes\\SystemFileAssociations';
+
 type RowRecord = Record<string, string>;
+
+type WorkbookOpenPayload = {
+    filePath: string;
+    sheetName: string;
+    rowCount: number;
+    columnNames: string[];
+    rows: RowRecord[];
+    rowNames: string[];
+    rowNameColumnName: string;
+    columnDescriptions: Record<string, string>;
+    sheetList: string[];
+};
+
+type WorksheetScanPayload = {
+    sheetName: string;
+    rowCount: number;
+    columnNames: string[];
+    rowNameColumnName: string;
+    columnDescriptions: Record<string, string>;
+    rows: RowRecord[];
+};
+
+type WorksheetScanError = {
+    sheetName: string;
+    error: string;
+};
+
+type WorkbookScanPayload = {
+    filePath: string;
+    sheets: WorksheetScanPayload[];
+    sheetErrors: WorksheetScanError[];
+};
 
 const ROW_NAME_IDENTIFIER = 'rowname';
 
 const isDev = !app.isPackaged;
+
+let mainWindow: BrowserWindow | null = null;
+const pendingExternalExcelPaths: string[] = [];
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+    console.log('[Single-Instance Lock] 应用已在运行，退出当前实例。');
+    app.quit();
+    process.exit(0);
+}
+
+console.log('[App Start] 获取单实例锁成功');
+
+function normalizeArgumentPath(arg: string): string {
+    return arg.replace(/^['"']+|['"']+$/g, '');
+}
+
+function isExcelFilePath(targetPath: string): boolean {
+    if (!targetPath) {
+        return false;
+    }
+    const extension = extname(targetPath).toLowerCase();
+    return EXCEL_CONTEXT_EXTENSIONS.includes(extension);
+}
+
+function extractExcelFilePathFromArgs(args: string[]): string | null {
+    console.log('[Startup Args] 解析启动参数:', JSON.stringify(args));
+    for (const rawArg of args) {
+        if (!rawArg || rawArg.startsWith('-')) {
+            continue;
+        }
+        const normalized = normalizeArgumentPath(rawArg);
+        if (!isExcelFilePath(normalized)) {
+            console.log('[Startup Args] 跳过非 Excel 文件:', normalized);
+            continue;
+        }
+        if (!existsSync(normalized)) {
+            console.log('[Startup Args] 文件不存在:', normalized);
+            continue;
+        }
+        console.log('[Startup Args] 发现有效的 Excel 文件:', normalized);
+        return normalized;
+    }
+    console.log('[Startup Args] 未发现启动参数中的 Excel 文件');
+    return null;
+}
+
+function queueExternalExcelPath(filePath: string | null | undefined) {
+    if (!filePath) {
+        return;
+    }
+    console.log('[External Excel Path] 队列化文件路径:', filePath);
+    pendingExternalExcelPaths.push(filePath);
+    dispatchExternalExcelPaths();
+}
+
+function dispatchExternalExcelPaths() {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+        console.log('[Dispatch Excel Paths] 主窗口未就绪，待命传递 ' + pendingExternalExcelPaths.length + ' 个文件');
+        return;
+    }
+    while (pendingExternalExcelPaths.length > 0) {
+        const nextPath = pendingExternalExcelPaths.shift();
+        if (nextPath) {
+            console.log('[Dispatch Excel Paths] 向渲染层发送文件路径:', nextPath);
+            mainWindow.webContents.send('excel:open-external-path', nextPath);
+        }
+    }
+}
+
+const startupExcelPath = extractExcelFilePathFromArgs(process.argv);
+queueExternalExcelPath(startupExcelPath);
+
+app.on('second-instance', (event, commandLine) => {
+    event.preventDefault();
+    console.log('[Second Instance] 捕获第二实例，命令行:', JSON.stringify(commandLine));
+    const filePath = extractExcelFilePathFromArgs(commandLine);
+    if (filePath) {
+        queueExternalExcelPath(filePath);
+    }
+    if (mainWindow) {
+        if (mainWindow.isMinimized()) {
+            console.log('[Second Instance] 还原最小化窗口');
+            mainWindow.restore();
+        }
+        console.log('[Second Instance] 聚焦主窗口');
+        mainWindow.focus();
+    }
+});
+
+app.on('open-file', (event, filePath) => {
+    event.preventDefault();
+    console.log('[Open File Event] 捕获 macOS 打开文件事件:', filePath);
+    queueExternalExcelPath(filePath);
+});
 
 function normalizeHeaderIdentifier(label: string): string {
     return label.replace(/\s+/g, '').toLowerCase();
@@ -115,6 +251,37 @@ function extractRowRecord(row: ExcelJS.Row, headerLabels: string[]): RowRecord {
     return record;
 }
 
+function buildWorksheetPayload(worksheet: ExcelJS.Worksheet): WorksheetScanPayload {
+    const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(worksheet);
+    const rows: RowRecord[] = [];
+
+    for (let r = headerRowNumber + 1; r <= worksheet.rowCount; r += 1) {
+        const row = worksheet.getRow(r);
+        const record = extractRowRecord(row, headerLabels);
+        const rowName = (record[headerLabels[rowNameColumnNumber - 1]] || '').trim();
+        if (rowName.length === 0) {
+            continue;
+        }
+        rows.push(record);
+    }
+
+    const columnDescriptions: Record<string, string> = {};
+    const descRow = worksheet.getRow(1);
+    headerLabels.forEach((label, idx) => {
+        const text = (descRow.getCell(idx + 1).text || '').trim();
+        columnDescriptions[label] = text;
+    });
+
+    return {
+        sheetName: worksheet.name,
+        rowCount: rows.length,
+        columnNames: headerLabels,
+        rowNameColumnName: headerLabels[rowNameColumnNumber - 1],
+        columnDescriptions,
+        rows
+    };
+}
+
 function ensureRowName(record: RowRecord): string {
     const keys = Object.keys(record);
     for (const key of keys) {
@@ -128,6 +295,50 @@ function ensureRowName(record: RowRecord): string {
     throw new Error('未找到 RowName 列，请确认表头包含 RowName。');
 }
 
+async function loadWorkbookFromFile(filePath: string): Promise<WorkbookOpenPayload> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
+
+    if (!workbook.worksheets.length) {
+        throw new Error('所选 Excel 文件中没有可读取的工作表。');
+    }
+
+    const sheetList = workbook.worksheets.map((ws) => ws.name);
+    const worksheet = workbook.worksheets[0];
+    const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(worksheet);
+    const rowNames = extractRowNames(worksheet, headerRowNumber, rowNameColumnNumber);
+
+    const rows: RowRecord[] = [];
+    for (let r = headerRowNumber + 1; r <= worksheet.rowCount; r += 1) {
+        const row = worksheet.getRow(r);
+        const record = extractRowRecord(row, headerLabels);
+        const rowName = (record[headerLabels[rowNameColumnNumber - 1]] || '').trim();
+        if (rowName.length === 0) {
+            continue;
+        }
+        rows.push(record);
+    }
+
+    const columnDescriptions: Record<string, string> = {};
+    const descRow = worksheet.getRow(1);
+    headerLabels.forEach((label, idx) => {
+        const text = (descRow.getCell(idx + 1).text || '').trim();
+        columnDescriptions[label] = text;
+    });
+
+    return {
+        filePath,
+        sheetName: worksheet.name,
+        rowCount: rows.length,
+        columnNames: headerLabels,
+        rows,
+        rowNames,
+        rowNameColumnName: headerLabels[rowNameColumnNumber - 1],
+        columnDescriptions,
+        sheetList
+    };
+}
+
 async function handleOpenWorkbook() {
     const { canceled, filePaths } = await dialog.showOpenDialog({
         properties: ['openFile'],
@@ -139,53 +350,11 @@ async function handleOpenWorkbook() {
     }
 
     const filePath = filePaths[0];
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(filePath);
-
-    if (!workbook.worksheets.length) {
-        throw new Error('所选 Excel 文件中没有可读取的工作表。');
-    }
-
-    // 获取所有sheet列表
-    const sheetList = workbook.worksheets.map(ws => ws.name);
-
-    const worksheet = workbook.worksheets[0];
-    const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(worksheet);
-    const rowNames = extractRowNames(worksheet, headerRowNumber, rowNameColumnNumber);
-
-    const rows: RowRecord[] = [];
-    const rowsData: Record<string, RowRecord> = {};
-    
-    for (let r = headerRowNumber + 1; r <= worksheet.rowCount; r += 1) {
-        const row = worksheet.getRow(r);
-        const record = extractRowRecord(row, headerLabels);
-        const rowName = (record[headerLabels[rowNameColumnNumber - 1]] || '').trim();
-        if (rowName.length === 0) {
-            continue;
-        }
-        rows.push(record);
-        rowsData[rowName] = record;
-    }
+    const payload = await loadWorkbookFromFile(filePath);
 
     return {
         canceled: false,
-        filePath,
-        sheetName: worksheet.name,
-        rowCount: rows.length,
-        columnNames: headerLabels,
-        rows,
-        rowNames,
-        rowNameColumnName: headerLabels[rowNameColumnNumber - 1],
-        columnDescriptions: (() => {
-            const descRow = worksheet.getRow(1);
-            const map: Record<string, string> = {};
-            headerLabels.forEach((label, idx) => {
-                const text = (descRow.getCell(idx + 1).text || '').trim();
-                map[label] = text;
-            });
-            return map;
-        })(),
-        sheetList
+        ...payload
     };
 }
 
@@ -264,6 +433,25 @@ async function writeWorkbookToDisk(filePath: string, rows: RowRecord[], sheetNam
     await workbook.xlsx.writeFile(filePath);
 }
 
+async function registerExcelContextMenu() {
+    if (process.platform !== 'win32') {
+        throw new Error('仅支持在 Windows 上注册右键菜单。');
+    }
+
+    const exePath = app.getPath('exe');
+    const commandValue = `"${exePath}" "%1"`;
+    console.log('注册右键菜单:', commandValue);
+
+    for (const ext of EXCEL_CONTEXT_EXTENSIONS) {
+        const shellKey = `${EXCEL_CONTEXT_BASE_KEY}\\${ext}\\shell\\${EXCEL_CONTEXT_MENU_KEY}`;
+        const commandKey = `${shellKey}\\command`;
+
+        await execFileAsync('reg', ['add', shellKey, '/ve', '/d', EXCEL_CONTEXT_MENU_TITLE, '/f']);
+        await execFileAsync('reg', ['add', shellKey, '/v', 'Icon', '/t', 'REG_SZ', '/d', exePath, '/f']);
+        await execFileAsync('reg', ['add', commandKey, '/ve', '/d', commandValue, '/f']);
+    }
+}
+
 ipcMain.handle('excel:open', async () => {
     try {
         const result = await handleOpenWorkbook();
@@ -271,6 +459,72 @@ ipcMain.handle('excel:open', async () => {
     } catch (error) {
         const message = error instanceof Error ? error.message : '读取 Excel 文件时发生未知错误。';
         return { canceled: false, error: message };
+    }
+});
+
+ipcMain.handle('excel:open-by-path', async (_event, payload: { filePath: string }) => {
+    try {
+        if (!payload?.filePath) {
+            throw new Error('文件路径为空。');
+        }
+        console.log('[IPC excel:open-by-path] 开始加载文件:', payload.filePath);
+        const result = await loadWorkbookFromFile(payload.filePath);
+        console.log('[IPC excel:open-by-path] 文件加载成功，工作表:', result.sheetName, '行数:', result.rowCount);
+        return { canceled: false, ...result };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '通过路径打开 Excel 文件失败。';
+        console.error('[IPC excel:open-by-path] 错误:', message);
+        return { canceled: false, error: message };
+    }
+});
+
+ipcMain.handle('excel:open-multiple', async () => {
+    try {
+        const { canceled, filePaths } = await dialog.showOpenDialog({
+            properties: ['openFile', 'multiSelections'],
+            filters: [{ name: 'Excel Files', extensions: ['xlsx', 'xls'] }]
+        });
+
+        if (canceled || !filePaths || filePaths.length === 0) {
+            return { canceled: true };
+        }
+
+        const workbooks: WorkbookScanPayload[] = [];
+        const errors: { filePath: string; error: string }[] = [];
+
+        for (const filePath of filePaths) {
+            try {
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.readFile(filePath);
+
+                const sheetPayloads: WorksheetScanPayload[] = [];
+                const sheetErrors: WorksheetScanError[] = [];
+
+                if (!workbook.worksheets.length) {
+                    sheetErrors.push({ sheetName: '未找到工作表', error: '工作簿中没有可读取的工作表。' });
+                }
+
+                workbook.worksheets.forEach((worksheet) => {
+                    try {
+                        const payload = buildWorksheetPayload(worksheet);
+                        sheetPayloads.push(payload);
+                    } catch (sheetError) {
+                        const message = sheetError instanceof Error ? sheetError.message : '读取工作表失败。';
+                        sheetErrors.push({ sheetName: worksheet.name, error: message });
+                    }
+                });
+
+                workbooks.push({ filePath, sheets: sheetPayloads, sheetErrors });
+            } catch (workbookError) {
+                const message = workbookError instanceof Error ? workbookError.message : '读取 Excel 文件失败。';
+                errors.push({ filePath, error: message });
+            }
+        }
+
+        return { canceled: false, workbooks, errors };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '选择 Excel 文件时发生未知错误。';
+        return { canceled: false, workbooks: [], errors: [{ filePath: '', error: message }] };
     }
 });
 
@@ -519,8 +773,21 @@ ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
     }
 });
 
+ipcMain.handle('shell:register-excel-context-menu', async () => {
+    try {
+        console.log('[IPC shell:register-excel-context-menu] 开始注册 Excel 右键菜单');
+        await registerExcelContextMenu();
+        console.log('[IPC shell:register-excel-context-menu] 右键菜单注册成功');
+        return { ok: true };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '注册右键菜单失败。';
+        console.error('[IPC shell:register-excel-context-menu] 失败:', message);
+        return { ok: false, error: message };
+    }
+});
+
 function createWindow() {
-    const mainWindow = new BrowserWindow({
+    mainWindow = new BrowserWindow({
         title: 'Excel原子编辑工具',
         width: 1500,
         height: 900,
@@ -536,34 +803,45 @@ function createWindow() {
         },
     });
 
+    const windowRef = mainWindow;
+    if (!windowRef) {
+        return;
+    }
+
     // 禁用菜单栏
     Menu.setApplicationMenu(null);
 
     if (isDev) {
-        mainWindow.loadURL('http://localhost:5173');
+        windowRef.loadURL('http://localhost:5173');
     } else {
-        mainWindow.loadFile(join(__dirname, '../../index.html'));
+        windowRef.loadFile(join(__dirname, '../../index.html'));
     }
 
     // 生产模式：通过快捷键打开开发者工具
-    mainWindow.webContents.on('before-input-event', (event, input) => {
+    windowRef.webContents.on('before-input-event', (event, input) => {
         // F12 或 Ctrl+Shift+I 打开开发者工具
         if ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i') {
-            mainWindow.webContents.toggleDevTools();
+            windowRef.webContents.toggleDevTools();
             event.preventDefault();
         }
         // F12 打开开发者工具
         if (input.key === 'F12') {
-            mainWindow.webContents.toggleDevTools();
+            windowRef.webContents.toggleDevTools();
             event.preventDefault();
         }
     });
     
     // 初始 HTML 解析完成即显示（可看到 index.html 中的 Skeleton）
-    mainWindow.webContents.once('dom-ready', () => {
-        if (!mainWindow.isDestroyed()) {
-            mainWindow.show();
+    windowRef.webContents.once('dom-ready', () => {
+        if (windowRef.isDestroyed()) {
+            return;
         }
+        windowRef.show();
+        dispatchExternalExcelPaths();
+    });
+
+    windowRef.on('closed', () => {
+        mainWindow = null;
     });
 
     // const out = FAtomExpressionParser.serializeDelegate(delegate);

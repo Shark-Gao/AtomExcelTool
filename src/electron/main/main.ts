@@ -1,11 +1,17 @@
 // src/electron/main/main.ts
 import { join } from 'path';
-import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
 import ExcelJS from 'exceljs';
 import { FAtomExpressionParser } from './MHTsAtomSystemUtils';
 import {DelegateMetadataGenerator} from './DelegateMetadataGenerator';
 import { deParseJsonToExpression } from './DeParseJsonToExpression';
+import { AtomFieldsConfigLoader } from './AtomFieldsConfigLoader';
+import { LogManager } from './LogManager';
 // import { runAllTests } from './DeParseJsonToExpression.test';
+
+// 在应用启动时立即初始化日志系统
+const logManager = LogManager.getInstance();
+logManager.initialize();
 
 type RowRecord = Record<string, string>;
 
@@ -140,6 +146,9 @@ async function handleOpenWorkbook() {
         throw new Error('所选 Excel 文件中没有可读取的工作表。');
     }
 
+    // 获取所有sheet列表
+    const sheetList = workbook.worksheets.map(ws => ws.name);
+
     const worksheet = workbook.worksheets[0];
     const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(worksheet);
     const rowNames = extractRowNames(worksheet, headerRowNumber, rowNameColumnNumber);
@@ -175,7 +184,8 @@ async function handleOpenWorkbook() {
                 map[label] = text;
             });
             return map;
-        })()
+        })(),
+        sheetList
     };
 }
 
@@ -264,6 +274,55 @@ ipcMain.handle('excel:open', async () => {
     }
 });
 
+ipcMain.handle('excel:load-sheet', async (_event, payload: { filePath: string; sheetName: string }) => {
+    try {
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(payload.filePath);
+
+        const worksheet = workbook.getWorksheet(payload.sheetName);
+        if (!worksheet) {
+            throw new Error(`未找到工作表: ${payload.sheetName}`);
+        }
+
+        const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(worksheet);
+        const rowNames = extractRowNames(worksheet, headerRowNumber, rowNameColumnNumber);
+
+        const rows: RowRecord[] = [];
+        
+        for (let r = headerRowNumber + 1; r <= worksheet.rowCount; r += 1) {
+            const row = worksheet.getRow(r);
+            const record = extractRowRecord(row, headerLabels);
+            const rowName = (record[headerLabels[rowNameColumnNumber - 1]] || '').trim();
+            if (rowName.length === 0) {
+                continue;
+            }
+            rows.push(record);
+        }
+
+        return {
+            ok: true,
+            sheetName: worksheet.name,
+            rowCount: rows.length,
+            columnNames: headerLabels,
+            rows,
+            rowNames,
+            rowNameColumnName: headerLabels[rowNameColumnNumber - 1],
+            columnDescriptions: (() => {
+                const descRow = worksheet.getRow(1);
+                const map: Record<string, string> = {};
+                headerLabels.forEach((label, idx) => {
+                    const text = (descRow.getCell(idx + 1).text || '').trim();
+                    map[label] = text;
+                });
+                return map;
+            })()
+        };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '加载工作表失败。';
+        return { ok: false, error: message };
+    }
+});
+
 ipcMain.handle('excel:save', async (_event, payload: { filePath: string; sheetName: string; rows: RowRecord[] }) => {
     try {
         await writeWorkbookToDisk(payload.filePath, payload.rows, payload.sheetName);
@@ -295,15 +354,9 @@ ipcMain.handle('excel:save-as', async (_event, payload: { defaultPath?: string; 
 
 ipcMain.handle('delegate:get-metadata', async () => {
     try {
-        const metadata = DelegateMetadataGenerator.generateMetadataFromMetaJsonConfig();//.generateMetadataFromFunctionMap(FunctionNameToDelegate);
+        const metadata = DelegateMetadataGenerator.generateMetadataFromMetaJsonConfig();
         const registry = DelegateMetadataGenerator.generateClassRegistry(metadata);
         const grouped = DelegateMetadataGenerator.groupMetadataByBaseClass(metadata);
-
-        // const delegate = FAtomExpressionParser.main("ConditionalAction(CheckInteractActionType(1),NOP(),Heal(Self(), GetAttr(MaxHealth) * 0.02))");
-        // // const delegate = FAtomExpressionParser.main("NOP()");
-        // const defaultJson = JSON.stringify(delegate, undefined, '  ');
-        // console.log(`delegate:get-metadata>>>>` + defaultJson);
-        // runAllTests()
 
         return {
             ok: true,
@@ -318,6 +371,33 @@ ipcMain.handle('delegate:get-metadata', async () => {
         return { ok: false, error: message };
     }
 });
+
+function preprocessCombinationExpression(rawValue: string, allowCombination: boolean): { expression: string; isCombination: boolean } {
+    if (!allowCombination || !rawValue || typeof rawValue !== 'string') {
+        return { expression: rawValue, isCombination: false };
+    }
+
+    const trimmed = rawValue.trim();
+    if (!trimmed.includes(';')) {
+        return { expression: rawValue, isCombination: false };
+    }
+
+    if (/^CombineActions?\s*\(/i.test(trimmed)) {
+        return { expression: rawValue, isCombination: true };
+    }
+
+    const segments = trimmed
+        .split(';')
+        .map(segment => segment.trim())
+        .filter(segment => segment.length > 0);
+
+    if (segments.length <= 1) {
+        return { expression: rawValue, isCombination: false };
+    }
+
+    const combinedExpression = `CombineActions(${segments.join(', ')})`;
+    return { expression: combinedExpression, isCombination: true };
+}
 
 ipcMain.handle('condition:parse-expression', async (_event, payload: { expression: string }) => {
     try {
@@ -334,13 +414,17 @@ ipcMain.handle('condition:parse-expression', async (_event, payload: { expressio
     }
 });
 
-ipcMain.handle('delegate:parse-condition-field', async (_event, payload: { fieldName: string; rawValue: string }) => {
+ipcMain.handle('delegate:parse-condition-field', async (_event, payload: { fieldName: string; rawValue: string; sheetName?: string; fileName?: string }) => {
     try {
         if (!payload.rawValue || typeof payload.rawValue !== 'string') {
             return { ok: false, error: '字段值为空或无效。' };
         }
 
-        const parsed = FAtomExpressionParser.main(payload.rawValue);
+        const loader = AtomFieldsConfigLoader.getInstance();
+        const fieldRuleInfo = loader.getFieldRuleInfo(payload.fieldName, payload.sheetName, payload.fileName);
+        const { expression: expressionToParse } = preprocessCombinationExpression(payload.rawValue, fieldRuleInfo.allowCombination);
+
+        const parsed = FAtomExpressionParser.main(expressionToParse);
         if (!parsed) {
             return { ok: false, error: `字段 ${payload.fieldName} 解析失败，返回值为空。` };
         }
@@ -368,6 +452,69 @@ ipcMain.handle('delegate:deparse-json-to-expression', async (_event, payload: { 
     } catch (error) {
         const message = error instanceof Error ? error.message : '反向解析 JSON 时发生未知错误。';
         console.error('[delegate:deparse-json-to-expression]:', message);
+        return { ok: false, error: message };
+    }
+});
+
+ipcMain.handle('config:get-atom-fields-config', async () => {
+    try {
+        const loader = AtomFieldsConfigLoader.getInstance();
+        const config = loader.getConfig();
+        return { ok: true, config };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '获取原子字段配置失败。';
+        console.error('[config:get-atom-fields-config]:', message);
+        return { ok: false, error: message };
+    }
+});
+
+ipcMain.handle('config:get-allowed-base-classes', async (_event, payload: { fieldName: string; sheetName?: string; fileName?: string }) => {
+    try {
+        const loader = AtomFieldsConfigLoader.getInstance();
+        const baseClasses = loader.getAllowedBaseClassesForField(payload.fieldName, payload.sheetName, payload.fileName);
+        return { ok: true, baseClasses };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '获取允许的基类失败。';
+        console.error('[config:get-allowed-base-classes]:', message);
+        return { ok: false, error: message };
+    }
+});
+
+ipcMain.handle('config:is-atomic-field', async (_event, payload: { fieldName: string; sheetName?: string; fileName?: string }) => {
+    try {
+        const loader = AtomFieldsConfigLoader.getInstance();
+        const isAtomic = loader.isAtomicField(payload.fieldName, payload.sheetName, payload.fileName);
+        return { ok: true, isAtomic };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '判断原子字段失败。';
+        console.error('[config:is-atomic-field]:', message);
+        return { ok: false, error: message };
+    }
+});
+
+ipcMain.handle('app:get-log-info', async () => {
+    try {
+        const logDir = logManager.getLogDir();
+        const logFilePath = logManager.getLogFilePath();
+        return { ok: true, logDir, logFilePath };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '获取日志信息失败。';
+        console.error('[app:get-log-info]:', message);
+        return { ok: false, error: message };
+    }
+});
+
+ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
+    try {
+        if (!filePath) {
+            return { ok: false, error: '文件路径为空' };
+        }
+        await shell.openPath(filePath);
+        console.log('[shell:openPath] 打开目录:', filePath);
+        return { ok: true };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '打开路径失败。';
+        console.error('[shell:openPath]:', message);
         return { ok: false, error: message };
     }
 });
@@ -423,30 +570,34 @@ function createWindow() {
     // console.log(out);
 }
 
-app.whenReady().then(() => {
-    // // 初始化配置管理系统
-    // registerConfigIpcHandlers(ipcMain);
+app.whenReady().then(async () => {
+    console.log('[main] 应用准备就绪，开始初始化...');
     
-    // // 启动元数据热更新监听
-    // let stopWatching: (() => void) | null = null;
-    // stopWatching = watchMetadataConfig((config) => {
-    //     // 广播元数据更新事件给所有窗口
-    //     BrowserWindow.getAllWindows().forEach(win => {
-    //         win.webContents.send('config:metadata-changed', config);
-    //     });
-    // });
+    // 初始化原子字段配置加载器
+    try {
+        console.log('[main] 开始加载原子字段配置...');
+        const configLoader = AtomFieldsConfigLoader.getInstance();
+        await configLoader.load();
+        console.log('[main] ✅ 原子字段配置加载成功');
+    } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error('[main] ❌ 原子字段配置加载失败，将使用默认规则');
+        console.error('[main] 详细错误:', errorMsg);
+        if (error instanceof Error) {
+            console.error('[main] 堆栈:', error.stack);
+        }
+    }
     
+    console.log('[main] 创建应用窗口...');
     createWindow();
-    app.on('activate', function () {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
+    console.log('[main] 窗口创建完成');
     
-    // // 当应用退出时停止监听
-    // app.on('before-quit', () => {
-    //     if (stopWatching) {
-    //         stopWatching();
-    //     }
-    // });
+    app.on('activate', function () {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            console.log('[main] 激活事件：重新创建窗口');
+            createWindow();
+        }
+    });
 });
 
 app.on('window-all-closed', () => {

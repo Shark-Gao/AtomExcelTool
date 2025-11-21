@@ -13,9 +13,22 @@ contextBridge.exposeInMainWorld('excelBridge', {
               rowNames?: string[];
               rowNameColumnName?: string;
               columnDescriptions?: Record<string, string>;
+              sheetList?: string[];
               error?: string;
           }
     >,
+    loadSheet: (payload: { filePath: string; sheetName: string }) =>
+        ipcRenderer.invoke('excel:load-sheet', payload) as Promise<{
+              ok: boolean;
+              sheetName?: string;
+              rowCount?: number;
+              columnNames?: string[];
+              rowNames?: string[];
+              rows?: Record<string, string>[];
+              rowNameColumnName?: string;
+              columnDescriptions?: Record<string, string>;
+              error?: string;
+        }>,
     saveWorkbook: (payload: { filePath: string; sheetName: string; rows: Record<string, string>[] }) =>
         ipcRenderer.invoke('excel:save', payload) as Promise<{ ok: boolean; error?: string }>,
     saveWorkbookAs: (payload: { defaultPath?: string; sheetName: string; rows: Record<string, string>[] }) =>
@@ -40,7 +53,7 @@ contextBridge.exposeInMainWorld('delegateBridge', {
         json?: string;
         error?: string;
     }>,
-    parseConditionField: (payload: { fieldName: string; rawValue: string }) => ipcRenderer.invoke('delegate:parse-condition-field', payload) as Promise<{
+    parseConditionField: (payload: { fieldName: string; rawValue: string; sheetName?: string; fileName?: string }) => ipcRenderer.invoke('delegate:parse-condition-field', payload) as Promise<{
         ok: boolean;
         parsed?: any;
         error?: string;
@@ -48,6 +61,16 @@ contextBridge.exposeInMainWorld('delegateBridge', {
     deParseJsonToExpression: (payload: { json: any }) => ipcRenderer.invoke('delegate:deparse-json-to-expression', payload) as Promise<{
         ok: boolean;
         expression?: string;
+        error?: string;
+    }>
+});
+
+contextBridge.exposeInMainWorld('electronAPI', {
+    invoke: (channel: string, payload?: any) => ipcRenderer.invoke(channel, payload),
+    getLogInfo: () => ipcRenderer.invoke('app:get-log-info') as Promise<{
+        ok: boolean;
+        logDir?: string;
+        logFilePath?: string;
         error?: string;
     }>
 });

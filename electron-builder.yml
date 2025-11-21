@@ -6,6 +6,7 @@ directories:
   output: release/${version}
 files:
   - dist
+  - config
 mac:
   artifactName: ${productName}_${version}.${ext}
   target:

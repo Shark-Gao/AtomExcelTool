@@ -29,6 +29,21 @@ type ExcelOpenResult =
       rowNameColumnName?: string
       columnDescriptions?: Record<string, string>
       rows?: RowRecord[]
+      sheetList?: string[]
+      error?: string
+    }
+
+type ExcelLoadSheetResult =
+  | { ok: false; error: string }
+  | {
+      ok: true
+      sheetName?: string
+      rowCount?: number
+      columnNames?: string[]
+      rowNames?: string[]
+      rowNameColumnName?: string
+      columnDescriptions?: Record<string, string>
+      rows?: RowRecord[]
       error?: string
     }
 
@@ -76,6 +91,7 @@ declare global {
 
   interface ExcelBridge {
     openWorkbook: () => Promise<ExcelOpenResult>
+    loadSheet: (payload: { filePath: string; sheetName: string }) => Promise<ExcelLoadSheetResult>
     readRow: (payload: { filePath: string; sheetName: string; rowName: string }) => Promise<ExcelReadRowResult>
     loadConditionFields: (payload: { record: RowRecord; columnNames: string[] }) => Promise<{ ok: boolean; conditionFields?: Record<string, ConditionFieldInfo>; error?: string }>
     saveWorkbook: (payload: { filePath: string; sheetName: string; rows: RowRecord[] }) => Promise<ExcelSaveResult>
@@ -85,13 +101,19 @@ declare global {
   interface DelegateBridge {
     getMetadata: () => Promise<DelegateMetadataSuccess | DelegateMetadataFailure>
     parseExpression: (payload: { expression: string }) => Promise<{ ok: boolean; parsed?: any; json?: string; error?: string }>
-    parseConditionField: (payload: { fieldName: string; rawValue: string }) => Promise<{ ok: boolean; parsed?: any; error?: string }>
+    parseConditionField: (payload: { fieldName: string; rawValue: string; sheetName?: string; fileName?: string }) => Promise<{ ok: boolean; parsed?: any; error?: string }>
     deParseJsonToExpression: (payload: { json: any }) => Promise<{ ok: boolean; expression?: DeParseExpressonType; error?: string }>
+  }
+
+  interface ElectronAPI {
+    invoke: (channel: string, payload?: any) => Promise<any>
+    getLogInfo: () => Promise<{ ok: boolean; logDir?: string; logFilePath?: string; error?: string }>
   }
 
   interface Window {
     excelBridge?: ExcelBridge
     delegateBridge?: DelegateBridge
+    electronAPI?: ElectronAPI
   }
 }
 

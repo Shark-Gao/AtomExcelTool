@@ -1,12 +1,5 @@
 // import { FunctionNameToDelegate } from './MHTsAtomSystemUtils';
-import { getConstructorParamNames } from './DelegateDecorators';
 import { DelegateFactory } from './DelegateFactory';
-
-/**
- * 类名到函数名的缓存映射
- * 在第一次调用时初始化，之后直接使用缓存数据
- */
-let classNameToFunctionNameCache: Map<string, string> | null = null;
 
 export interface DeParseExpressonType {
   expression: string;
@@ -25,7 +18,7 @@ export interface DeParseExpressonType {
  * @param jsonObject 包含 _ClassName 的对象
  * @returns 表达式字符串
  */
-export function deParseJsonToExpression(jsonObject: any): DeParseExpressonType {
+export function deParseJsonToExpression(jsonObject: any, isRoot = true): DeParseExpressonType {
   if (!jsonObject || typeof jsonObject !== 'object') {
     return {expression:'', expressionDesc:''};
   }
@@ -42,47 +35,47 @@ export function deParseJsonToExpression(jsonObject: any): DeParseExpressonType {
     
     if (constantKey && constantKey.trim()) {
       // 如果有 ConstantKey，返回 {key} 格式
-      return {expression:`{${constantKey}}`, expressionDesc:`{${constantKey}}`};
+      return {expression:`{${constantKey}}`, expressionDesc:`${constantKey}`};
     }
     
-    return {expression:String(constant), expressionDesc:`{${constant}}`};
+    return {expression:String(constant), expressionDesc:`${constant}`};
   }
 
   if (className === 'BoolValueConstDelegate') {
-    return {expression:String(jsonObject.BoolConst), expressionDesc:`{${jsonObject.BoolConst}}`};
+    return {expression:String(jsonObject.BoolConst), expressionDesc:`${jsonObject.BoolConst}`};
   }
 
   // 处理一元操作符
   if (className === 'NumberValueUnaryOperatorDelegate') {
-    const operand = deParseJsonToExpression(jsonObject.Value);
+    const operand = deParseJsonToExpression(jsonObject.Value, false);
     return {expression:`-(${operand.expression})`, expressionDesc:`-(${operand.expressionDesc})`};
   }
 
   if (className === 'BoolValueNotDelegate') {
-    const operand = deParseJsonToExpression(jsonObject.Value);
+    const operand = deParseJsonToExpression(jsonObject.Value, false);
     return {expression:`!(${operand.expression})`, expressionDesc:`!(${operand.expressionDesc})`};
   }
 
   // 处理二元操作符（数值）
   if (className === 'NumberValueBinaryOperatorDelegate') {
-    const lhs = deParseJsonToExpression(jsonObject.lhs);
-    const rhs = deParseJsonToExpression(jsonObject.rhs);
+    const lhs = deParseJsonToExpression(jsonObject.lhs, false);
+    const rhs = deParseJsonToExpression(jsonObject.rhs, false);
     const operator = getOperatorString(jsonObject.operator, 'number');
     return {expression:`(${lhs.expression} ${operator} ${rhs.expression})`, expressionDesc:`(${lhs.expressionDesc} ${operator} ${rhs.expressionDesc})`};
   }
 
   // 处理二元操作符（布尔值）
   if (className === 'BoolValueBinaryOperatorOnBoolDelegate') {
-    const lhs = deParseJsonToExpression(jsonObject.lhs);
-    const rhs = deParseJsonToExpression(jsonObject.rhs);
+    const lhs = deParseJsonToExpression(jsonObject.lhs, false);
+    const rhs = deParseJsonToExpression(jsonObject.rhs, false);
     const operator = getOperatorString(jsonObject.operator, 'bool');
     return {expression:`(${lhs.expression} ${operator} ${rhs.expression})`, expressionDesc:`(${lhs.expressionDesc} ${operator} ${rhs.expressionDesc})`};;
   }
 
   // 处理二元操作符（数值比较）
   if (className === 'BoolValueBinaryOperatorOnNumberDelegate') {
-    const lhs = deParseJsonToExpression(jsonObject.lhs);
-    const rhs = deParseJsonToExpression(jsonObject.rhs);
+    const lhs = deParseJsonToExpression(jsonObject.lhs, false);
+    const rhs = deParseJsonToExpression(jsonObject.rhs, false);
     const operator = getOperatorString(jsonObject.operator, 'compare');
     return {expression:`(${lhs.expression} ${operator} ${rhs.expression})`, expressionDesc:`(${lhs.expressionDesc} ${operator} ${rhs.expressionDesc})`};
   }
@@ -90,7 +83,7 @@ export function deParseJsonToExpression(jsonObject: any): DeParseExpressonType {
   // 处理函数调用
   const functionName = findFunctionNameByClassName(className);
   if (functionName) {
-    return buildFunctionCall(functionName, className, jsonObject);
+    return buildFunctionCall(functionName, className, jsonObject, isRoot);
   }
 
   // 如果找不到对应的函数名，返回类名
@@ -108,7 +101,7 @@ function findFunctionNameByClassName(className: string): string | null {
 /**
  * 构建函数调用表达式
  */
-function buildFunctionCall(functionName: string, className: string, jsonObject: any): DeParseExpressonType {
+function buildFunctionCall(functionName: string, className: string, jsonObject: any, isRoot: boolean): DeParseExpressonType {
   const ClassMetadata = DelegateFactory.getMetadataByFuncName(functionName);// FunctionNameToDelegate.get(functionName);
   if (!ClassMetadata) {
     return {expression:functionName, expressionDesc:functionName};
@@ -129,17 +122,17 @@ function buildFunctionCall(functionName: string, className: string, jsonObject: 
 
     if (Array.isArray(paramValue)) {
       // 处理数组参数
-      const arrayElements = paramValue.map(item => deParseJsonToExpression(item));
+      const arrayElements = paramValue.map(item => deParseJsonToExpression(item, false));
       params.push(...arrayElements);
     } else if (typeof paramValue === 'object') {
       // 递归处理嵌套对象
-      const nestedExpression = deParseJsonToExpression(paramValue);
+      const nestedExpression = deParseJsonToExpression(paramValue, false);
       if (nestedExpression) {
         params.push(nestedExpression);
       }
     } else if (typeof paramValue === 'string') {
       // 字符串需要加引号
-      params.push({expression:`"${paramValue}"`, expressionDesc:`"${paramValue}"`});
+      params.push({expression:`"${paramValue}"`, expressionDesc:`${paramValue}`});
     } else {
       // 数字、布尔值等直接转换
       params.push({expression:String(paramValue), expressionDesc:`${paramValue}`});
@@ -151,16 +144,28 @@ function buildFunctionCall(functionName: string, className: string, jsonObject: 
 //     return functionName;
 //   }
 
+  const paramExpressions = params.map(param => param.expression);
+
+  if (isRoot && isCombineActionsFunction(functionName, className) && params.length > 1) {
+    const combinedExpressionDesc = params.map(param => param.expressionDesc).join(';');
+    return { expression: paramExpressions.join(';'), expressionDesc: combinedExpressionDesc };
+  }
+
   const richDescription = ClassMetadata.richDescription;
-  let expressionDesc = richDescription;
+  let expressionDesc = richDescription ?? `${functionName}(${paramExpressions.join(', ')})`;
   for (let i = 0; i < params.length; i++) {
     expressionDesc = expressionDesc.replace(`{${i}}`, `${params[i].expressionDesc}`);
   }
   
-  // 遍历 params，提取每个元素的 expression 属性
-  const paramExpressions = params.map(param => param.expression);
-
   return {expression:`${functionName}(${paramExpressions.join(', ')})`, expressionDesc:expressionDesc};
+}
+
+function isCombineActionsFunction(functionName: string, className: string): boolean {
+  const normalized = (functionName || '').toLowerCase();
+  if (normalized === 'combineactions' || normalized === 'combineaction') {
+    return true;
+  }
+  return className === 'ActionTakeActionsExDelegate';
 }
 
 /**

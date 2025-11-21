@@ -1,0 +1,81 @@
+{
+  "description": "原子字段配置文件 - 定义 Excel 配置表中哪些字段是原子字段（包含委托类型的字段）",
+  "fileLocation": "./config/AtomFieldsConfig.json",
+  "configRulePriority": [
+    "1. 工作表特定的全匹配规则 (fieldNames[].exactFieldNames)",
+    "2. 全局全匹配规则 (defaultRules.exactFieldNames)",
+    "3. 工作表特定的后缀/前缀规则 (fieldNames[].suffixRules/prefixRules)",
+    "4. 全局后缀/前缀规则 (defaultRules.suffixRules/prefixRules)"
+  ],
+  "deploymentNote": "生产环境中，config 文件夹会被打包到应用资源目录中，策划可直接修改该目录下的 AtomFieldsConfig.json 文件来动态配置原子字段，无需重新编译打包。",
+  "defaultRules": {
+    "description": "全局默认规则，应用于所有 Excel 工作表（除非被特定工作表规则覆盖）",
+    "suffixRules": [
+      {
+        "value": ".Condition",
+        "baseClass": "BoolValueDelegate",
+        "allowCombination": false
+      },
+      {
+        "value": ".Action",
+        "baseClass": "ActionDelegate",
+        "allowCombination": true
+      },
+      {
+        "value": ".Task",
+        "baseClass": "TaskDelegate",
+        "allowCombination": false
+      },
+      {
+        "value": ".Event",
+        "baseClass": "EventDelegateEx",
+        "allowCombination": false
+      },
+      {
+        "value": ".ActionLhs",
+        "baseClass": "ActionDelegate",
+        "allowCombination": true
+      },
+      {
+        "value": ".ActionRhs",
+        "baseClass": "ActionDelegate",
+        "allowCombination": true
+      }
+    ],
+    "prefixRules": [
+    ],
+    "exactFieldNames": [
+      {
+        "value": "BeginActions",
+        "baseClass": "ActionDelegate",
+        "allowCombination": true
+      },
+      {
+        "value": "EndActions",
+        "baseClass": "ActionDelegate",
+        "allowCombination": true
+      },
+      {
+        "value": "CustomTasks",
+        "baseClass": "TaskDelegate",
+        "allowCombination": true
+      }
+    ]
+  },
+  "SpecificFieldNames": [
+    {
+      "description": "特定工作表的自定义规则",
+      "sheetName": "技能转移逻辑原子",
+      "xlsxFile": null,
+      "suffixRules": [],
+      "prefixRules": [],
+      "exactFieldNames": [
+        {
+          "value": "TransitionCondition",
+          "baseClass": "BoolValueDelegate",
+          "allowCombination": false
+        }
+      ]
+    }
+  ]
+}

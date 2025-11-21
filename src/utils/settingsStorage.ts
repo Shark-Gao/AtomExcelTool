@@ -6,6 +6,7 @@ export interface AppSettings {
   theme: string
   showOnlyAtomicFields: boolean
   isDebugMode: boolean
+  fieldLayoutDirection: 'horizontal' | 'vertical'
 }
 
 const SETTINGS_STORAGE_KEY = 'mhatomexceltool_settings'
@@ -13,7 +14,8 @@ const SETTINGS_STORAGE_KEY = 'mhatomexceltool_settings'
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dracula_custom',
   showOnlyAtomicFields: true,
-  isDebugMode: false
+  isDebugMode: false,
+  fieldLayoutDirection: 'horizontal'
 }
 
 /**
@@ -27,7 +29,8 @@ export function loadSettingsFromStorage(): AppSettings {
       return {
         theme: settings.theme ?? DEFAULT_SETTINGS.theme,
         showOnlyAtomicFields: settings.showOnlyAtomicFields ?? DEFAULT_SETTINGS.showOnlyAtomicFields,
-        isDebugMode: settings.isDebugMode ?? DEFAULT_SETTINGS.isDebugMode
+        isDebugMode: settings.isDebugMode ?? DEFAULT_SETTINGS.isDebugMode,
+        fieldLayoutDirection: settings.fieldLayoutDirection ?? DEFAULT_SETTINGS.fieldLayoutDirection
       }
     }
   } catch (error) {

@@ -6,6 +6,7 @@ import {
 /** 当前正在组装哪个技能 */
 export let CurrentAbilityConfigID: string;
 
+
 function GetIntUniqueToAbility(): string {
   // const str = (IntUniqueToAbility + 1024).toString();
   // ++IntUniqueToAbility;
@@ -6098,19 +6099,37 @@ const MinusAfterTheseTokensShouldBeDeemedAsUnary: ReadonlySet<string> =
 //   BoolValueConstDelegate
 // );
 
+  /**
+ * 检查字符串中是否包含中文标点符号
+ * 包括：冒号（：）、逗号（，）、双引号（""）、括号（（））
+ * @param str 要检查的字符串
+ * @throws Error 如果包含中文标点符号，抛出异常
+ */
+export function checkChinesePunctuation(str: string): void {
+  // 中文标点符号的正则表达式
+  const chinesePunctuationRegex = /[：，“”（）]/g;
+  const matches = str.match(chinesePunctuationRegex);
+  
+  if (matches && matches.length > 0) {
+    const uniquePunctuations = [...new Set(matches)];
+    throw new Error(
+      `检测到中文标点符号：${uniquePunctuations.join(', ')}。
+` +
+      `请使用英文标点符号替换。
+` +
+      `违规字符串：${str}`
+    );
+  }
+}
+
 class FAtomExpressionParser {
   public static main(expr: string): DelegateBase | undefined {
-    try {
-      return this.Analysis(expr);
-    } catch (e) {
-      console.error(
-        `error caught when parsing [${expr}](possibly ${CurrentAbilityConfigID}):\n\n${e.stack}`
-      ); // eslint-disable-line prettier/prettier
-      return undefined;
-    }
+    return this.Analysis(expr);
   }
 
   private static Analysis(expr: string): DelegateBase | undefined {
+    checkChinesePunctuation(expr);
+
     console.log(`[AtomSystem] expr [${expr}]`);
 
     for (const k of ValidOperatorString) expr = expr.split(k).join(` ${k} `);
@@ -6359,76 +6378,35 @@ class FAtomExpressionParser {
             
             stack.push(CreatedObject);
           }
-          // if ((Fn = FunctionNameToDelegate.get(CurrentToken))) {
-          //   /**
-          //    * A Function object's length property indicates how many arguments the function expects, i.e. the number of formal parameters.
-          //    * This number excludes the rest parameter and only includes parameters before the first one with a default value.
-          //    */
-          //   const ParamArr = [];
-          //   let ArgCnt = 0;
-          //   while (stack.length && stack[stack.length - 1] !== "(") {
-          //     ParamArr.push(stack.pop());
-          //     ++ArgCnt;
-          //   }
-          //   stack.pop(); // for '('
-
-          //   if (ArgCnt < Fn.length) {
-          //     console.warn(
-          //       `[AtomSystem] function [${CurrentToken}] param num not fulfilled [${ArgCnt} / ${
-          //         Fn.length
-          //       }], parsing aborted: ${ReversePolishNotation.join(", ")}`
-          //     ); // eslint-disable-line
-          //     return undefined;
-          //   }
-
-          //   if (ArgCnt > Fn.length)
-          //     console.log(
-          //       `[AtomSystem] function [${CurrentToken}] [${ArgCnt} / ${Fn.length}] arg(s) received`
-          //     ); // eslint-disable-line
-
-          //   const OrderedParams = ParamArr.reverse();
-          //   const CreatedObject = Newable(Fn)
-          //     ? new Fn(...OrderedParams)
-          //     : Fn(...OrderedParams);
-          //   // AddOuterLinksToObject(CreatedObject);
-          //   stack.push(CreatedObject);
-          // } 
           else {
             PossibleNumber = this.ParseSingleToken(CurrentToken);
-            stack.push(PossibleNumber)
-          //   if (typeof PossibleNumber === "string") {
-          //     if (/^\{[a-zA-Z0-9_$]*\}$/.test(PossibleNumber)) {
-          //       // 新规则，用大括号包裹的变量读BuffConst表
-          //       stack.push(
-          //         DelegateFactory.createByDelegateKey("NumberValueConst", [0, PossibleNumber.slice(1, -1)])
-          //         // new NumberValueConstDelegate(0, PossibleNumber.slice(1, -1))
-          //       );
-          //     } else {
-          //       stack.push(PossibleNumber);
-          //     }
-          //   } else if (typeof PossibleNumber === "number")
-          //     // stack.push(PossibleNumber);
-          //     stack.push(
-          //       DelegateFactory.createByDelegateKey("NumberValueConst", [PossibleNumber])
-          //       // new NumberValueConstDelegate(PossibleNumber)
-          //     );
-          //   else if (typeof PossibleNumber == "boolean")
-          //     // stack.push(PossibleNumber);
-          //     stack.push(
-          //       DelegateFactory.createByDelegateKey(" BoolValueConst", [PossibleNumber])
-          //       // new BoolValueConstDelegate(PossibleNumber)
-          //     );
+            if (typeof PossibleNumber === "string") {
+              if (/^\{[a-zA-Z0-9_$]*\}$/.test(PossibleNumber)) {
+                // 新规则，用大括号包裹的变量读BuffConst表
+                stack.push(
+                  DelegateFactory.createByDelegateKey("NumberValueConst", [0, PossibleNumber.slice(1, -1)])
+                );
+              } else {
+                stack.push(PossibleNumber);
+              }
+            } else if (typeof PossibleNumber === "number"){
+              stack.push(
+                DelegateFactory.createByDelegateKey("NumberValueConst", [PossibleNumber])
+              );
+            }
+            else if (typeof PossibleNumber == "boolean"){
+              stack.push(
+                DelegateFactory.createByDelegateKey("BoolValueConst", [PossibleNumber])
+              );
+            }
           }
           break;
       }
     }
 
     if (stack.length > 1)
-      throw new Error(`\
-[AtomSystem] expression parsing resulted in MORE THAN ONE elements:\
-expr: ${expr} \
-result stack: ${stack.join(", ")}\
-`)
+      throw new Error(`
+解析失败表达式: ${expr}，多出的元素: ${stack.map((item, index) => `[${index}] ${item}`).join(" ")}`)
     return stack[0] as DelegateBase;
   }
 

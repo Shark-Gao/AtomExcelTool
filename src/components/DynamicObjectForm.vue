@@ -453,22 +453,7 @@ async function updateArrayItemClass(
                       class="rounded-lg border border-base-300 bg-base-100 shadow-sm"
                       >
                           <template v-if="getArrayElementType(fieldMeta as Extract<FieldMeta, { type: 'array' }>) === 'object'">
-                            <div class="flex items-center gap-3 px-3 pb-2 pt-3">
-                              <SearchableAtomSelect
-                                v-if="!readonly"
-                                :model-value="(item as Record<string, unknown>)._ClassName as string"
-                                :options="getSubclassOptions((fieldMeta as Extract<FieldMeta, { type: 'array' }>).baseClass)"
-                                :registry="registry"
-                                empty-label="请选择类型"
-                                allow-empty
-                                @update:model-value="(value) => updateArrayItemClass(
-                                  fieldKey,
-                                  fieldMeta as Extract<FieldMeta, { type: 'array' }>,
-                                  index,
-                                  value
-                                )"
-                              />
-
+                            <div>
                               <DynamicObjectForm
                                 v-if="(item as Record<string, unknown>)._ClassName"
                                 :key="`${fieldKey}-array-${index}-${(item as Record<string, unknown>)._ClassName as string}`"

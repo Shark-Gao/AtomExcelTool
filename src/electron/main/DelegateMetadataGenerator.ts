@@ -334,6 +334,12 @@ export class DelegateMetadataGenerator {
     );
   }
 
+  private static isObjectUnionType(unionType: FAtomTypeUnion): boolean {
+    return unionType.UnionTypes.every(t =>
+      t.AtomType >= EAtomType.Number && t.AtomType <= EAtomType.Task
+    );
+  }
+
   /**
    * 从 Union 类型提取字符串选项
    */
@@ -455,6 +461,16 @@ export class DelegateMetadataGenerator {
       case EAtomType.Union:
         // Union 类型：检查是否为字符串枚举
         const unionType = param.AtomType as FAtomTypeUnion;
+        if (this.isObjectUnionType(unionType)) {
+          // 其他 Union 类型：作为对象类型处理
+          fieldMeta = {
+            key,
+            label,
+            type: 'object',
+            baseClass: typeName,
+            description: description
+          };
+        }
         if (this.isStringEnumUnion(unionType)) {
           // 字符串枚举：转换为 select 类型
           const options = this.extractStringEnumOptions(unionType);
@@ -466,13 +482,7 @@ export class DelegateMetadataGenerator {
             description: description
           };
         } else {
-          // 其他 Union 类型：作为对象类型处理
-          fieldMeta = {
-            key,
-            label,
-            type: 'string',
-            description: description
-          };
+          
         }
         break;
 

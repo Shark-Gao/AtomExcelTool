@@ -453,6 +453,9 @@ export class DelegateMetadataGenerator {
         // 对于数组类型，递归获取元素类型
         const arrayType = atomType as FAtomTypeArray;
         return this.getAtomTypeClass(arrayType.ElementType);
+      case EAtomType.Union:
+        const unionType = atomType as FAtomTypeUnion;
+        return this.getAtomTypeClass(unionType.UnionTypes[0]);
       default:
         return 'string';
     }

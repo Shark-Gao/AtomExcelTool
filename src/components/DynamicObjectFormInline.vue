@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch, watchEffect } from 'vue'
 import { normalizeClassInstance as normalizeClassInstanceUtil } from '../utils/ClassNormalizer'
 import { ClassRegistry, FieldMeta, BaseClassType, isBaseClassNative, resolveFieldMetaTypeByValue, fieldMetaSupportsType, getFieldMetaTypeList } from '../types/MetaDefine'
+import { ue } from '../electron/main/UETypes'
 
 defineOptions({ name: 'DynamicObjectFormInline' })
 
@@ -321,6 +322,57 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
   return !constantDelegateClassNames.has(className)
 }
 
+const operatorFieldKey = 'operator' as const
+
+const operatorFieldOptionsMap: Record<string, Array<{ label: string; value: number }>> = {
+  BoolValueBinaryOperatorOnBoolDelegate: [
+    { label: '逻辑与（AND）', value: ue.EMHBoolTriggerValueBinaryOperatorOnBool.LogicalAnd },
+    { label: '逻辑或（OR）', value: ue.EMHBoolTriggerValueBinaryOperatorOnBool.LogicalOr },
+  ],
+  BoolValueBinaryOperatorOnNumberDelegate: [
+    { label: '等于（=）', value: ue.EMHBoolTriggerValueBinaryOperatorOnNumber.EqualTo },
+    { label: '大于（>）', value: ue.EMHBoolTriggerValueBinaryOperatorOnNumber.Greater },
+    { label: '大于等于（≥）', value: ue.EMHBoolTriggerValueBinaryOperatorOnNumber.GreaterEqual },
+    { label: '小于（<）', value: ue.EMHBoolTriggerValueBinaryOperatorOnNumber.Less },
+    { label: '小于等于（≤）', value: ue.EMHBoolTriggerValueBinaryOperatorOnNumber.LessEqual },
+    { label: '不等于（≠）', value: ue.EMHBoolTriggerValueBinaryOperatorOnNumber.NotEqualTo },
+  ],
+  NumberValueBinaryOperatorDelegate: [
+    { label: '加法（+）', value: ue.EMHNumberTriggerValueBinaryOperator.Plus },
+    { label: '减法（-）', value: ue.EMHNumberTriggerValueBinaryOperator.Minus },
+    { label: '乘法（×）', value: ue.EMHNumberTriggerValueBinaryOperator.Multiplies },
+    { label: '除法（÷）', value: ue.EMHNumberTriggerValueBinaryOperator.Divides },
+    { label: '取模（%）', value: ue.EMHNumberTriggerValueBinaryOperator.Modulus },
+    { label: '最小值（Min）', value: ue.EMHNumberTriggerValueBinaryOperator.Min },
+    { label: '最大值（Max）', value: ue.EMHNumberTriggerValueBinaryOperator.Max },
+  ],
+}
+
+const operatorDropdownOptions = computed(() => {
+  const activeClassName = rootClassName.value ?? props.className
+  if (typeof activeClassName !== 'string') {
+    return []
+  }
+  return operatorFieldOptionsMap[activeClassName] ?? []
+})
+
+function shouldUseOperatorDropdown(fieldKey: string): boolean {
+  return fieldKey === operatorFieldKey && operatorDropdownOptions.value.length > 0
+}
+
+watchEffect(() => {
+  if (!shouldUseOperatorDropdown(operatorFieldKey)) {
+    return
+  }
+  const rawValue = localValue[operatorFieldKey]
+  if (typeof rawValue === 'string' && rawValue.trim().length > 0) {
+    const numericValue = Number(rawValue)
+    if (!Number.isNaN(numericValue)) {
+      localValue[operatorFieldKey] = numericValue
+    }
+  }
+})
+
 </script>
 
 <template>
@@ -383,7 +435,19 @@ function shouldShowParenthesesForObject(value: unknown): boolean {
         </div>
 
         <div class="flex flex-1 flex-wrap items-stretch gap-3">
-          <template v-if="isFieldTypeActive(fieldKey, fieldMeta, 'string')">
+          <template v-if="shouldUseOperatorDropdown(fieldKey)">
+            <select
+              v-model.number="localValue[fieldKey]"
+              class="select select-sm select-bordered"
+              :disabled="readonly"
+            >
+              <option v-for="option in operatorDropdownOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </template>
+
+          <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'string')">
             <input
               v-model="localValue[fieldKey]"
               type="text"

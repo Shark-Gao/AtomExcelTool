@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch, watchEffect } from 'vue'
 import { normalizeClassInstance as normalizeClassInstanceUtil } from '../utils/ClassNormalizer'
 import { ClassRegistry, FieldMeta, BaseClassNativeType, isBaseClassNative, BaseClassType, resolveFieldMetaTypeByValue, fieldMetaSupportsType, getFieldMetaTypeList } from '../types/MetaDefine'
 import SearchableAtomSelect from './SearchableAtomSelect.vue'
+import { ue } from '../electron/main/UETypes'
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object' | 'array'
 
@@ -310,6 +311,57 @@ async function updateArrayItemClass(
   isHydrating.value = false
 }
 
+const operatorFieldKey = 'operator' as const
+
+const operatorFieldOptionsMap: Record<string, Array<{ label: string; value: number }>> = {
+  BoolValueBinaryOperatorOnBoolDelegate: [
+    { label: '逻辑与（AND）', value: ue.EMHBoolTriggerValueBinaryOperatorOnBool.LogicalAnd },
+    { label: '逻辑或（OR）', value: ue.EMHBoolTriggerValueBinaryOperatorOnBool.LogicalOr },
+  ],
+  BoolValueBinaryOperatorOnNumberDelegate: [
+    { label: '等于（=）', value: ue.EMHBoolTriggerValueBinaryOperatorOnNumber.EqualTo },
+    { label: '大于（>）', value: ue.EMHBoolTriggerValueBinaryOperatorOnNumber.Greater },
+    { label: '大于等于（≥）', value: ue.EMHBoolTriggerValueBinaryOperatorOnNumber.GreaterEqual },
+    { label: '小于（<）', value: ue.EMHBoolTriggerValueBinaryOperatorOnNumber.Less },
+    { label: '小于等于（≤）', value: ue.EMHBoolTriggerValueBinaryOperatorOnNumber.LessEqual },
+    { label: '不等于（≠）', value: ue.EMHBoolTriggerValueBinaryOperatorOnNumber.NotEqualTo },
+  ],
+  NumberValueBinaryOperatorDelegate: [
+    { label: '加法（+）', value: ue.EMHNumberTriggerValueBinaryOperator.Plus },
+    { label: '减法（-）', value: ue.EMHNumberTriggerValueBinaryOperator.Minus },
+    { label: '乘法（×）', value: ue.EMHNumberTriggerValueBinaryOperator.Multiplies },
+    { label: '除法（÷）', value: ue.EMHNumberTriggerValueBinaryOperator.Divides },
+    { label: '取模（%）', value: ue.EMHNumberTriggerValueBinaryOperator.Modulus },
+    { label: '最小值（Min）', value: ue.EMHNumberTriggerValueBinaryOperator.Min },
+    { label: '最大值（Max）', value: ue.EMHNumberTriggerValueBinaryOperator.Max },
+  ],
+}
+
+const operatorDropdownOptions = computed(() => {
+  const activeClassName = rootClassName.value ?? props.className
+  if (typeof activeClassName !== 'string') {
+    return []
+  }
+  return operatorFieldOptionsMap[activeClassName] ?? []
+})
+
+function shouldUseOperatorDropdown(fieldKey: string): boolean {
+  return fieldKey === operatorFieldKey && operatorDropdownOptions.value.length > 0
+}
+
+watchEffect(() => {
+  if (!shouldUseOperatorDropdown(operatorFieldKey)) {
+    return
+  }
+  const rawValue = localValue[operatorFieldKey]
+  if (typeof rawValue === 'string' && rawValue.trim().length > 0) {
+    const numericValue = Number(rawValue)
+    if (!Number.isNaN(numericValue)) {
+      localValue[operatorFieldKey] = numericValue
+    }
+  }
+})
+
 </script>
 
 <template>
@@ -383,7 +435,17 @@ async function updateArrayItemClass(
               </header>
               <h3 class="text-sm font-semibold text-base-content">{{ fieldMeta.label }}</h3>
               <div class="mt-3">
-                <template v-if="isFieldTypeActive(fieldKey, fieldMeta, 'string')">
+                <template v-if="shouldUseOperatorDropdown(fieldKey)">
+                  <div class="flex flex-col gap-2">
+                    <select v-model.number="localValue[fieldKey]" class="select select-bordered w-full" :disabled="readonly">
+                      <option v-for="option in operatorDropdownOptions" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </option>
+                    </select>
+                  </div>
+                </template>
+
+                <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'string')">
                   <div class="flex flex-col gap-2">
                     
                     <input v-model="localValue[fieldKey]" type="text" class="input input-bordered w-full" :disabled="readonly" />
@@ -466,7 +528,7 @@ async function updateArrayItemClass(
                       :key="`${fieldKey}-${index}`"
                       class="rounded-lg border border-base-300 bg-base-100 shadow-sm"
                       >
-                          <template v-if="getArrayElementType(fieldMeta) === 'object'">
+                          <template v-if="typeof item === 'object'">
                             <div>
                               <DynamicObjectForm
                                 v-if="(item as Record<string, unknown>)._ClassName"
@@ -482,7 +544,7 @@ async function updateArrayItemClass(
                           </template>
 
                         <template v-else>
-                          <template v-if="getArrayElementType(fieldMeta) === 'string'">
+                          <template v-if="typeof item === 'string'">
                             <input
                               :value="item as string"
                               type="text"
@@ -496,7 +558,7 @@ async function updateArrayItemClass(
                             />
                           </template>
 
-                          <template v-else-if="getArrayElementType(fieldMeta) === 'number'">
+                          <template v-else-if="typeof item === 'number'">
                             <input
                               :value="item as number"
                               type="number"
@@ -510,7 +572,7 @@ async function updateArrayItemClass(
                             />
                           </template>
 
-                          <template v-else-if="getArrayElementType(fieldMeta) === 'boolean'">
+                          <template v-else-if="typeof item === 'boolean'">
                             <label class="flex items-center gap-2">
                           <input
                             :checked="item as boolean"

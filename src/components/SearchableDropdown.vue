@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="T extends { label: string; value: any }">
 import { Transition } from 'vue'
-import { computed, defineEmits, defineProps, reactive, ref, withDefaults } from 'vue'
+import { computed, defineEmits, defineProps, nextTick, onBeforeUnmount, reactive, ref, watch, withDefaults } from 'vue'
 import { ClassRegistry } from '../types/MetaDefine'
 
 interface Props {
@@ -36,6 +36,12 @@ const tooltipPos = reactive({
   y: 0
 })
 const tooltipRef = ref<HTMLElement | null>(null)
+const triggerRef = ref<HTMLInputElement | null>(null)
+const dropdownPortalPosition = reactive({
+  left: '0px',
+  top: '0px',
+  width: '0px'
+})
 
 // 过滤选项（支持搜索）
 const filteredOptions = computed(() => {
@@ -112,11 +118,65 @@ function updateTooltipPosition(event: MouseEvent) {
   tooltipPos.x = event.clientX + offset
   tooltipPos.y = event.clientY + offset
 }
+
+function updateDropdownPortalPosition() {
+  const triggerElement = triggerRef.value
+  if (!triggerElement) {
+    return
+  }
+  const triggerRect = triggerElement.getBoundingClientRect()
+  dropdownPortalPosition.left = `${triggerRect.left}px`
+  dropdownPortalPosition.top = `${triggerRect.bottom}px`
+  dropdownPortalPosition.width = `${triggerRect.width}px`
+}
+
+function handleDropdownScroll() {
+  if (!props.open) {
+    return
+  }
+  updateDropdownPortalPosition()
+}
+
+function handleDropdownResize() {
+  if (!props.open) {
+    return
+  }
+  updateDropdownPortalPosition()
+}
+
+function attachDropdownPositionListeners() {
+  window.addEventListener('scroll', handleDropdownScroll, true)
+  window.addEventListener('resize', handleDropdownResize)
+}
+
+function detachDropdownPositionListeners() {
+  window.removeEventListener('scroll', handleDropdownScroll, true)
+  window.removeEventListener('resize', handleDropdownResize)
+}
+
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) {
+      nextTick(() => {
+        updateDropdownPortalPosition()
+        attachDropdownPositionListeners()
+      })
+      return
+    }
+    detachDropdownPositionListeners()
+  }
+)
+
+onBeforeUnmount(() => {
+  detachDropdownPositionListeners()
+})
 </script>
 
 <template>
   <div class="dropdown dropdown-open w-full">
     <input
+      ref="triggerRef"
       :value="props.searchKeyword"
       type="text"
       :placeholder="placeholder"
@@ -126,35 +186,43 @@ function updateTooltipPosition(event: MouseEvent) {
       @focus="handleFocus"
       @blur="handleBlur"
     />
-    <ul
-      v-if="props.open"
-      class="dropdown-content menu bg-base-100 rounded-box z-9999 w-full p-2 shadow border border-base-300 max-h-164 overflow-y-auto overflow-x-hidden grid grid-cols-1"
-    >
-      <template v-for="(options, baseClass) in filteredOptions" :key="baseClass">
-        <li v-if="options.length > 0" class="menu-title sticky top-0 z-10 bg-base-100">
-          <span class="text-xs font-semibold">{{ baseClass }}</span>
-        </li>
-        <li
-          v-for="option in options"
-          :key="option.value"
-          class="w-full"
-          @mouseenter="(e) => {
-            setHoveredValue(option.value)
-            updateTooltipPosition(e as MouseEvent)
-          }"
-          @mousemove="updateTooltipPosition"
-          @mouseleave="clearHoveredValue"
-        >
-          <a class="w-full" @mousedown.prevent="handleSelect(option.value, option)" @click.prevent>
-            {{ option.label }}
-          </a>
-        </li>
-      </template>
+    <Teleport to="body">
+      <ul
+        v-if="props.open"
+        class="dropdown-content menu bg-base-100 rounded-box z-9999 w-full p-2 shadow border border-base-300 max-h-164 overflow-y-auto overflow-x-hidden grid grid-cols-1"
+        :style="{
+          position: 'fixed',
+          left: dropdownPortalPosition.left,
+          top: dropdownPortalPosition.top,
+          width: dropdownPortalPosition.width
+        }"
+      >
+        <template v-for="(options, baseClass) in filteredOptions" :key="baseClass">
+          <li v-if="options.length > 0" class="menu-title sticky top-0 z-10 bg-base-100">
+            <span class="text-xs font-semibold">{{ baseClass }}</span>
+          </li>
+          <li
+            v-for="option in options"
+            :key="option.value"
+            class="w-full"
+            @mouseenter="(e) => {
+              setHoveredValue(option.value)
+              updateTooltipPosition(e as MouseEvent)
+            }"
+            @mousemove="updateTooltipPosition"
+            @mouseleave="clearHoveredValue"
+          >
+            <a class="w-full" @mousedown.prevent="handleSelect(option.value, option)" @click.prevent>
+              {{ option.label }}
+            </a>
+          </li>
+        </template>
 
-      <li v-if="!hasResults">
-        <a class="text-base-content/50">无匹配结果</a>
-      </li>
-    </ul>
+        <li v-if="!hasResults">
+          <a class="text-base-content/50">无匹配结果</a>
+        </li>
+      </ul>
+    </Teleport>
 
     <Transition name="fade">
       <div

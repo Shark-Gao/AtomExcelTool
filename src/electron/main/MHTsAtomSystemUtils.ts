@@ -6122,6 +6122,33 @@ export function checkChinesePunctuation(str: string): void {
   }
 }
 
+/**
+ * 检查字符串中是否存在单独的等号（赋值操作）
+ * 正确的做法是使用 == 进行比较，不允许单独的 = 赋值
+ * @param str 要检查的字符串
+ * @throws Error 如果存在单独的等号，抛出异常
+ * @example
+ * checkSingleEqualsSign('A()=B') // 错误：单独等号
+ * checkSingleEqualsSign('A()==B') // 正确：双等号
+ * checkSingleEqualsSign('A!=B') // 正确：!= 不是单独的等号
+ */
+export function checkSingleEqualsSign(str: string): void {
+  // 检测单独的等号（赋值）而不是双等号（比较）
+  // 使用负向后查断言和负向前查断言来确保 = 不被 == 或 != 或 === 等包围
+  const singleEqualsRegex = /(?<![=!<>])=(?!=)/;
+  if (singleEqualsRegex.test(str)) {
+    throw new Error(
+      `检测到单独的等号（赋值操作）。
+
+` +
+      `请改为使用 == 进行比较。
+
+` +
+      `违规字符串：${str}`
+    );
+  }
+}
+
 class FAtomExpressionParser {
   public static main(expr: string): DelegateBase | undefined {
     return this.Analysis(expr);
@@ -6129,6 +6156,7 @@ class FAtomExpressionParser {
 
   private static Analysis(expr: string): DelegateBase | undefined {
     checkChinesePunctuation(expr);
+    checkSingleEqualsSign(expr);
 
     console.log(`[AtomSystem] expr [${expr}]`);
 

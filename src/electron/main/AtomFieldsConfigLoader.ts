@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { getConfigFilePath } from './ConfigManager';
+import path from 'path';
 
 export interface AtomFieldRule {
   type: 'suffix' | 'prefix' | 'exact';
@@ -263,6 +264,13 @@ export class AtomFieldsConfigLoader {
    * 获取字段匹配信息（包含允许基类与组合配置）
    */
   public getFieldRuleInfo(fieldName: string, sheetName?: string, fileName?: string): FieldRuleInfo {
+
+    if (fileName) {
+      fileName = path.basename(fileName);
+      // 去掉扩展名
+      fileName = fileName.replace(/\.\w+$/, '');
+    }
+
     // 1. 检查文件特定的工作表规则（最高优先级）
     if (fileName && sheetName) {
       const fileSheetKey = this.getConfigKey(fileName, sheetName);

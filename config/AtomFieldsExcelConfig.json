@@ -76,6 +76,20 @@
           "allowCombination": false
         }
       ]
+    },
+	  {
+      "description": "特定工作表的自定义规则",
+      "sheetName": "Sheet1",
+      "xlsxFile": "PlayerBulletCombatNumber",
+      "suffixRules": [],
+      "prefixRules": [],
+      "exactFieldNames": [
+        {
+          "value": "HitCondition",
+          "baseClass": "BoolValueDelegate",
+          "allowCombination": false
+        }
+      ]
     }
   ]
 }

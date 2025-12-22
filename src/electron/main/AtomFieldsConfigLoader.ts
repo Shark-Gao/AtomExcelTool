@@ -9,6 +9,22 @@ export interface AtomFieldRule {
   allowCombination?: boolean;
 }
 
+export interface HeaderRowConfig {
+  xlsxFile: string;
+  sheetName: string;
+  headerRowNumber: number;
+  dataStartRow?: number;
+  descriptionRow?: number;
+}
+
+export interface AtomFieldsConfig {
+  headerRowConfig?: {
+    files?: HeaderRowConfig[];
+  };
+  defaultRules?: any;
+  SpecificFieldNames?: any[];
+}
+
 export interface SheetAtomFieldsConfig {
   suffixRules: AtomFieldRule[];
   prefixRules: AtomFieldRule[];
@@ -31,6 +47,9 @@ export class AtomFieldsConfigLoader {
   // Key: "fileName#sheetName" 或 "sheetName"（全局）
   // Value: 该工作表的规则配置
   private config: Map<string, SheetAtomFieldsConfig> = new Map();
+  
+  // 存储完整的配置对象
+  private fullConfig: AtomFieldsConfig = {};
   
   private defaultSuffixRules: AtomFieldRule[] = [];
   private defaultExactFieldNames: Map<string, AtomFieldRule> = new Map();
@@ -59,6 +78,9 @@ export class AtomFieldsConfigLoader {
   private parseJsonConfig(jsonContent: string): void {
     try {
       const config = JSON.parse(jsonContent);
+      
+      // 存储完整配置
+      this.fullConfig = config;
 
       // 解析默认规则
       if (config.defaultRules) {
@@ -372,6 +394,7 @@ export class AtomFieldsConfigLoader {
    */
   public getConfig() {
     return {
+      ...this.fullConfig,
       defaultSuffixRules: this.defaultSuffixRules,
       defaultExactFieldNames: Array.from(this.defaultExactFieldNames.entries()),
       sheetConfigs: Array.from(this.config.entries())

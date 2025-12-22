@@ -1,5 +1,5 @@
 // src/electron/main/main.ts
-import { join, extname } from 'path';
+import { join, extname, basename } from 'path';
 import { existsSync } from 'fs';
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
 import { execFile } from 'child_process';
@@ -163,6 +163,11 @@ function isRowNameLabel(label: string): boolean {
     return normalizeHeaderIdentifier(label).startsWith(ROW_NAME_IDENTIFIER);
 }
 
+function getExcelFileName(filePath: string): string {
+    const fileName = basename(filePath);
+    return fileName.replace(/\.[^/.]+$/, ''); // 移除扩展名
+}
+
 function findHeaderRowNumber(worksheet: ExcelJS.Worksheet): number {
     let lastHeaderRowNumber = -1;
     
@@ -205,12 +210,45 @@ function buildHeaderLabels(headerRow: ExcelJS.Row, totalColumns: number): string
     return labels;
 }
 
-function extractHeaderMetadata(worksheet: ExcelJS.Worksheet): {
+function extractHeaderMetadata(worksheet: ExcelJS.Worksheet, xlsxFileName?: string): {
     headerRowNumber: number;
     headerLabels: string[];
     rowNameColumnNumber: number;
+    dataStartRow: number;
+    descriptionRow: number;
 } {
-    const headerRowNumber = findHeaderRowNumber(worksheet);
+    let headerRowNumber: number;
+    let dataStartRow: number;
+    let descriptionRow: number;
+    
+    // 尝试从配置中获取指定的列名行
+    if (xlsxFileName) {
+        const sheetName = worksheet.name;
+        const configLoader = AtomFieldsConfigLoader.getInstance();
+        const config = configLoader.getConfig();
+        
+        // 查找匹配的配置
+        const headerConfig = config.headerRowConfig?.files?.find(file => 
+            file.xlsxFile === xlsxFileName && file.sheetName === sheetName
+        );
+        
+        if (headerConfig && headerConfig.headerRowNumber) {
+            headerRowNumber = headerConfig.headerRowNumber;
+            dataStartRow = headerConfig.dataStartRow || (headerRowNumber + 1);
+            descriptionRow = headerConfig.descriptionRow || 1;
+            logManager.info(`使用配置指定的列名行: ${headerRowNumber}, 数据起始行: ${dataStartRow}, 描述行: ${descriptionRow} (文件: ${xlsxFileName}, 工作表: ${sheetName})`);
+        } else {
+            headerRowNumber = findHeaderRowNumber(worksheet);
+            dataStartRow = headerRowNumber + 1;
+            descriptionRow = 1;
+            logManager.info(`未找到配置，使用自动识别的列名行: ${headerRowNumber}, 数据起始行: ${dataStartRow}, 描述行: ${descriptionRow}`);
+        }
+    } else {
+        headerRowNumber = findHeaderRowNumber(worksheet);
+        dataStartRow = headerRowNumber + 1;
+        descriptionRow = 1;
+    }
+    
     const headerRow = worksheet.getRow(headerRowNumber);
     const headerLabels = buildHeaderLabels(headerRow, worksheet.columnCount);
     const rowNameIndex = headerLabels.findIndex((label) => isRowNameLabel(label));
@@ -220,7 +258,9 @@ function extractHeaderMetadata(worksheet: ExcelJS.Worksheet): {
     return {
         headerRowNumber,
         headerLabels,
-        rowNameColumnNumber: rowNameIndex + 1
+        rowNameColumnNumber: rowNameIndex + 1,
+        dataStartRow,
+        descriptionRow
     };
 }
 
@@ -251,11 +291,21 @@ function extractRowRecord(row: ExcelJS.Row, headerLabels: string[]): RowRecord {
     return record;
 }
 
-function buildWorksheetPayload(worksheet: ExcelJS.Worksheet): WorksheetScanPayload {
-    const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(worksheet);
+function buildColumnDescriptions(worksheet: ExcelJS.Worksheet, headerLabels: string[], descriptionRow: number): Record<string, string> {
+    const columnDescriptions: Record<string, string> = {};
+    const descRow = worksheet.getRow(descriptionRow);
+    headerLabels.forEach((label, idx) => {
+        const text = (descRow.getCell(idx + 1).text || '').trim();
+        columnDescriptions[label] = text;
+    });
+    return columnDescriptions;
+}
+
+function buildWorksheetPayload(worksheet: ExcelJS.Worksheet, xlsxFileName?: string): WorksheetScanPayload {
+    const { headerRowNumber, headerLabels, rowNameColumnNumber, dataStartRow, descriptionRow } = extractHeaderMetadata(worksheet, xlsxFileName);
     const rows: RowRecord[] = [];
 
-    for (let r = headerRowNumber + 1; r <= worksheet.rowCount; r += 1) {
+    for (let r = dataStartRow; r <= worksheet.rowCount; r += 1) {
         const row = worksheet.getRow(r);
         const record = extractRowRecord(row, headerLabels);
         const rowName = (record[headerLabels[rowNameColumnNumber - 1]] || '').trim();
@@ -265,12 +315,7 @@ function buildWorksheetPayload(worksheet: ExcelJS.Worksheet): WorksheetScanPaylo
         rows.push(record);
     }
 
-    const columnDescriptions: Record<string, string> = {};
-    const descRow = worksheet.getRow(1);
-    headerLabels.forEach((label, idx) => {
-        const text = (descRow.getCell(idx + 1).text || '').trim();
-        columnDescriptions[label] = text;
-    });
+    const columnDescriptions = buildColumnDescriptions(worksheet, headerLabels, descriptionRow);
 
     return {
         sheetName: worksheet.name,
@@ -303,13 +348,14 @@ async function loadWorkbookFromFile(filePath: string): Promise<WorkbookOpenPaylo
         throw new Error('所选 Excel 文件中没有可读取的工作表。');
     }
 
+    const xlsxFileName = getExcelFileName(filePath);
     const sheetList = workbook.worksheets.map((ws) => ws.name);
     const worksheet = workbook.worksheets[0];
-    const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(worksheet);
+    const { headerRowNumber, headerLabels, rowNameColumnNumber, dataStartRow, descriptionRow } = extractHeaderMetadata(worksheet, xlsxFileName);
     const rowNames = extractRowNames(worksheet, headerRowNumber, rowNameColumnNumber);
 
     const rows: RowRecord[] = [];
-    for (let r = headerRowNumber + 1; r <= worksheet.rowCount; r += 1) {
+    for (let r = dataStartRow; r <= worksheet.rowCount; r += 1) {
         const row = worksheet.getRow(r);
         const record = extractRowRecord(row, headerLabels);
         const rowName = (record[headerLabels[rowNameColumnNumber - 1]] || '').trim();
@@ -319,12 +365,7 @@ async function loadWorkbookFromFile(filePath: string): Promise<WorkbookOpenPaylo
         rows.push(record);
     }
 
-    const columnDescriptions: Record<string, string> = {};
-    const descRow = worksheet.getRow(1);
-    headerLabels.forEach((label, idx) => {
-        const text = (descRow.getCell(idx + 1).text || '').trim();
-        columnDescriptions[label] = text;
-    });
+    const columnDescriptions = buildColumnDescriptions(worksheet, headerLabels, descriptionRow);
 
     return {
         filePath,
@@ -367,7 +408,8 @@ async function writeWorkbookToDisk(filePath: string, rows: RowRecord[], sheetNam
         throw new Error('目标 Excel 工作簿中没有可用工作表。');
     }
 
-    const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(targetWorksheet);
+    const xlsxFileName = getExcelFileName(filePath);
+    const { headerRowNumber, headerLabels, rowNameColumnNumber, dataStartRow } = extractHeaderMetadata(targetWorksheet, xlsxFileName);
 
     const headerStyleByColumn: Record<number, ExcelJS.Style> = {};
     for (let c = 1; c <= targetWorksheet.columnCount; c += 1) {
@@ -393,7 +435,7 @@ async function writeWorkbookToDisk(filePath: string, rows: RowRecord[], sheetNam
     };
 
     const rowNameToRowNumber = new Map<string, number>();
-    for (let r = headerRowNumber + 1; r <= targetWorksheet.rowCount; r += 1) {
+    for (let r = dataStartRow; r <= targetWorksheet.rowCount; r += 1) {
         const row = targetWorksheet.getRow(r);
         const value = (row.getCell(rowNameColumnNumber).text || '').trim();
         if (value.length > 0 && !rowNameToRowNumber.has(value)) {
@@ -504,9 +546,10 @@ ipcMain.handle('excel:open-multiple', async () => {
                     sheetErrors.push({ sheetName: '未找到工作表', error: '工作簿中没有可读取的工作表。' });
                 }
 
+                const xlsxFileName = getExcelFileName(filePath);
                 workbook.worksheets.forEach((worksheet) => {
                     try {
-                        const payload = buildWorksheetPayload(worksheet);
+                        const payload = buildWorksheetPayload(worksheet, xlsxFileName);
                         sheetPayloads.push(payload);
                     } catch (sheetError) {
                         const message = sheetError instanceof Error ? sheetError.message : '读取工作表失败。';
@@ -538,12 +581,13 @@ ipcMain.handle('excel:load-sheet', async (_event, payload: { filePath: string; s
             throw new Error(`未找到工作表: ${payload.sheetName}`);
         }
 
-        const { headerRowNumber, headerLabels, rowNameColumnNumber } = extractHeaderMetadata(worksheet);
+        const xlsxFileName = getExcelFileName(payload.filePath);
+        const { headerRowNumber, headerLabels, rowNameColumnNumber, dataStartRow, descriptionRow } = extractHeaderMetadata(worksheet, xlsxFileName);
         const rowNames = extractRowNames(worksheet, headerRowNumber, rowNameColumnNumber);
 
         const rows: RowRecord[] = [];
         
-        for (let r = headerRowNumber + 1; r <= worksheet.rowCount; r += 1) {
+        for (let r = dataStartRow; r <= worksheet.rowCount; r += 1) {
             const row = worksheet.getRow(r);
             const record = extractRowRecord(row, headerLabels);
             const rowName = (record[headerLabels[rowNameColumnNumber - 1]] || '').trim();
@@ -561,15 +605,7 @@ ipcMain.handle('excel:load-sheet', async (_event, payload: { filePath: string; s
             rows,
             rowNames,
             rowNameColumnName: headerLabels[rowNameColumnNumber - 1],
-            columnDescriptions: (() => {
-                const descRow = worksheet.getRow(1);
-                const map: Record<string, string> = {};
-                headerLabels.forEach((label, idx) => {
-                    const text = (descRow.getCell(idx + 1).text || '').trim();
-                    map[label] = text;
-                });
-                return map;
-            })()
+            columnDescriptions: buildColumnDescriptions(worksheet, headerLabels, descriptionRow)
         };
     } catch (error) {
         const message = error instanceof Error ? error.message : '加载工作表失败。';

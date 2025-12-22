@@ -679,8 +679,4 @@ watchEffect(() => {
         </template>
     </div>
   </div>
-
-  <div v-else class="alert alert-warning">
-    <span>未找到类 {{ className }} 的结构定义，请检查元信息。</span>
-  </div>
 </template>

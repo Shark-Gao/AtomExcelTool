@@ -258,7 +258,7 @@ onBeforeUnmount(() => {
         <ul
           v-else
           data-option-list
-          class="max-h-60 overflow-auto py-2"
+          class="max-h-160 overflow-auto py-2"
         >
           <li
             v-for="(option, index) in filteredOptions"

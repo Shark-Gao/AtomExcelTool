@@ -1750,6 +1750,7 @@ async function saveWorkbookAs() {
             <div class="divider my-2">对象表单与 JSON</div>
 
             <!-- 对象表单与 JSON 编辑 -->
+            
             <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
               <div class="scrollbar max-h-[420px] overflow-y-auto pr-1">
                 <DynamicObjectFormInline
@@ -1761,8 +1762,9 @@ async function saveWorkbookAs() {
                 />
               </div>
             </div>
+            
             <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
-              <div class="scrollbar max-h-[420px] overflow-y-auto pr-1">
+              <div class="scrollbar h-[1600px] overflow-y-auto pr-1">
                 <DynamicObjectForm
                   :class-name="mockClassName"
                   :registry="classRegistry"

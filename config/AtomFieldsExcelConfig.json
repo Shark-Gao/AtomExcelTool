@@ -8,6 +8,32 @@
     "4. 全局后缀/前缀规则 (defaultRules.suffixRules/prefixRules)"
   ],
   "deploymentNote": "生产环境中，config 文件夹会被打包到应用资源目录中，策划可直接修改该目录下的 AtomFieldsConfig.json 文件来动态配置原子字段，无需重新编译打包。",
+  "headerRowConfig": {
+    "description": "指定不同Excel文件的列名行配置。headerRowNumber指定列名所在行，dataStartRow指定数据内容开始行（可选，默认为headerRowNumber+1），descriptionRow指定字段描述所在行（可选，默认为第1行）",
+    "files": [
+      {
+        "xlsxFile": "PilotMode",
+        "sheetName": "Sheet1",
+        "headerRowNumber": 2,
+        "dataStartRow": 4,
+        "descriptionRow": 3
+      },
+      {
+        "xlsxFile": "PilotMode",
+        "sheetName": "Sheet2",
+        "headerRowNumber": 2,
+        "dataStartRow": 4,
+        "descriptionRow": 3
+      },
+      {
+        "xlsxFile": "PilotMode",
+        "sheetName": "Sheet3",
+        "headerRowNumber": 2,
+        "dataStartRow": 4,
+        "descriptionRow": 3
+      }
+    ]
+  },
   "defaultRules": {
     "description": "全局默认规则，应用于所有 Excel 工作表（除非被特定工作表规则覆盖）",
     "suffixRules": [
@@ -90,6 +116,49 @@
           "allowCombination": false
         }
       ]
+    },
+    {
+      "description": "特定工作表的自定义规则",
+      "sheetName": "Sheet1",
+      "xlsxFile": "PilotMode",
+      "suffixRules": [],
+      "prefixRules": [],
+      "exactFieldNames": [
+        {
+          "value": "Condition",
+          "baseClass": "BoolValueDelegate",
+          "allowCombination": false
+        }
+      ]
+    },
+    {
+      "description": "特定工作表的自定义规则",
+      "sheetName": "Sheet2",
+      "xlsxFile": "PilotMode",
+      "suffixRules": [],
+      "prefixRules": [],
+      "exactFieldNames": [
+        {
+          "value": "Condition",
+          "baseClass": "BoolValueDelegate",
+          "allowCombination": false
+        }
+      ]
+    },
+    {
+      "description": "特定工作表的自定义规则",
+      "sheetName": "Sheet3",
+      "xlsxFile": "PilotMode",
+      "suffixRules": [
+        {
+          "value": "Condition",
+          "baseClass": "BoolValueDelegate",
+          "allowCombination": false
+        }
+      ],
+      "prefixRules": [],
+      "exactFieldNames": []
     }
+    
   ]
 }

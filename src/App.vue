@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type ComponentPublicInstance } from 'vue'
 import DynamicObjectForm, { type FieldOption } from './components/DynamicObjectForm.vue'
 import SearchableDropdown from './components/SearchableDropdown.vue'
+import SearchableAtomSelect from './components/SearchableAtomSelect.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import Toast from './components/Toast.vue'
 import ProgressModal from './components/ProgressModal.vue'
@@ -117,6 +118,7 @@ const selectedConditionField = ref<string | null>(null)
 const selectedConditionFieldData = ref<ConditionFieldInfo | null>(null)
 const atomClassSearchKeyword = ref<string>('')
 const openAtomClassDropdown = ref<string | null>(null) // 记录哪个字段的下拉框是打开的
+const selectedAtomClassByField = reactive<Record<string, string>>({}) // 每个字段选中的原子类
 
 // 字段名 -> 允许的基类 映射（缓存）
 const fieldAllowedBaseClassesCache = reactive<Record<string, string[]>>({})
@@ -232,7 +234,8 @@ metadataList: DelegateClassMetadata[], grouped: Record<string, DelegateClassMeta
       subclassOptions[baseClassName] = items
         .map((item) => ({
           value: item.className,
-          label: item.displayName ?? item.className
+          label: item.displayName ?? item.className,
+          funcName: item.funcName
         }))
         .sort((a, b) => a.label.localeCompare(b.label))
     })
@@ -241,7 +244,8 @@ metadataList: DelegateClassMetadata[], grouped: Record<string, DelegateClassMeta
     metadataList.forEach((classMeta) => {
       (baseToOptions[classMeta.baseClass] ??= []).push({
         value: classMeta.className,
-        label: classMeta.displayName ?? classMeta.className
+        label: classMeta.displayName ?? classMeta.className,
+        funcName: classMeta.funcName
       })
     })
     Object.entries(baseToOptions).forEach(([baseClassName, options]) => {
@@ -535,6 +539,33 @@ watch(
 
     filteredAtomClassOptions.value = result
   }
+)
+
+// 按字段名缓存扁平化的原子类选项
+const flatAtomClassOptionsByField = reactive<Record<string, FieldOption[]>>({})
+
+// 获取某字段的扁平化原子类选项
+async function getFlatAtomClassOptions(fieldName: string): Promise<FieldOption[]> {
+  const allowedBaseClasses = await getFieldAllowedBaseClasses(fieldName)
+  const result: FieldOption[] = []
+  for (const baseClass of allowedBaseClasses) {
+    const options = subclassOptions[baseClass] ?? []
+    result.push(...options)
+  }
+  return result
+}
+
+// 当字段变化时更新扁平化选项
+watch(
+  () => conditionFieldNames.value,
+  async (fieldNames) => {
+    for (const fieldName of fieldNames) {
+      if (!flatAtomClassOptionsByField[fieldName]) {
+        flatAtomClassOptionsByField[fieldName] = await getFlatAtomClassOptions(fieldName)
+      }
+    }
+  },
+  { immediate: true }
 )
 
 watch(currentRecord, (newRecord) => {
@@ -1809,16 +1840,18 @@ async function saveWorkbookAs() {
                     </p>
                     <template v-if="conditionFieldSet.has(columnName)">
                       <div class="space-y-2">
-                        <SearchableDropdown
+                        <SearchableAtomSelect
                           v-if="!conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
-                          :options="filteredAtomClassOptions"
-                          :search-keyword="atomClassSearchKeyword"
-                          :open="openAtomClassDropdown === columnName"
+                          :model-value="selectedAtomClassByField[columnName] ?? ''"
+                          :options="flatAtomClassOptionsByField[columnName] ?? []"
                           :registry="classRegistry"
                           placeholder="搜索原子类型..."
-                          @update:search-keyword="atomClassSearchKeyword = $event"
-                          @update:open="openAtomClassDropdown = $event ? columnName : null"
-                          @select="(value, option) => handleSelectAtomClass(columnName, value)"
+                          allow-empty
+                          empty-label="请选择原子类型"
+                          @update:model-value="(value) => {
+                            selectedAtomClassByField[columnName] = value
+                            if (value) handleSelectAtomClass(columnName, value)
+                          }"
                         />
                       </div>
                     

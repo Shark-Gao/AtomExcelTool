@@ -10,6 +10,7 @@ export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object' | 
 export type FieldOption = {
   label: string
   value: string
+  funcName?: string
 }
 
 // export type FieldMeta =
@@ -43,9 +44,11 @@ const props = withDefaults(
     modelValue: Record<string, unknown>
     subclassOptions: Record<string, FieldOption[]>
     readonly?: boolean
+    isRoot?: boolean
   }>(),
   {
-    readonly: false
+    readonly: false,
+    isRoot: true
   }
 )
 
@@ -172,6 +175,17 @@ function getSubclassOptions(baseClass: string | undefined): FieldOption[] {
     return []
   }
   return props.subclassOptions[baseClass] ?? []
+}
+
+function hasFieldsForClass(className: string | undefined): boolean {
+  if (!className) {
+    return false
+  }
+  const info = props.registry[className]
+  if (!info) {
+    return false
+  }
+  return Object.keys(info.fields).length > 0
 }
 
 // 内部便捷函数，直接使用当前组件的 props
@@ -365,252 +379,281 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div v-if="classInfo" class="space-y-4">
-    <div class="rounded-xl border border-base-300 bg-base-100 shadow-sm">
-      <div class="flex items-center justify-between gap-4 border-b border-base-200 px-4 py-3">
-        <!-- <div>
-          <div class="text-sm font-semibold text-base-content">{{ classInfo.displayName }}</div>
-          <div class="text-[11px] uppercase tracking-[0.2em] text-base-content/40">{{ classInfo.baseClass }}</div>
-        </div> -->
-        <div class="flex items-center gap-3">
-          <button
-            type="button"
-            class="btn btn-circle btn-ghost btn-xs"
-            aria-label="切换属性面板"
-            @click="toggleRootSection"
-          >
-            <span class="transition-transform" :class="{ 'rotate-90': !isRootCollapsed }">▶</span>
-          </button>
-          <label
-            v-if="rootSubclassOptions.length && !readonly"
-            class="flex items-center gap-2 rounded-lg border border-base-200 bg-base-200/40 px-3 py-1 text-xs text-base-content/70"
-          >
-            <!-- <span class="text-[11px] uppercase tracking-wide text-base-content/60">原子</span> -->
-            <SearchableAtomSelect
-              :model-value="rootClassName ?? ''"
-              :options="rootSubclassOptions"
-              :registry="registry"
-              empty-label="请选择类型"
-              allow-empty
-              :disabled="readonly"
-              @update:model-value="(value) => updateRootClass(value)"
-            />
-          </label>
-        </div>
+  <div v-if="classInfo" class="detail-panel">
+    <div class="rounded border border-base-300 bg-base-100">
+      <!-- 头部：类型选择器（仅根节点显示） -->
+      <div v-if="props.isRoot" class="flex items-center gap-2 border-b border-base-200 px-2 py-1.5 bg-base-200/50">
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs p-0 min-h-0 h-5 w-5"
+          aria-label="切换属性面板"
+          @click="toggleRootSection"
+        >
+          <span class="text-[10px] transition-transform" :class="{ 'rotate-90': !isRootCollapsed }">▶</span>
+        </button>
+        <SearchableAtomSelect
+          v-if="rootSubclassOptions.length && !readonly"
+          :model-value="rootClassName ?? ''"
+          :options="rootSubclassOptions"
+          :registry="registry"
+          empty-label="请选择类型"
+          allow-empty
+          :disabled="readonly"
+          class="flex-1 text-xs"
+          @update:model-value="(value) => updateRootClass(value)"
+        />
+        <span v-else class="text-xs font-medium text-base-content/80">{{ classInfo.displayName }}</span>
       </div>
 
+      <!-- 属性列表 -->
       <Transition name="fade" mode="out-in">
-        <section v-show="!isRootCollapsed" key="form">
+        <div v-show="!props.isRoot || !isRootCollapsed" class="divide-y divide-base-200">
           <div
             v-for="(fieldMeta, fieldKey, index) in fields"
             :key="fieldKey"
-            class="border-t border-base-200"
+            class="property-row"
+            :class="index % 2 === 0 ? 'bg-base-100' : 'bg-base-200/20'"
           >
-            <div
-              class="px-4 py-4 transition-colors duration-150"
-              :class="[
-                index % 2 === 0 ? 'bg-base-100' : 'bg-base-200/30',
-                'hover:bg-primary/5'
-              ]"
-            >
-              <header class="flex items-start gap-3">
-                <div class="flex-1">
-                  <div class="flex items-center justify-between">
-                    <button
-                      v-if="isFieldTypeActive(fieldKey, fieldMeta, 'array') && !readonly"
-                      type="button"
-                      class="btn btn-outline btn-ghost btn-2xs"
-                      @click="addArrayItem(fieldKey, fieldMeta)"
-                    >
-                      新增项+
-                    </button>
-                  </div>
-                  <!-- <p class="mt-1 text-xs text-base-content/50" v-if="fieldMeta.type === 'array'">
-                    列表类型，可新增多个子实例。
-                  </p> -->
-                  <!-- <p class="mt-1 text-xs text-base-content/50" v-else-if="fieldMeta.type === 'object'">
-                    嵌套对象，展开以编辑详细字段。
-                  </p> -->
+            <!-- 简单类型：单行布局 -->
+            <template v-if="isFieldTypeActive(fieldKey, fieldMeta, 'string') || 
+                          isFieldTypeActive(fieldKey, fieldMeta, 'number') || 
+                          isFieldTypeActive(fieldKey, fieldMeta, 'boolean') || 
+                          isFieldTypeActive(fieldKey, fieldMeta, 'select') ||
+                          shouldUseOperatorDropdown(fieldKey)">
+              <div class="flex items-center gap-2 px-2 py-1 min-h-[28px]">
+                <label class="property-label w-[120px] shrink-0 text-xs text-base-content/70 truncate" :title="fieldMeta.label">
+                  {{ fieldMeta.label }}
+                </label>
+                <div class="flex-1 min-w-0">
+                  <!-- 操作符下拉 -->
+                  <select 
+                    v-if="shouldUseOperatorDropdown(fieldKey)"
+                    v-model.number="localValue[fieldKey]" 
+                    class="select select-bordered select-xs w-full h-6 min-h-0" 
+                    :disabled="readonly"
+                  >
+                    <option v-for="option in operatorDropdownOptions" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                  <!-- 字符串 -->
+                  <input 
+                    v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'string')"
+                    v-model="localValue[fieldKey]" 
+                    type="text" 
+                    class="input input-bordered input-xs w-full h-6" 
+                    :disabled="readonly" 
+                  />
+                  <!-- 数字 -->
+                  <input 
+                    v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'number')"
+                    v-model.number="localValue[fieldKey]" 
+                    type="number" 
+                    class="input input-bordered input-xs w-full h-6" 
+                    :disabled="readonly" 
+                  />
+                  <!-- 布尔 -->
+                  <input 
+                    v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'boolean')"
+                    v-model="localValue[fieldKey]" 
+                    type="checkbox" 
+                    class="toggle toggle-primary toggle-xs" 
+                    :disabled="readonly" 
+                  />
+                  <!-- 选择 -->
+                  <select 
+                    v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'select')"
+                    v-model="localValue[fieldKey]" 
+                    class="select select-bordered select-xs w-full h-6 min-h-0" 
+                    :disabled="readonly"
+                  >
+                    <option v-for="option in fieldMeta.options" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
                 </div>
-              </header>
-              <h3 class="text-sm font-semibold text-base-content">{{ fieldMeta.label }}</h3>
-              <div class="mt-3">
-                <template v-if="shouldUseOperatorDropdown(fieldKey)">
-                  <div class="flex flex-col gap-2">
-                    <select v-model.number="localValue[fieldKey]" class="select select-bordered w-full" :disabled="readonly">
-                      <option v-for="option in operatorDropdownOptions" :key="option.value" :value="option.value">
-                        {{ option.label }}
-                      </option>
-                    </select>
-                  </div>
-                </template>
+              </div>
+            </template>
 
-                <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'string')">
-                  <div class="flex flex-col gap-2">
-                    
-                    <input v-model="localValue[fieldKey]" type="text" class="input input-bordered w-full" :disabled="readonly" />
-                  </div>
-                </template>
+            <!-- 对象类型 -->
+            <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'object')">
+              <div class="flex items-center gap-2 px-2 py-1 min-h-[28px]">
+                <div class="w-[120px] shrink-0 flex items-center gap-1">
+                  <button
+                    v-if="hasFieldsForClass((localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName as string)"
+                    type="button"
+                    class="btn btn-ghost btn-xs p-0 min-h-0 h-5 w-5"
+                    @click="toggleSection(fieldKey)"
+                  >
+                    <span class="text-[10px] transition-transform" :class="{ 'rotate-90': isSectionExpanded(fieldKey) }">▶</span>
+                  </button>
+                  <span v-else class="w-5 shrink-0"></span>
+                  <span class="text-xs text-base-content/70 truncate" :title="fieldMeta.label">{{ fieldMeta.label }}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <SearchableAtomSelect
+                    v-if="getSubclassOptions(fieldMeta.baseClass).length && !readonly"
+                    :model-value="(localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName ?? ''"
+                    :options="getSubclassOptions(fieldMeta.baseClass)"
+                    :registry="registry"
+                    empty-label="请选择类型"
+                    allow-empty
+                    :disabled="readonly"
+                    class="w-full text-xs"
+                    @update:model-value="(value) => {
+                      if (value) {
+                        const normalized = normalizeClassInstance(value, (localValue[fieldKey] as Record<string, unknown>) ?? {})
+                        localValue[fieldKey] = normalized
+                      } else {
+                        localValue[fieldKey] = { _ClassName: '' }
+                      }
+                    }"
+                  />
+                  <span v-else class="text-xs text-base-content/50">
+                    {{ (localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName || '—' }}
+                  </span>
+                </div>
+              </div>
+              <Transition name="fade" mode="out-in">
+                <div
+                  v-show="isSectionExpanded(fieldKey) && hasFieldsForClass((localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName as string)"
+                  class="ml-6 border-l-2 border-base-300 pl-2"
+                >
+                  <DynamicObjectForm
+                    v-if="(localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName"
+                    :key="`${fieldKey}-${(localValue[fieldKey] as Record<string, unknown>)._ClassName as string}`"
+                    :class-name="(localValue[fieldKey] as Record<string, unknown>)._ClassName as string"
+                    :registry="registry"
+                    :subclass-options="subclassOptions"
+                    :model-value="localValue[fieldKey] as Record<string, unknown>"
+                    :readonly="readonly"
+                    :is-root="false"
+                    @update:model-value="(value) => { localValue[fieldKey] = value; }"
+                  />
+                </div>
+              </Transition>
+            </template>
 
-                <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'number')">
-                  <div class="flex flex-col gap-2">
-                    <input v-model.number="localValue[fieldKey]" type="number" class="input input-bordered w-full" :disabled="readonly" />
-                  </div>
-                </template>
-
-                <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'boolean')">
-                  <div class="flex flex-col gap-2">
-                    <label class="flex items-center gap-3" :class="{ 'opacity-60 cursor-not-allowed': readonly }">
-                      <input v-model="localValue[fieldKey]" type="checkbox" class="toggle toggle-primary" :disabled="readonly" />
-                      <span class="text-xs text-base-content/70">启用开关</span>
-                    </label>
-                  </div>
-                </template>
-
-                <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'select')">
-                  <div class="flex flex-col gap-2">
-                    <select v-model="localValue[fieldKey]" class="select select-bordered w-full" :disabled="readonly">
-                      <option v-for="option in fieldMeta.options" :key="option.value" :value="option.value">
-                        {{ option.label }}
-                      </option>
-                    </select>
-                  </div>
-                </template>
-
-                <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'object')">
-                  <!-- <div class="mt-3 space-y-3">
-                    <SearchableAtomSelect
-                      v-if="!readonly"
-                      :model-value="(localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName ?? ''"
-                      :options="getSubclassOptions(fieldMeta.baseClass)"
-                      :registry="registry"
-                      empty-label="请选择类型"
-                      allow-empty
-                      @update:model-value="(value) => {
-                        if (value) {
-                          const normalized = normalizeClassInstance(value, (localValue[fieldKey] as Record<string, unknown>) ?? {})
-                          localValue[fieldKey] = normalized
-                        } else {
-                          localValue[fieldKey] = { _ClassName: '' }
-                        }
-                      }"
-                    />
-                  </div> -->
-                  
-                  <Transition name="fade" mode="out-in">
-                    <div
-                      v-show="isSectionExpanded(fieldKey) && (localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName"
-                      class="mt-3 rounded-lg border border-base-300 bg-base-200/70 px-4 py-3 shadow-inner"
-                    >
-                      <DynamicObjectForm
-                        v-if="(localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName"
-                        :key="`${fieldKey}-${(localValue[fieldKey] as Record<string, unknown>)._ClassName as string}`"
-                        :class-name="(localValue[fieldKey] as Record<string, unknown>)._ClassName as string"
-                        :registry="registry"
-                        :subclass-options="subclassOptions"
-                        :model-value="localValue[fieldKey] as Record<string, unknown>"
-                        :readonly="readonly"
-                        @update:model-value="(value) => {
-                          console.log('Old:', (localValue[fieldKey] as Record<string, unknown>)._ClassName, 'New:', value._ClassName);
-                          localValue[fieldKey] = value;
-                        }"
-                      />
-                    </div>
-                  </Transition>
-                </template>
-
-                <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'array')">
-                  <Transition name="fade" mode="out-in">
-                    <div v-show="isSectionExpanded(fieldKey)" class="mt-3 space-y-3">
-                      <!-- 对象数组 -->
-                      <div
-                      v-for="(item, index) in getArrayItems(fieldKey)"
-                      :key="`${fieldKey}-${index}`"
-                      class="rounded-lg border border-base-300 bg-base-100 shadow-sm"
-                      >
-                          <template v-if="typeof item === 'object'">
-                            <div>
-                              <DynamicObjectForm
-                                v-if="(item as Record<string, unknown>)._ClassName"
-                                :key="`${fieldKey}-array-${index}-${(item as Record<string, unknown>)._ClassName as string}`"
-                                :class-name="(item as Record<string, unknown>)._ClassName as string"
-                                :registry="registry"
-                                :subclass-options="subclassOptions"
-                                :model-value="item as Record<string, unknown>"
-                                :readonly="readonly"
-                                @update:model-value="(value) => updateArrayItemValue(fieldKey, index, value)"
-                              />
-                            </div>
-                          </template>
-
-                        <template v-else>
-                          <template v-if="typeof item === 'string'">
-                            <input
-                              :value="item as string"
-                              type="text"
-                              class="input input-bordered input-sm flex-1"
-                              :disabled="readonly"
-                              @input="(event) => {
-                                const list = [...getArrayItems(fieldKey)];
-                                list[index] = (event.target as HTMLInputElement).value;
-                                localValue[fieldKey] = list;
-                              }"
-                            />
-                          </template>
-
-                          <template v-else-if="typeof item === 'number'">
-                            <input
-                              :value="item as number"
-                              type="number"
-                              class="input input-bordered input-sm flex-1"
-                              :disabled="readonly"
-                              @input="(event) => {
-                                const list = [...getArrayItems(fieldKey)];
-                                list[index] = Number((event.target as HTMLInputElement).value);
-                                localValue[fieldKey] = list;
-                              }"
-                            />
-                          </template>
-
-                          <template v-else-if="typeof item === 'boolean'">
-                            <label class="flex items-center gap-2">
-                          <input
-                            :checked="item as boolean"
-                            type="checkbox"
-                            class="checkbox checkbox-sm"
-                            :disabled="readonly"
-                            @change="(event) => {
-                              const list = [...getArrayItems(fieldKey)];
-                              list[index] = (event.target as HTMLInputElement).checked;
-                              localValue[fieldKey] = list;
-                            }"
-                          />
-                        </label>
-                      </template>
-                    </template>
-                            
+            <!-- 数组类型 -->
+            <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'array')">
+              <div class="flex items-center gap-2 px-2 py-1 min-h-[28px]">
+                <div class="w-[120px] shrink-0 flex items-center gap-1">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs p-0 min-h-0 h-5 w-5"
+                    @click="toggleSection(fieldKey)"
+                  >
+                    <span class="text-[10px] transition-transform" :class="{ 'rotate-90': isSectionExpanded(fieldKey) }">▶</span>
+                  </button>
+                  <span class="text-xs text-base-content/70 truncate" :title="fieldMeta.label">{{ fieldMeta.label }}</span>
+                </div>
+                <div class="flex-1 min-w-0 flex items-center gap-2">
+                  <span class="text-xs text-base-content/50">[{{ getArrayItems(fieldKey).length }}]</span>
+                  <button
+                    v-if="!readonly"
+                    type="button"
+                    class="btn btn-ghost btn-xs p-0 min-h-0 h-5 w-5 text-primary"
+                    @click="addArrayItem(fieldKey, fieldMeta)"
+                    title="新增项"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <Transition name="fade" mode="out-in">
+                <div v-show="isSectionExpanded(fieldKey)" class="ml-6 space-y-0 border-l-2 border-base-300 pl-2">
+                  <div
+                    v-for="(item, index) in getArrayItems(fieldKey)"
+                    :key="`${fieldKey}-${index}`"
+                    class="relative group"
+                  >
+                    <!-- 对象元素 -->
+                    <template v-if="typeof item === 'object'">
+                      <div class="flex items-start">
+                        <DynamicObjectForm
+                          v-if="(item as Record<string, unknown>)._ClassName"
+                          :key="`${fieldKey}-array-${index}-${(item as Record<string, unknown>)._ClassName as string}`"
+                          :class-name="(item as Record<string, unknown>)._ClassName as string"
+                          :registry="registry"
+                          :subclass-options="subclassOptions"
+                          :model-value="item as Record<string, unknown>"
+                          :readonly="readonly"
+                          :is-root="false"
+                          class="flex-1"
+                          @update:model-value="(value) => updateArrayItemValue(fieldKey, index, value)"
+                        />
                         <button
-                            v-if="!readonly"
-                            type="button"
-                            class="btn btn-ghost btn-2xs text-error"
-                            @click="removeArrayItem(fieldKey, index)"
-                          >
-                            删除
+                          v-if="!readonly"
+                          type="button"
+                          class="btn btn-ghost btn-xs p-0 min-h-0 h-5 w-5 text-error opacity-0 group-hover:opacity-100 shrink-0 mt-1"
+                          @click="removeArrayItem(fieldKey, index)"
+                          title="删除"
+                        >
+                          ×
                         </button>
                       </div>
-                      <p v-if="getArrayItems(fieldKey).length === 0" class="rounded-lg border border-dashed border-base-200 bg-base-100/50 px-4 py-6 text-center text-xs text-base-content/60">
-                        暂无子项，点击"新增项+"创建新的对象。
-                      </p>
-                    </div>
-                  </Transition>
-                </template>
-              </div>
-            </div>
+                    </template>
+                    <!-- 基础类型元素 -->
+                    <template v-else>
+                      <div class="flex items-center gap-1 py-1 min-h-[28px]">
+                        <span class="text-[10px] text-base-content/40 w-6 shrink-0">[{{ index }}]</span>
+                        <input
+                          v-if="typeof item === 'string'"
+                          :value="item as string"
+                          type="text"
+                          class="input input-bordered input-xs flex-1 h-6"
+                          :disabled="readonly"
+                          @input="(event) => {
+                            const list = [...getArrayItems(fieldKey)];
+                            list[index] = (event.target as HTMLInputElement).value;
+                            localValue[fieldKey] = list;
+                          }"
+                        />
+                        <input
+                          v-else-if="typeof item === 'number'"
+                          :value="item as number"
+                          type="number"
+                          class="input input-bordered input-xs flex-1 h-6"
+                          :disabled="readonly"
+                          @input="(event) => {
+                            const list = [...getArrayItems(fieldKey)];
+                            list[index] = Number((event.target as HTMLInputElement).value);
+                            localValue[fieldKey] = list;
+                          }"
+                        />
+                        <input
+                          v-else-if="typeof item === 'boolean'"
+                          :checked="item as boolean"
+                          type="checkbox"
+                          class="checkbox checkbox-xs"
+                          :disabled="readonly"
+                          @change="(event) => {
+                            const list = [...getArrayItems(fieldKey)];
+                            list[index] = (event.target as HTMLInputElement).checked;
+                            localValue[fieldKey] = list;
+                          }"
+                        />
+                        <button
+                          v-if="!readonly"
+                          type="button"
+                          class="btn btn-ghost btn-xs p-0 min-h-0 h-5 w-5 text-error opacity-0 group-hover:opacity-100 shrink-0"
+                          @click="removeArrayItem(fieldKey, index)"
+                          title="删除"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                  <p v-if="getArrayItems(fieldKey).length === 0" class="text-[10px] text-base-content/40 py-1 pl-6">
+                    空列表
+                  </p>
+                </div>
+              </Transition>
+            </template>
           </div>
-        </section>
+        </div>
       </Transition>
     </div>
   </div>
-
-
 </template>

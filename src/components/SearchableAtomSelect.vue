@@ -5,6 +5,7 @@ import type { ClassRegistry } from '../types/MetaDefine'
 export type SearchableSelectOption = {
   label: string
   value: string
+  funcName?: string
 }
 
 const props = withDefaults(
@@ -31,10 +32,6 @@ const isOpen = ref(false)
 const searchTerm = ref('')
 const hoveredValue = ref<string>('')
 const tooltipRef = ref<HTMLElement | null>(null)
-const tooltipPos = reactive({
-  x: 0,
-  y: 0
-})
 const keyboardState = reactive({
   activeIndex: -1
 })
@@ -48,16 +45,87 @@ const normalizedOptions = computed<SearchableSelectOption[]>(() => {
   return [{ label: emptyLabel, value: '' }, ...baseOptions]
 })
 
-const filteredOptions = computed<SearchableSelectOption[]>(() => {
-  const term = searchTerm.value.trim().toLowerCase()
-  if (!term) {
-    return normalizedOptions.value
+// 连续子串匹配：查找 pattern 在 text 中的位置，返回匹配的字符索引
+function substringMatch(text: string, pattern: string): number[] | null {
+  const idx = text.indexOf(pattern)
+  if (idx === -1) return null
+  const indices: number[] = []
+  for (let i = 0; i < pattern.length; i++) {
+    indices.push(idx + i)
   }
-  return normalizedOptions.value.filter((option) => {
+  return indices
+}
+
+// 多关键词匹配：按空格分词，每个关键词都要作为连续子串匹配，返回所有匹配的字符索引
+function multiKeywordMatch(text: string, keywords: string[]): number[] | null {
+  const allIndices = new Set<number>()
+  for (const keyword of keywords) {
+    if (!keyword) continue
+    const indices = substringMatch(text, keyword)
+    if (!indices) return null
+    indices.forEach(i => allIndices.add(i))
+  }
+  return allIndices.size > 0 ? Array.from(allIndices).sort((a, b) => a - b) : []
+}
+
+// 高亮文本：根据匹配索引生成带高亮的 HTML
+function highlightText(text: string, indices: number[]): string {
+  if (!indices.length) return text
+  const indexSet = new Set(indices)
+  let result = ''
+  for (let i = 0; i < text.length; i++) {
+    if (indexSet.has(i)) {
+      result += `<span class="text-primary font-semibold">${text[i]}</span>`
+    } else {
+      result += text[i]
+    }
+  }
+  return result
+}
+
+const searchKeywords = computed(() => {
+  return searchTerm.value.trim().toLowerCase().split(/\s+/).filter(Boolean)
+})
+
+const filteredOptions = computed<Array<SearchableSelectOption & { highlightedLabel: string }>>(() => {
+  const keywords = searchKeywords.value
+  if (!keywords.length) {
+    return normalizedOptions.value.map(opt => ({
+      ...opt,
+      highlightedLabel: opt.label + (opt.funcName ? `_${opt.funcName}` : '')
+    }))
+  }
+  
+  const results: Array<SearchableSelectOption & { highlightedLabel: string }> = []
+  
+  for (const option of normalizedOptions.value) {
     const label = option.label?.toLowerCase() ?? ''
     const value = option.value?.toLowerCase() ?? ''
-    return label.includes(term) || value.includes(term)
-  })
+    const funcName = option.funcName?.toLowerCase() ?? ''
+    const fullText = label + (funcName ? `_${funcName}` : '')
+    const fullTextLower = fullText.toLowerCase()
+    
+    // 尝试在完整文本中匹配
+    const fullIndices = multiKeywordMatch(fullTextLower, keywords)
+    if (fullIndices) {
+      results.push({
+        ...option,
+        highlightedLabel: highlightText(fullText, fullIndices)
+      })
+      continue
+    }
+    
+    // 尝试在 value 中匹配
+    const valueIndices = multiKeywordMatch(value, keywords)
+    if (valueIndices) {
+      results.push({
+        ...option,
+        highlightedLabel: fullText // value 匹配时不高亮显示文本
+      })
+    }
+  }
+  
+  return results
 })
 
 const selectedOption = computed(() => {
@@ -83,7 +151,8 @@ function openDropdown() {
 
 function closeDropdown() {
   isOpen.value = false
-  searchTerm.value = selectedOption.value?.label ?? ''
+  const opt = selectedOption.value
+  searchTerm.value = opt ? (opt.funcName ? `${opt.label}_${opt.funcName}` : opt.label) : ''
   hoveredValue.value = ''
   resetKeyboardNavigation()
 }
@@ -119,8 +188,8 @@ function clearHoveredValue() {
 function updateTooltipPosition(event: MouseEvent) {
   if (!tooltipRef.value) return
   const offset = 10
-  tooltipPos.x = event.clientX + offset
-  tooltipPos.y = event.clientY + offset
+  tooltipRef.value.style.left = `${event.clientX + offset}px`
+  tooltipRef.value.style.top = `${event.clientY + offset}px`
 }
 
 function handleKeydown(event: KeyboardEvent) {
@@ -187,7 +256,8 @@ function syncSearchTermFromValue() {
   if (isOpen.value) {
     return
   }
-  searchTerm.value = selectedOption.value?.label ?? ''
+  const opt = selectedOption.value
+  searchTerm.value = opt ? (opt.funcName ? `${opt.label}_${opt.funcName}` : opt.label) : ''
 }
 
 watch(
@@ -228,7 +298,7 @@ onBeforeUnmount(() => {
 <template>
   <div ref="rootRef" class="relative w-full">
     <div
-      class="input input-bordered flex w-full cursor-text items-center gap-2"
+      class="input input-bordered input-sm flex w-full cursor-text items-center gap-2"
       :class="{ 'opacity-50 pointer-events-none': disabled }"
       @click="handleInputFocus"
     >
@@ -278,25 +348,21 @@ onBeforeUnmount(() => {
             @mouseleave="clearHoveredValue"
             @mousedown.prevent="selectOption(option.value)"
           >
-            <span>{{ option.label }}</span>
+            <span v-html="option.highlightedLabel"></span>
           </li>
         </ul>
       </div>
     </Transition>
 
     <!-- Floating Tooltip -->
-    <Transition name="fade">
+    <Teleport to="body">
       <div
         v-if="hoveredDescription"
         ref="tooltipRef"
         class="fixed z-[9999] max-w-xs rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-[12px] leading-relaxed text-base-content shadow-lg pointer-events-none"
-        :style="{
-          left: `${tooltipPos.x}px`,
-          top: `${tooltipPos.y}px`
-        }"
       >
         {{ hoveredDescription }}
       </div>
-    </Transition>
+    </Teleport>
   </div>
 </template>

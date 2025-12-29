@@ -1,0 +1,10 @@
+---
+description: 
+alwaysApply: false
+enabled: true
+updatedAt: 2025-12-27T03:23:24.279Z
+provider: 
+---
+
+1.先判断git中是否有ChangesList，根据ChangesList生成提交日志描述
+2.MHAtomExcelTool\config\changelog.json更新日志刷新，将今天git提交日志作为更新日志

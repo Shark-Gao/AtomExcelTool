@@ -110,7 +110,7 @@ const copyAllErrors = async () => {
       copyMessage.value = null
     }, 2000)
   } catch (error) {
-    console.error('复制失败:', error)
+    console.error('Copy failed:', error)
     copyMessage.value = '复制失败'
   }
 }

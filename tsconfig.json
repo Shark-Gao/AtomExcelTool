@@ -23,7 +23,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
-  "include": ["src/electron/**/*", "src/types/**/*"],
+  "include": ["src/electron/**/*", "src/types/**/*", "src/env.d.ts"],
   "references": [
     {"path": "./tsconfig.node.json"}
   ]

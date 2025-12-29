@@ -559,25 +559,23 @@
         "ParameterList": [],
         "AtomType": 14
     },
-    "ActionGetNearestMonsterInRadio": {
-        "FunctionName": "GetNearestMonsterInRadio",
-        "AtomClassName": "ActionGetNearestMonsterInRadio",
-        "ParameterList": [
-            {
-                "ParentAtomClassName": "ActionGetNearestMonsterInRadio",
-                "OrdinalIndex": 0,
-                "bLastParameter": true,
-                "bOptional": false,
-                "bRest": false,
-                "ParameterName": "Radio",
-                "AtomType": {
-                    "AtomType": 11
-                },
-                "TypeString": "NumberValueConstDelegate",
-                "TypeNodeText": "NumberValueConstDelegate"
-            }
-        ],
+    "ActionGetNearestAggroMonster": {
+        "FunctionName": "GetNearestAggroMonster",
+        "AtomClassName": "ActionGetNearestAggroMonster",
+        "ParameterList": [],
         "AtomType": 14
+    },
+    "BoolValueAnyAggroMonsterInTumble": {
+        "FunctionName": "AnyAggroMonsterInTumble",
+        "AtomClassName": "BoolValueAnyAggroMonsterInTumble",
+        "ParameterList": [],
+        "AtomType": 12
+    },
+    "AggroMonsterTumbleEventDelegate": {
+        "FunctionName": "OnAggroMonsterTumble",
+        "AtomClassName": "AggroMonsterTumbleEventDelegate",
+        "ParameterList": [],
+        "AtomType": 15
     },
     "ActorValueCurrentlyVisitedDelegate": {
         "FunctionName": "GetCurrentlyVisitedActor",
@@ -1230,10 +1228,18 @@
                 "bRest": false,
                 "ParameterName": "bInterruptSleepStatusEffect",
                 "AtomType": {
-                    "AtomType": 10
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 10
+                        },
+                        {
+                            "AtomType": 12
+                        }
+                    ]
                 },
-                "TypeString": "true",
-                "TypeNodeText": ""
+                "TypeString": "boolean | BoolValueConstDelegate",
+                "TypeNodeText": "boolean | BoolValueConstDelegate"
             },
             {
                 "ParentAtomClassName": "CustomActionDealDamageDelegate",
@@ -1655,6 +1661,10 @@
                     "UnionTypes": [
                         {
                             "AtomType": 5,
+                            "SpecificString": "__typeKeyDoNoAccess"
+                        },
+                        {
+                            "AtomType": 5,
                             "SpecificString": "Cut"
                         },
                         {
@@ -1676,14 +1686,10 @@
                         {
                             "AtomType": 5,
                             "SpecificString": "EMHPhysicType_MAX"
-                        },
-                        {
-                            "AtomType": 5,
-                            "SpecificString": "__typeKeyDoNoAccess"
                         }
                     ]
                 },
-                "TypeString": "\"Cut\" | \"Blunt\" | \"Ammo\" | \"Blast\" | \"None\" | \"EMHPhysicType_MAX\" | \"__typeKeyDoNoAccess\"",
+                "TypeString": "\"__typeKeyDoNoAccess\" | \"Cut\" | \"Blunt\" | \"Ammo\" | \"Blast\" | \"None\" | \"EMHPhysicType_MAX\"",
                 "TypeNodeText": "keyof typeof ue.EMHPhysicType"
             }
         ],
@@ -2251,7 +2257,7 @@
                 "ParentAtomClassName": "NumberValueBuffStack",
                 "OrdinalIndex": 2,
                 "bLastParameter": true,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "BuffSource",
                 "AtomType": {
@@ -2769,10 +2775,18 @@
                 "bRest": false,
                 "ParameterName": "LeftAttr",
                 "AtomType": {
-                    "AtomType": 8
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 8
+                        },
+                        {
+                            "AtomType": 11
+                        }
+                    ]
                 },
-                "TypeString": "string",
-                "TypeNodeText": "string"
+                "TypeString": "string | NumberValueConstDelegate",
+                "TypeNodeText": "string | NumberValueConstDelegate"
             },
             {
                 "ParentAtomClassName": "BoolValueAnyActorAttributeLowerThan",
@@ -2795,10 +2809,18 @@
                 "bRest": false,
                 "ParameterName": "RightAttr",
                 "AtomType": {
-                    "AtomType": 8
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 8
+                        },
+                        {
+                            "AtomType": 11
+                        }
+                    ]
                 },
-                "TypeString": "string",
-                "TypeNodeText": "string"
+                "TypeString": "string | NumberValueConstDelegate",
+                "TypeNodeText": "string | NumberValueConstDelegate"
             },
             {
                 "ParentAtomClassName": "BoolValueAnyActorAttributeLowerThan",
@@ -4101,6 +4123,47 @@
         ],
         "AtomType": 13
     },
+    "ActionDecreaseBuffStackByCount": {
+        "FunctionName": "DecreaseBuffStackByCount",
+        "AtomClassName": "ActionDecreaseBuffStackByCount",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "ActionDecreaseBuffStackByCount",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "BuffId",
+                "AtomType": {
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 8
+                        },
+                        {
+                            "AtomType": 11
+                        }
+                    ]
+                },
+                "TypeString": "string | NumberValueConstDelegate",
+                "TypeNodeText": "string | NumberValueConstDelegate"
+            },
+            {
+                "ParentAtomClassName": "ActionDecreaseBuffStackByCount",
+                "OrdinalIndex": 1,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "CountDelegate",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueConstDelegate",
+                "TypeNodeText": "NumberValueConstDelegate"
+            }
+        ],
+        "AtomType": 13
+    },
     "NumberValueMaxEx": {
         "FunctionName": "MaxEx",
         "AtomClassName": "NumberValueMaxEx",
@@ -4742,10 +4805,18 @@
                         {
                             "AtomType": 5,
                             "SpecificString": "PostFinish"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "EMBuffStateStage_MAX"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "__typeKeyDoNoAccess"
                         }
                     ]
                 },
-                "TypeString": "\"NotStart\" | \"Accumulate\" | \"PreEffect\" | \"InEffect\" | \"WaitingFinish\" | \"PostFinish\"",
+                "TypeString": "\"NotStart\" | \"Accumulate\" | \"PreEffect\" | \"InEffect\" | \"WaitingFinish\" | \"PostFinish\" | \"EMBuffStateStage_MAX\" | \"__typeKeyDoNoAccess\"",
                 "TypeNodeText": "keyof typeof EMBuffStateStage"
             }
         ],
@@ -5225,6 +5296,26 @@
         ],
         "AtomType": 11
     },
+    "NumberValueAAIGetAdventurerAITypeDelegate": {
+        "FunctionName": "AAIGetAdventurerAIType",
+        "AtomClassName": "NumberValueAAIGetAdventurerAITypeDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "NumberValueAAIGetAdventurerAITypeDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "OfWhom",
+                "AtomType": {
+                    "AtomType": 14
+                },
+                "TypeString": "ActorValueDelegate",
+                "TypeNodeText": "ActorValueDelegate"
+            }
+        ],
+        "AtomType": 11
+    },
     "NumberValueAAIToughnessZeroRemainTime": {
         "FunctionName": "AAIToughnessZeroRemainTime",
         "AtomClassName": "NumberValueAAIToughnessZeroRemainTime",
@@ -5439,6 +5530,12 @@
             }
         ],
         "AtomType": 11
+    },
+    "BoolValueCanAttackAdvanceFurinkazan": {
+        "FunctionName": "CanAttackAdvanceFurinkazan",
+        "AtomClassName": "BoolValueCanAttackAdvanceFurinkazan",
+        "ParameterList": [],
+        "AtomType": 12
     },
     "NumberValueGetHbgCurrentBulletType": {
         "FunctionName": "GetHbgCurrentBulletType",
@@ -5784,6 +5881,186 @@
                 },
                 "TypeString": "NumberValueDelegate",
                 "TypeNodeText": "NumberValueDelegate"
+            }
+        ],
+        "AtomType": 16
+    },
+    "AdventurerSkillDamageBuffDelegate": {
+        "FunctionName": "AdventurerSkillDamageBuff",
+        "AtomClassName": "AdventurerSkillDamageBuffDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "AdventurerSkillDamageBuffDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Skill",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            },
+            {
+                "ParentAtomClassName": "AdventurerSkillDamageBuffDelegate",
+                "OrdinalIndex": 1,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Num",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueDelegate",
+                "TypeNodeText": "NumberValueDelegate"
+            }
+        ],
+        "AtomType": 16
+    },
+    "AdventurerDamageDealingBuff": {
+        "FunctionName": "AdventurerDamageDealingBuff",
+        "AtomClassName": "AdventurerDamageDealingBuff",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "AdventurerDamageDealingBuff",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Source",
+                "AtomType": {
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Event"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Adventurer"
+                        }
+                    ]
+                },
+                "TypeString": "\"Event\" | \"Adventurer\"",
+                "TypeNodeText": "'Event' | 'Adventurer'"
+            },
+            {
+                "ParentAtomClassName": "AdventurerDamageDealingBuff",
+                "OrdinalIndex": 1,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Num",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueDelegate",
+                "TypeNodeText": "NumberValueDelegate"
+            },
+            {
+                "ParentAtomClassName": "AdventurerDamageDealingBuff",
+                "OrdinalIndex": 2,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "bOmniElement",
+                "AtomType": {
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 10
+                        },
+                        {
+                            "AtomType": 12
+                        }
+                    ]
+                },
+                "TypeString": "boolean | BoolValueConstDelegate",
+                "TypeNodeText": "boolean | BoolValueConstDelegate"
+            },
+            {
+                "ParentAtomClassName": "AdventurerDamageDealingBuff",
+                "OrdinalIndex": 3,
+                "bLastParameter": true,
+                "bOptional": true,
+                "bRest": false,
+                "ParameterName": "ElementType",
+                "AtomType": {
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "__typeKeyDoNoAccess"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Blast"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "None"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Poison"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "DeadlyPoison"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Paralysis"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Sleep"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Stun"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Bleeding"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Effluvium"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Exhaust"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Fire"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Water"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Thunder"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Ice"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "Dragon"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "EMHElementType_MAX"
+                        }
+                    ]
+                },
+                "TypeString": "\"__typeKeyDoNoAccess\" | \"Blast\" | \"None\" | \"Poison\" | \"DeadlyPoison\" | \"Paralysis\" | \"Sleep\" | \"Stun\" | \"Bleeding\" | \"Effluvium\" | \"Exhaust\" | \"Fire\" | \"Water\" | \"Thunder\" | \"Ice\" | \"Dragon\" | \"EMHElementType_MAX\"",
+                "TypeNodeText": "keyof typeof ue.EMHElementType"
             }
         ],
         "AtomType": 16
@@ -6147,6 +6424,39 @@
         ],
         "AtomType": 12
     },
+    "BoolValueHitPointHasSummonNearBy": {
+        "FunctionName": "HitPointHasSummonNearBy",
+        "AtomClassName": "BoolValueHitPointHasSummonNearBy",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "BoolValueHitPointHasSummonNearBy",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "InSummonConfig",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueConstDelegate",
+                "TypeNodeText": "NumberValueConstDelegate"
+            },
+            {
+                "ParentAtomClassName": "BoolValueHitPointHasSummonNearBy",
+                "OrdinalIndex": 1,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "InDistance",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueConstDelegate",
+                "TypeNodeText": "NumberValueConstDelegate"
+            }
+        ],
+        "AtomType": 12
+    },
     "ActionRefreshBuffFromMeDelegate": {
         "FunctionName": "RefreshBuffFromMe",
         "AtomClassName": "ActionRefreshBuffFromMeDelegate",
@@ -6267,10 +6577,18 @@
                 "bRest": false,
                 "ParameterName": "Dimension",
                 "AtomType": {
-                    "AtomType": 9
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 9
+                        },
+                        {
+                            "AtomType": 11
+                        }
+                    ]
                 },
-                "TypeString": "number",
-                "TypeNodeText": "number"
+                "TypeString": "number | NumberValueConstDelegate",
+                "TypeNodeText": "number | NumberValueConstDelegate"
             }
         ],
         "AtomType": 11
@@ -6606,7 +6924,7 @@
             {
                 "ParentAtomClassName": "EventHealthReductionWithinAPeriodOfTimeDelegate",
                 "OrdinalIndex": 1,
-                "bLastParameter": true,
+                "bLastParameter": false,
                 "bOptional": false,
                 "bRest": false,
                 "ParameterName": "TimeLimit",
@@ -6615,6 +6933,19 @@
                 },
                 "TypeString": "NumberValueConstDelegate",
                 "TypeNodeText": "NumberValueConstDelegate"
+            },
+            {
+                "ParentAtomClassName": "EventHealthReductionWithinAPeriodOfTimeDelegate",
+                "OrdinalIndex": 2,
+                "bLastParameter": true,
+                "bOptional": true,
+                "bRest": false,
+                "ParameterName": "SelfLimited",
+                "AtomType": {
+                    "AtomType": 12
+                },
+                "TypeString": "BoolValueConstDelegate",
+                "TypeNodeText": "BoolValueConstDelegate"
             }
         ],
         "AtomType": 15
@@ -6851,11 +7182,19 @@
                         },
                         {
                             "AtomType": 5,
+                            "SpecificString": "GreatSwordChargingTimeEx"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "CombineSkillEnerge"
+                        },
+                        {
+                            "AtomType": 5,
                             "SpecificString": "ECombatResource_MAX"
                         }
                     ]
                 },
-                "TypeString": "\"__typeKeyDoNoAccess\" | \"Stamina\" | \"LanceEnergy\" | \"JetGliderEnergy\" | \"GreatSwordChargingTime\" | \"GreatSwordEnergy\" | \"BowExtraEnergy\" | \"CommonCombatEnergy\" | \"Renki\" | ... 4 more ... | \"ECombatResource_MAX\"",
+                "TypeString": "\"__typeKeyDoNoAccess\" | \"Stamina\" | \"LanceEnergy\" | \"JetGliderEnergy\" | \"GreatSwordChargingTime\" | \"GreatSwordEnergy\" | \"BowExtraEnergy\" | \"CommonCombatEnergy\" | \"Renki\" | ... 6 more ... | \"ECombatResource_MAX\"",
                 "TypeNodeText": "keyof typeof ue.ECombatResource"
             },
             {
@@ -6942,11 +7281,19 @@
                         },
                         {
                             "AtomType": 5,
+                            "SpecificString": "GreatSwordChargingTimeEx"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "CombineSkillEnerge"
+                        },
+                        {
+                            "AtomType": 5,
                             "SpecificString": "ECombatResource_MAX"
                         }
                     ]
                 },
-                "TypeString": "\"__typeKeyDoNoAccess\" | \"Stamina\" | \"LanceEnergy\" | \"JetGliderEnergy\" | \"GreatSwordChargingTime\" | \"GreatSwordEnergy\" | \"BowExtraEnergy\" | \"CommonCombatEnergy\" | \"Renki\" | ... 4 more ... | \"ECombatResource_MAX\"",
+                "TypeString": "\"__typeKeyDoNoAccess\" | \"Stamina\" | \"LanceEnergy\" | \"JetGliderEnergy\" | \"GreatSwordChargingTime\" | \"GreatSwordEnergy\" | \"BowExtraEnergy\" | \"CommonCombatEnergy\" | \"Renki\" | ... 6 more ... | \"ECombatResource_MAX\"",
                 "TypeNodeText": "keyof typeof ue.ECombatResource"
             },
             {
@@ -7135,11 +7482,19 @@
                         },
                         {
                             "AtomType": 5,
+                            "SpecificString": "GreatSwordChargingTimeEx"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "CombineSkillEnerge"
+                        },
+                        {
+                            "AtomType": 5,
                             "SpecificString": "ECombatResource_MAX"
                         }
                     ]
                 },
-                "TypeString": "\"__typeKeyDoNoAccess\" | \"Stamina\" | \"LanceEnergy\" | \"JetGliderEnergy\" | \"GreatSwordChargingTime\" | \"GreatSwordEnergy\" | \"BowExtraEnergy\" | \"CommonCombatEnergy\" | \"Renki\" | ... 4 more ... | \"ECombatResource_MAX\"",
+                "TypeString": "\"__typeKeyDoNoAccess\" | \"Stamina\" | \"LanceEnergy\" | \"JetGliderEnergy\" | \"GreatSwordChargingTime\" | \"GreatSwordEnergy\" | \"BowExtraEnergy\" | \"CommonCombatEnergy\" | \"Renki\" | ... 6 more ... | \"ECombatResource_MAX\"",
                 "TypeNodeText": "keyof typeof ue.ECombatResource"
             }
         ],
@@ -7235,6 +7590,26 @@
         "FunctionName": "CoopCombatPursuitSkillSwitch",
         "AtomClassName": "CoopCombatPursuitSkillSwitchTaskDelegate",
         "ParameterList": [],
+        "AtomType": 16
+    },
+    "MHTsForbidAutoRechargeCoopCombatEnergeDelegate": {
+        "FunctionName": "ForbidAutoRechargeCoopCombatEnerge",
+        "AtomClassName": "MHTsForbidAutoRechargeCoopCombatEnergeDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "MHTsForbidAutoRechargeCoopCombatEnergeDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "ForbidPercent",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueConstDelegate",
+                "TypeNodeText": "NumberValueConstDelegate"
+            }
+        ],
         "AtomType": 16
     },
     "DuyaoniaoSpecialShootTaskDelegate": {
@@ -7759,6 +8134,12 @@
                 "TypeNodeText": "BoolValueConstDelegate"
             }
         ],
+        "AtomType": 15
+    },
+    "EventOnPlayerBeHit": {
+        "FunctionName": "PlayerBeHit",
+        "AtomClassName": "EventOnPlayerBeHit",
+        "ParameterList": [],
         "AtomType": 15
     },
     "ActionSystemSetAttributeDelegate": {
@@ -8473,11 +8854,19 @@
                         },
                         {
                             "AtomType": 5,
+                            "SpecificString": "GreatSwordChargingTimeEx"
+                        },
+                        {
+                            "AtomType": 5,
+                            "SpecificString": "CombineSkillEnerge"
+                        },
+                        {
+                            "AtomType": 5,
                             "SpecificString": "ECombatResource_MAX"
                         }
                     ]
                 },
-                "TypeString": "\"__typeKeyDoNoAccess\" | \"Stamina\" | \"LanceEnergy\" | \"JetGliderEnergy\" | \"GreatSwordChargingTime\" | \"GreatSwordEnergy\" | \"BowExtraEnergy\" | \"CommonCombatEnergy\" | \"Renki\" | ... 4 more ... | \"ECombatResource_MAX\"",
+                "TypeString": "\"__typeKeyDoNoAccess\" | \"Stamina\" | \"LanceEnergy\" | \"JetGliderEnergy\" | \"GreatSwordChargingTime\" | \"GreatSwordEnergy\" | \"BowExtraEnergy\" | \"CommonCombatEnergy\" | \"Renki\" | ... 6 more ... | \"ECombatResource_MAX\"",
                 "TypeNodeText": "keyof typeof ue.ECombatResource"
             },
             {
@@ -9468,29 +9857,16 @@
                 "bLastParameter": false,
                 "bOptional": false,
                 "bRest": false,
-                "ParameterName": "MeshSlotNames",
+                "ParameterName": "MeshCategory",
                 "AtomType": {
-                    "AtomType": 8
+                    "AtomType": 11
                 },
-                "TypeString": "string",
-                "TypeNodeText": "string"
+                "TypeString": "NumberValueConstDelegate",
+                "TypeNodeText": "NumberValueConstDelegate"
             },
             {
                 "ParentAtomClassName": "MeshGlowExTaskDelegate",
                 "OrdinalIndex": 1,
-                "bLastParameter": false,
-                "bOptional": false,
-                "bRest": false,
-                "ParameterName": "MaterialSlotName",
-                "AtomType": {
-                    "AtomType": 8
-                },
-                "TypeString": "string",
-                "TypeNodeText": "string"
-            },
-            {
-                "ParentAtomClassName": "MeshGlowExTaskDelegate",
-                "OrdinalIndex": 2,
                 "bLastParameter": false,
                 "bOptional": false,
                 "bRest": false,
@@ -9511,11 +9887,32 @@
             },
             {
                 "ParentAtomClassName": "MeshGlowExTaskDelegate",
-                "OrdinalIndex": 3,
+                "OrdinalIndex": 2,
                 "bLastParameter": false,
                 "bOptional": false,
                 "bRest": false,
                 "ParameterName": "OutlineEmissiveIntensity",
+                "AtomType": {
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 9
+                        },
+                        {
+                            "AtomType": 11
+                        }
+                    ]
+                },
+                "TypeString": "number | NumberValueConstDelegate",
+                "TypeNodeText": "number | NumberValueConstDelegate"
+            },
+            {
+                "ParentAtomClassName": "MeshGlowExTaskDelegate",
+                "OrdinalIndex": 3,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "OutlineEmissiveFresnel",
                 "AtomType": {
                     "AtomType": 2,
                     "UnionTypes": [
@@ -9584,6 +9981,39 @@
                 },
                 "TypeString": "number | NumberValueConstDelegate",
                 "TypeNodeText": "number | NumberValueConstDelegate"
+            }
+        ],
+        "AtomType": 16
+    },
+    "MeshMaterialChangeTaskDelegate": {
+        "FunctionName": "MeshMaterialChange",
+        "AtomClassName": "MeshMaterialChangeTaskDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "MeshMaterialChangeTaskDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "MeshMaterialDataAsset",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            },
+            {
+                "ParentAtomClassName": "MeshMaterialChangeTaskDelegate",
+                "OrdinalIndex": 1,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "MeshCategory",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueConstDelegate",
+                "TypeNodeText": "NumberValueConstDelegate"
             }
         ],
         "AtomType": 16
@@ -9984,6 +10414,635 @@
         ],
         "AtomType": 16
     },
+    "GetMonsterCurStiffnessDuration_NumberValueDelegate": {
+        "FunctionName": "GetMonsterCurStiffnessDuration",
+        "AtomClassName": "GetMonsterCurStiffnessDuration_NumberValueDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "GetMonsterCurStiffnessDuration_NumberValueDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "MonsterActor",
+                "AtomType": {
+                    "AtomType": 14
+                },
+                "TypeString": "ActorValueDelegate",
+                "TypeNodeText": "ActorValueDelegate"
+            }
+        ],
+        "AtomType": 11
+    },
+    "GetTargetActorByMonster_ActorValueDelegate": {
+        "FunctionName": "GetTargetActorByMonster",
+        "AtomClassName": "GetTargetActorByMonster_ActorValueDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "GetTargetActorByMonster_ActorValueDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "MonsterActor",
+                "AtomType": {
+                    "AtomType": 14
+                },
+                "TypeString": "ActorValueDelegate",
+                "TypeNodeText": "ActorValueDelegate"
+            }
+        ],
+        "AtomType": 14
+    },
+    "CheckMonsterBuffState_BoolValueDelegate": {
+        "FunctionName": "CheckMonsterBuffState",
+        "AtomClassName": "CheckMonsterBuffState_BoolValueDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "CheckMonsterBuffState_BoolValueDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "MonsterActor",
+                "AtomType": {
+                    "AtomType": 14
+                },
+                "TypeString": "ActorValueDelegate",
+                "TypeNodeText": "ActorValueDelegate"
+            },
+            {
+                "ParentAtomClassName": "CheckMonsterBuffState_BoolValueDelegate",
+                "OrdinalIndex": 1,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "BuffState",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            }
+        ],
+        "AtomType": 12
+    },
+    "RGMonsterCrazyLockNormalParts_ActionDelegate": {
+        "FunctionName": "RGMonsterCrazyLockNormalParts",
+        "AtomClassName": "RGMonsterCrazyLockNormalParts_ActionDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "RGMonsterCrazyLockNormalParts_ActionDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "IsLockPartDes",
+                "AtomType": {
+                    "AtomType": 12
+                },
+                "TypeString": "BoolValueDelegate",
+                "TypeNodeText": "BoolValueDelegate"
+            }
+        ],
+        "AtomType": 13
+    },
+    "RemoveEMAffixesTrigger_ActionDelegate": {
+        "FunctionName": "RemoveEMAffixesTrigger",
+        "AtomClassName": "RemoveEMAffixesTrigger_ActionDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "RemoveEMAffixesTrigger_ActionDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "RowName",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            }
+        ],
+        "AtomType": 13
+    },
+    "StopTimerAction_ActionDelegate": {
+        "FunctionName": "StopTimerAction",
+        "AtomClassName": "StopTimerAction_ActionDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "StopTimerAction_ActionDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "HandleName",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            }
+        ],
+        "AtomType": 13
+    },
+    "CheckCountDown_ActionDelegate": {
+        "FunctionName": "CheckCountDown",
+        "AtomClassName": "CheckCountDown_ActionDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "CheckCountDown_ActionDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": true,
+                "bRest": false,
+                "ParameterName": "CountDownTime",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueDelegate",
+                "TypeNodeText": "NumberValueDelegate"
+            },
+            {
+                "ParentAtomClassName": "CheckCountDown_ActionDelegate",
+                "OrdinalIndex": 1,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "TriggerAction",
+                "AtomType": {
+                    "AtomType": 13
+                },
+                "TypeString": "ActionDelegate",
+                "TypeNodeText": "ActionDelegate"
+            },
+            {
+                "ParentAtomClassName": "CheckCountDown_ActionDelegate",
+                "OrdinalIndex": 2,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "TimeHandleName",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            }
+        ],
+        "AtomType": 13
+    },
+    "MonsterReceivedDamageMoreThan_BoolValueDelegate": {
+        "FunctionName": "MonsterReceivedDamageMoreThan",
+        "AtomClassName": "MonsterReceivedDamageMoreThan_BoolValueDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "MonsterReceivedDamageMoreThan_BoolValueDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Threshold",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueDelegate",
+                "TypeNodeText": "NumberValueDelegate"
+            }
+        ],
+        "AtomType": 12
+    },
+    "BoolValueMonsterHealthPercentLowerThan_BoolValueDelegate": {
+        "FunctionName": "MonsterHealthPercentLowerThan",
+        "AtomClassName": "BoolValueMonsterHealthPercentLowerThan_BoolValueDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "BoolValueMonsterHealthPercentLowerThan_BoolValueDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Threshold",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueDelegate",
+                "TypeNodeText": "NumberValueDelegate"
+            }
+        ],
+        "AtomType": 12
+    },
+    "ApplyEMAffixesTrigger_ActionDelegate": {
+        "FunctionName": "ApplyEMAffixesTrigger",
+        "AtomClassName": "ApplyEMAffixesTrigger_ActionDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "ApplyEMAffixesTrigger_ActionDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "RowName",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            }
+        ],
+        "AtomType": 13
+    },
+    "ForceEnterRGCrazy_ActionDelegate": {
+        "FunctionName": "ForceEnterRGCrazy",
+        "AtomClassName": "ForceEnterRGCrazy_ActionDelegate",
+        "ParameterList": [],
+        "AtomType": 13
+    },
+    "CheckCharacterAnimBpBoolValueState_BoolValueDelegate": {
+        "FunctionName": "CheckCharacterAnimBpBoolValueState",
+        "AtomClassName": "CheckCharacterAnimBpBoolValueState_BoolValueDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "CheckCharacterAnimBpBoolValueState_BoolValueDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "BoolValueName",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            },
+            {
+                "ParentAtomClassName": "CheckCharacterAnimBpBoolValueState_BoolValueDelegate",
+                "OrdinalIndex": 1,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "bUseforCommonAnimInstace",
+                "AtomType": {
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 10
+                        },
+                        {
+                            "AtomType": 12
+                        }
+                    ]
+                },
+                "TypeString": "boolean | BoolValueConstDelegate",
+                "TypeNodeText": "boolean | BoolValueConstDelegate"
+            },
+            {
+                "ParentAtomClassName": "CheckCharacterAnimBpBoolValueState_BoolValueDelegate",
+                "OrdinalIndex": 2,
+                "bLastParameter": true,
+                "bOptional": true,
+                "bRest": false,
+                "ParameterName": "MeshCompName",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            }
+        ],
+        "AtomType": 12
+    },
+    "MathFloor_NumberValueDelegate": {
+        "FunctionName": "MathFloor",
+        "AtomClassName": "MathFloor_NumberValueDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "MathFloor_NumberValueDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Value",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueDelegate",
+                "TypeNodeText": "NumberValueDelegate"
+            }
+        ],
+        "AtomType": 11
+    },
+    "GetWeaponResourceID_NumberValueDelegate": {
+        "FunctionName": "GetWeaponResourceID",
+        "AtomClassName": "GetWeaponResourceID_NumberValueDelegate",
+        "ParameterList": [],
+        "AtomType": 11
+    },
+    "ChangeActorNumberNamedVariableTask_TaskDelegate": {
+        "FunctionName": "ChangeActorNamedVariableByNumber",
+        "AtomClassName": "ChangeActorNumberNamedVariableTask_TaskDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "ChangeActorNumberNamedVariableTask_TaskDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "NamedVariableName",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            },
+            {
+                "ParentAtomClassName": "ChangeActorNumberNamedVariableTask_TaskDelegate",
+                "OrdinalIndex": 1,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Value",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueDelegate",
+                "TypeNodeText": "NumberValueDelegate"
+            },
+            {
+                "ParentAtomClassName": "ChangeActorNumberNamedVariableTask_TaskDelegate",
+                "OrdinalIndex": 2,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "IsAdd",
+                "AtomType": {
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 10
+                        },
+                        {
+                            "AtomType": 12
+                        }
+                    ]
+                },
+                "TypeString": "boolean | BoolValueConstDelegate",
+                "TypeNodeText": "boolean | BoolValueConstDelegate"
+            }
+        ],
+        "AtomType": 16
+    },
+    "GetAverageMonsterPartDamageRatio_NumberValueDelegate": {
+        "FunctionName": "GetAverageMonsterPartDamageRatio",
+        "AtomClassName": "GetAverageMonsterPartDamageRatio_NumberValueDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "GetAverageMonsterPartDamageRatio_NumberValueDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "TableName",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            },
+            {
+                "ParentAtomClassName": "GetAverageMonsterPartDamageRatio_NumberValueDelegate",
+                "OrdinalIndex": 1,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "MonsterPartName",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            },
+            {
+                "ParentAtomClassName": "GetAverageMonsterPartDamageRatio_NumberValueDelegate",
+                "OrdinalIndex": 2,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "AttributeName",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            }
+        ],
+        "AtomType": 11
+    },
+    "GetBreakablePartDesValueRatio_NumberValueDelegate": {
+        "FunctionName": "GetBreakablePartDesValueRatio",
+        "AtomClassName": "GetBreakablePartDesValueRatio_NumberValueDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "GetBreakablePartDesValueRatio_NumberValueDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "TableName",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            },
+            {
+                "ParentAtomClassName": "GetBreakablePartDesValueRatio_NumberValueDelegate",
+                "OrdinalIndex": 1,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "IsCuttable",
+                "AtomType": {
+                    "AtomType": 12
+                },
+                "TypeString": "BoolValueDelegate",
+                "TypeNodeText": "BoolValueDelegate"
+            },
+            {
+                "ParentAtomClassName": "GetBreakablePartDesValueRatio_NumberValueDelegate",
+                "OrdinalIndex": 2,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "MonsterPartName",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            }
+        ],
+        "AtomType": 11
+    },
+    "GetMonsterMaxHealthScalingForFourPlayers_NumberValueDelegate": {
+        "FunctionName": "GetMonsterMaxHealthScalingForFourPlayers",
+        "AtomClassName": "GetMonsterMaxHealthScalingForFourPlayers_NumberValueDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "GetMonsterMaxHealthScalingForFourPlayers_NumberValueDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "MonsterID",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            }
+        ],
+        "AtomType": 11
+    },
+    "OnDrawWeaponState_EventDelegateEx": {
+        "FunctionName": "OnDrawWeaponState",
+        "AtomClassName": "OnDrawWeaponState_EventDelegateEx",
+        "ParameterList": [],
+        "AtomType": 15
+    },
+    "WeaponStateChangeDelegate": {
+        "FunctionName": "OnWeaponStateChange",
+        "AtomClassName": "WeaponStateChangeDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "WeaponStateChangeDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "IsWeaponOpen",
+                "AtomType": {
+                    "AtomType": 12
+                },
+                "TypeString": "BoolValueConstDelegate",
+                "TypeNodeText": "BoolValueConstDelegate"
+            }
+        ],
+        "AtomType": 15
+    },
+    "GetMonsterMaxHealth_NumberValueDelegate": {
+        "FunctionName": "GetMonsterMaxHealth",
+        "AtomClassName": "GetMonsterMaxHealth_NumberValueDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "GetMonsterMaxHealth_NumberValueDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "MonsterEcologicalNicheLevel",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueDelegate",
+                "TypeNodeText": "NumberValueDelegate"
+            }
+        ],
+        "AtomType": 11
+    },
+    "BuildUpUltimateAbilityEnergy_ActionDelegate": {
+        "FunctionName": "BuildUpUltimateAbilityEnergy",
+        "AtomClassName": "BuildUpUltimateAbilityEnergy_ActionDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "BuildUpUltimateAbilityEnergy_ActionDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Who",
+                "AtomType": {
+                    "AtomType": 14
+                },
+                "TypeString": "ActorValueDelegate",
+                "TypeNodeText": "ActorValueDelegate"
+            },
+            {
+                "ParentAtomClassName": "BuildUpUltimateAbilityEnergy_ActionDelegate",
+                "OrdinalIndex": 1,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "BuildUp",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueDelegate",
+                "TypeNodeText": "NumberValueDelegate"
+            },
+            {
+                "ParentAtomClassName": "BuildUpUltimateAbilityEnergy_ActionDelegate",
+                "OrdinalIndex": 2,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "AffectedByEnergyRecharge",
+                "AtomType": {
+                    "AtomType": 12
+                },
+                "TypeString": "BoolValueDelegate",
+                "TypeNodeText": "BoolValueDelegate"
+            }
+        ],
+        "AtomType": 13
+    },
+    "ChangeMonsterStiffnessDuration_ActionDelegate": {
+        "FunctionName": "ChangeMonsterStiffnessDuration",
+        "AtomClassName": "ChangeMonsterStiffnessDuration_ActionDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "ChangeMonsterStiffnessDuration_ActionDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "StiffnessDurationExlRowname",
+                "AtomType": {
+                    "AtomType": 8
+                },
+                "TypeString": "string",
+                "TypeNodeText": "string"
+            },
+            {
+                "ParentAtomClassName": "ChangeMonsterStiffnessDuration_ActionDelegate",
+                "OrdinalIndex": 1,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "DelayTimePercent",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueDelegate",
+                "TypeNodeText": "NumberValueDelegate"
+            },
+            {
+                "ParentAtomClassName": "ChangeMonsterStiffnessDuration_ActionDelegate",
+                "OrdinalIndex": 2,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "DelayTime",
+                "AtomType": {
+                    "AtomType": 11
+                },
+                "TypeString": "NumberValueDelegate",
+                "TypeNodeText": "NumberValueDelegate"
+            }
+        ],
+        "AtomType": 13
+    },
     "CheckCurrentFubenFinishTypeIs_BoolValueDelegate": {
         "FunctionName": "CheckCurrentFubenFinishTypeIs",
         "AtomClassName": "CheckCurrentFubenFinishTypeIs_BoolValueDelegate",
@@ -10325,6 +11384,10 @@
                         {
                             "AtomType": 6,
                             "SpecificNumber": 4
+                        },
+                        {
+                            "AtomType": 6,
+                            "SpecificNumber": 5
                         }
                     ]
                 },
@@ -11065,7 +12128,7 @@
                 "ParentAtomClassName": "CheckConditionTickActionDelegate",
                 "OrdinalIndex": 2,
                 "bLastParameter": false,
-                "bOptional": false,
+                "bOptional": true,
                 "bRest": false,
                 "ParameterName": "CheckFailCondition",
                 "AtomType": {
@@ -11304,6 +12367,42 @@
                 },
                 "TypeString": "BoolValueDelegate",
                 "TypeNodeText": "BoolValueDelegate"
+            }
+        ],
+        "AtomType": 12
+    },
+    "BoolValuesBinaryOperatorOnBoolDelegate": {
+        "FunctionName": "BoolValuesBinaryOperatorOnBool",
+        "AtomClassName": "BoolValuesBinaryOperatorOnBoolDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "BoolValuesBinaryOperatorOnBoolDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "operator",
+                "AtomType": {
+                    "AtomType": 1
+                },
+                "TypeString": "EMHBoolTriggerValueBinaryOperatorOnBool",
+                "TypeNodeText": "ue.EMHBoolTriggerValueBinaryOperatorOnBool"
+            },
+            {
+                "ParentAtomClassName": "BoolValuesBinaryOperatorOnBoolDelegate",
+                "OrdinalIndex": 1,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Conditions",
+                "AtomType": {
+                    "AtomType": 4,
+                    "ElementType": {
+                        "AtomType": 12
+                    }
+                },
+                "TypeString": "BoolValueDelegate[]",
+                "TypeNodeText": "BoolValueDelegate[]"
             }
         ],
         "AtomType": 12

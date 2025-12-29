@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type ComponentPublicInstance } from 'vue'
 import DynamicObjectForm, { type FieldOption } from './components/DynamicObjectForm.vue'
-import SearchableDropdown from './components/SearchableDropdown.vue'
 import SearchableAtomSelect from './components/SearchableAtomSelect.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import Toast from './components/Toast.vue'
@@ -11,7 +10,7 @@ import CheckValidationModal, { type ValidationErrorItem, type ValidationResult }
 import { loadSettingsFromStorage, saveSettingsToStorage } from './utils/settingsStorage'
 import type { ClassRegistry, ClassMetadata as DelegateClassMetadata } from './types/MetaDefine'
 import { normalizeClassInstance } from './utils/ClassNormalizer'
-import DynamicObjectFormInline from './components/DynamicObjectFormInline.vue'
+
 import { initializeAtomicFields, isAtomicFieldAsync, getAllowedBaseClassesForField as getRemoteAllowedBaseClasses } from './utils/AtomicFieldsHelper'
 
 type RowRecord = Record<string, string>
@@ -61,8 +60,36 @@ const isDebugMode = ref(initialSettings.isDebugMode)
 const fieldLayoutDirection = ref<'horizontal' | 'vertical'>(initialSettings.fieldLayoutDirection)
 const activeMainTab = ref<'config' | 'playground'>('config')
 
+// 全局搜索相关
+const globalSearchVisible = ref(false)
+const globalSearchKeyword = ref('')
+const globalSearchInputRef = ref<HTMLInputElement | null>(null)
+const globalSearchMatches = ref<Range[]>([])
+const globalSearchInputMatches = ref<HTMLElement[]>([]) // 输入框匹配
+const globalSearchCurrentIndex = ref(0)
+const globalSearchTotalCount = computed(() => globalSearchMatches.value.length + globalSearchInputMatches.value.length)
+
 // Remark 字段相关
 const remarkFieldName = ref<string | null>(null)
+
+// RowName 右键菜单相关
+const rowContextMenu = reactive<{
+  visible: boolean
+  x: number
+  y: number
+  targetRowName: string | null
+}>({
+  visible: false,
+  x: 0,
+  y: 0,
+  targetRowName: null
+})
+const copiedRowRecord = ref<Record<string, string> | null>(null)
+
+// RowName 重命名相关
+const renamingRowName = ref<string | null>(null)
+const renameInputValue = ref<string>('')
+const renameInputRef = ref<HTMLInputElement | null>(null)
 
 // 进度控件相关
 const isProgressVisible = ref(false)
@@ -73,11 +100,55 @@ const progressType = ref<'saving' | 'loading' | 'processing'>('processing')
 // Skeleton 加载界面相关
 const isSkeletonVisible = ref(true)
 
+// 自动保存相关
+const AUTO_SAVE_INTERVAL = 5 * 60 * 1000// 5分钟
+let autoSaveTimer: ReturnType<typeof setInterval> | null = null
+const lastAutoSaveTime = ref<Date | null>(null)
+const autoSaveEnabled = ref(true)
+
 // 字段宽度控制
 const columnWidths = reactive<Record<string, number>>({})
 const draggedColumnName = ref<string | null>(null)
 const dragStartX = ref(0)
 const dragStartWidth = ref(0)
+const MIN_COLUMN_WIDTH = 200
+const MAX_COLUMN_WIDTH = 800
+const DEFAULT_COLUMN_WIDTH = 300
+
+// 计算文本宽度的辅助函数
+function measureTextWidth(text: string, fontSize: number = 12, fontFamily: string = 'monospace'): number {
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+  if (!context) return 0
+  context.font = `${fontSize}px ${fontFamily}`
+  return context.measureText(text).width
+}
+
+// 计算单个字段的初始宽度
+function calculateColumnWidth(columnName: string, value: string | undefined): number {
+  // 基础宽度：字段名宽度 + padding
+  const columnNameWidth = measureTextWidth(columnName, 14, 'sans-serif') + 100 // 加上清除按钮等空间
+  
+  // 内容宽度：表达式文本宽度
+  const contentWidth = value ? measureTextWidth(value, 12, 'monospace') + 40 : 0 // padding
+  
+  // 描述宽度
+  const descWidth = columnDescriptions[columnName] ? measureTextWidth(columnDescriptions[columnName], 12, 'sans-serif') + 40 : 0
+  
+  // 取最大值，并限制在范围内
+  const calculatedWidth = Math.max(columnNameWidth, contentWidth, descWidth, MIN_COLUMN_WIDTH)
+  return Math.min(calculatedWidth, MAX_COLUMN_WIDTH)
+}
+
+// 初始化所有字段的宽度
+function initializeColumnWidths(record: Record<string, string>) {
+  for (const [columnName, value] of Object.entries(record)) {
+    // 只有未设置过宽度的字段才初始化
+    if (!columnWidths[columnName]) {
+      columnWidths[columnName] = calculateColumnWidth(columnName, value)
+    }
+  }
+}
 
 // 左侧panel宽度控制
 const leftPanelWidth = ref(288)
@@ -119,6 +190,15 @@ const selectedConditionFieldData = ref<ConditionFieldInfo | null>(null)
 const atomClassSearchKeyword = ref<string>('')
 const openAtomClassDropdown = ref<string | null>(null) // 记录哪个字段的下拉框是打开的
 const selectedAtomClassByField = reactive<Record<string, string>>({}) // 每个字段选中的原子类
+
+// 表达式编辑相关
+const expressionEditState = reactive<Record<string, { 
+  value: string
+  error: string | null
+  isParsing: boolean
+  debounceTimer: ReturnType<typeof setTimeout> | null
+}>>({})
+const EXPRESSION_PARSE_DEBOUNCE = 800 // 防抖延迟 ms
 
 // 字段名 -> 允许的基类 映射（缓存）
 const fieldAllowedBaseClassesCache = reactive<Record<string, string[]>>({})
@@ -171,7 +251,7 @@ function formatJson(parsed: any, indent: number = 2): string {
   try {
     return JSON.stringify(parsed, null, indent)
   } catch (error) {
-    console.warn('JSON 格式化失败:', error)
+    console.warn('JSON format failed:', error)
     return ""
   }
 }
@@ -354,11 +434,11 @@ async function applyNormalizedObjectByColumnName(normalized: ParsedClassObject, 
         
       } else {
         expressionParseError.value = '反向解析失败:' + result.error
-        console.error('反向解析失败:', result.error);
+        console.error('Reverse parse failed:', result.error);
       }
     } catch (error) {
       expressionParseError.value = '调用反向解析接口失败:' + error
-      console.error('调用反向解析接口失败:', error);
+      console.error('Reverse parse API call failed:', error);
     }
   }
 }
@@ -397,6 +477,107 @@ function clearAtomicFieldConfig(columnName: string) {
   
   // 清除编辑记录
   editableRecord[columnName] = ''
+  
+  // 清除表达式编辑状态
+  if (expressionEditState[columnName]) {
+    if (expressionEditState[columnName].debounceTimer) {
+      clearTimeout(expressionEditState[columnName].debounceTimer)
+    }
+    delete expressionEditState[columnName]
+  }
+}
+
+// 获取表达式编辑状态
+function getExpressionEditState(columnName: string) {
+  if (!expressionEditState[columnName]) {
+    expressionEditState[columnName] = {
+      value: (editableRecord[columnName] as string) ?? '',
+      error: null,
+      isParsing: false,
+      debounceTimer: null
+    }
+  }
+  return expressionEditState[columnName]
+}
+
+// 处理表达式输入变化（带防抖）
+function handleExpressionInput(columnName: string, newValue: string) {
+  const state = getExpressionEditState(columnName)
+  state.value = newValue
+  state.error = null
+  
+  // 清除之前的定时器
+  if (state.debounceTimer) {
+    clearTimeout(state.debounceTimer)
+  }
+  
+  // 如果输入为空，直接清除
+  if (!newValue.trim()) {
+    editableRecord[columnName] = ''
+    if (selectedRowName.value && conditionFieldsMap[selectedRowName.value]?.[columnName]) {
+      conditionFieldsMap[selectedRowName.value][columnName].parsed = undefined
+      conditionFieldsMap[selectedRowName.value][columnName].raw = ''
+      conditionFieldsMap[selectedRowName.value][columnName].json = ''
+      conditionFieldsMap[selectedRowName.value][columnName].expressionDesc = undefined
+    }
+    return
+  }
+  
+  // 设置防抖定时器
+  state.debounceTimer = setTimeout(() => {
+    parseExpressionForField(columnName, newValue)
+  }, EXPRESSION_PARSE_DEBOUNCE)
+}
+
+// 解析单个字段的表达式
+async function parseExpressionForField(columnName: string, expression: string) {
+  const state = getExpressionEditState(columnName)
+  const delegateBridge = window.delegateBridge
+  
+  if (!delegateBridge) {
+    state.error = 'delegateBridge 不可用'
+    return
+  }
+  
+  state.isParsing = true
+  state.error = null
+  
+  try {
+    const parseResult = await delegateBridge.parseConditionField({
+      fieldName: columnName,
+      rawValue: expression,
+      sheetName: sheetName.value,
+      fileName: openedFilePath.value || undefined
+    })
+    
+    if (parseResult.ok && parseResult.parsed) {
+      // 解析成功，更新数据
+      const deParseResult = await delegateBridge.deParseJsonToExpression({ json: parseResult.parsed })
+      
+      if (selectedRowName.value) {
+        if (!conditionFieldsMap[selectedRowName.value]) {
+          conditionFieldsMap[selectedRowName.value] = {}
+        }
+        conditionFieldsMap[selectedRowName.value][columnName] = {
+          raw: expression,
+          parsed: parseResult.parsed,
+          json: JSON.stringify(parseResult.parsed),
+          expressionDesc: deParseResult.expression?.expressionDesc
+        }
+      }
+      
+      // 更新 editableRecord
+      editableRecord[columnName] = expression
+      state.error = null
+    } else {
+      state.error = parseResult.error || '解析失败'
+    }
+  } catch (error) {
+    state.error = error instanceof Error ? error.message : '解析出错'
+    console.error(`Failed to parse expression for ${columnName}:`, error)
+  } finally {
+    state.isParsing = false
+  }
 }
 
 function syncMockObjectValueFromJson() {
@@ -586,7 +767,7 @@ function startResizeColumn(columnName: string, event: MouseEvent) {
   event.preventDefault()
   draggedColumnName.value = columnName
   dragStartX.value = event.clientX
-  dragStartWidth.value = columnWidths[columnName] || 300
+  dragStartWidth.value = columnWidths[columnName] || DEFAULT_COLUMN_WIDTH
   document.body.style.userSelect = 'none'
   document.addEventListener('mousemove', handleResizeMouseMove)
   document.addEventListener('mouseup', handleResizeMouseUp)
@@ -595,7 +776,7 @@ function startResizeColumn(columnName: string, event: MouseEvent) {
 function handleResizeMouseMove(event: MouseEvent) {
   if (!draggedColumnName.value) return
   const delta = event.clientX - dragStartX.value
-  const newWidth = Math.max(200, dragStartWidth.value + delta)
+  const newWidth = Math.max(100, dragStartWidth.value + delta) // 只保留最小 100px 防止完全消失
   columnWidths[draggedColumnName.value] = newWidth
 }
 
@@ -927,6 +1108,9 @@ watch(selectedRowName, async (newSelection) => {
     try {
       const record = currentRecord.value
       if (record) {
+        // 初始化字段宽度
+        initializeColumnWidths(record)
+        
         const parsedFields = await parseConditionFieldsFromRecord(record)
         if (Object.keys(parsedFields).length > 0) {
           conditionFieldsMap[newSelection] = parsedFields
@@ -1059,17 +1243,439 @@ async function switchSheet(newSheetName: string) {
 function handleKeydown(event: KeyboardEvent) {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
     event.preventDefault()
-    searchInputRef.value?.focus()
-    searchInputRef.value?.select()
+    openGlobalSearch()
   }
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'l') {
-    event.preventDefault()
-    if (!selectedRowName.value) {
-      return
+  // ESC 关闭全局搜索
+  if (event.key === 'Escape' && globalSearchVisible.value) {
+    closeGlobalSearch()
+  }
+  // ESC 关闭右键菜单
+  if (event.key === 'Escape' && rowContextMenu.visible) {
+    closeRowContextMenu()
+  }
+}
+
+// RowName 右键菜单功能
+function openRowContextMenu(event: MouseEvent, rowName: string) {
+  event.preventDefault()
+  
+  // 菜单尺寸估算（与 CSS 中的 min-w-[180px] 对应）
+  const menuWidth = 200
+  const menuHeight = 220 // 估算菜单高度
+  
+  let x = event.clientX
+  let y = event.clientY
+  
+  // 检查是否超出右边界
+  if (x + menuWidth > window.innerWidth) {
+    x = window.innerWidth - menuWidth - 8
+  }
+  
+  // 检查是否超出下边界，超出则显示在上面
+  if (y + menuHeight > window.innerHeight) {
+    y = Math.max(8, event.clientY - menuHeight)
+  }
+  
+  rowContextMenu.visible = true
+  rowContextMenu.x = x
+  rowContextMenu.y = y
+  rowContextMenu.targetRowName = rowName
+}
+
+function closeRowContextMenu() {
+  rowContextMenu.visible = false
+  rowContextMenu.targetRowName = null
+}
+
+function handleClickOutsideContextMenu(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (!target.closest('.row-context-menu')) {
+    closeRowContextMenu()
+  }
+}
+
+/**
+ * 复制整条配置内容
+ */
+function copyRowRecord() {
+  if (!rowContextMenu.targetRowName) return
+  
+  const record = rowNameToRecord[rowContextMenu.targetRowName]
+  if (record) {
+    // 深拷贝记录
+    copiedRowRecord.value = JSON.parse(JSON.stringify(record))
+    showSuccessMessage(`已复制配置: ${rowContextMenu.targetRowName}`)
+  }
+  closeRowContextMenu()
+}
+
+/**
+ * 复制并创建一条新配置（直接基于当前右键的行）
+ */
+function duplicateRow() {
+  if (!rowContextMenu.targetRowName) return
+  
+  const sourceRecord = rowNameToRecord[rowContextMenu.targetRowName]
+  if (!sourceRecord) return
+  
+  // 生成新的 RowName
+  const baseRowName = rowContextMenu.targetRowName
+  let newRowName = `${baseRowName}_Copy`
+  let counter = 1
+  
+  // 确保 RowName 唯一
+  while (rowNames.value.includes(newRowName)) {
+    newRowName = `${baseRowName}_Copy${counter}`
+    counter++
+  }
+  
+  // 创建新记录
+  const newRecord = JSON.parse(JSON.stringify(sourceRecord))
+  newRecord[rowNameColumnLabel.value] = newRowName
+  if (newRecord.RowName !== undefined) {
+    newRecord.RowName = newRowName
+  }
+  
+  // 找到源行的位置，在其后面插入新行
+  const sourceIndex = rowNames.value.indexOf(rowContextMenu.targetRowName)
+  if (sourceIndex !== -1) {
+    rowNames.value.splice(sourceIndex + 1, 0, newRowName)
+  } else {
+    rowNames.value.push(newRowName)
+  }
+  
+  // 添加到数据中
+  rowNameToRecord[newRowName] = newRecord
+  
+  // 选中新创建的行
+  selectedRowName.value = newRowName
+  
+  showSuccessMessage(`已创建新配置: ${newRowName}`)
+  closeRowContextMenu()
+  
+  // 滚动到新行
+  nextTick(() => {
+    scrollSelectedRowIntoView()
+  })
+}
+
+/**
+ * 黏贴内容到当前行（覆盖除 RowName 外的所有字段）
+ */
+function pasteToCurrentRow() {
+  if (!copiedRowRecord.value || !rowContextMenu.targetRowName) return
+  
+  const targetRowName = rowContextMenu.targetRowName
+  const currentRecord = rowNameToRecord[targetRowName]
+  
+  if (!currentRecord) return
+  
+  // 复制所有字段，但保留原有的 RowName
+  const originalRowName = currentRecord[rowNameColumnLabel.value] || currentRecord.RowName
+  
+  Object.keys(copiedRowRecord.value).forEach((key) => {
+    // 跳过 RowName 相关字段
+    if (key === rowNameColumnLabel.value || key === 'RowName') return
+    currentRecord[key] = copiedRowRecord.value![key]
+  })
+  
+  // 确保 RowName 不变
+  currentRecord[rowNameColumnLabel.value] = originalRowName
+  if (currentRecord.RowName !== undefined) {
+    currentRecord.RowName = originalRowName
+  }
+  
+  // 如果当前选中的就是目标行，刷新编辑区域
+  if (selectedRowName.value === targetRowName) {
+    // 重新解析条件字段
+    resetEditableRecord()
+  }
+  
+  showSuccessMessage(`已黏贴内容到: ${targetRowName}`)
+  closeRowContextMenu()
+}
+
+/**
+ * 开始重命名 RowName（右键菜单或双击触发）
+ */
+function startRenameRow(rowName: string) {
+  renamingRowName.value = rowName
+  renameInputValue.value = rowName
+  closeRowContextMenu()
+  
+  nextTick(() => {
+    renameInputRef.value?.focus()
+    renameInputRef.value?.select()
+  })
+}
+
+/**
+ * 确认重命名
+ */
+function confirmRenameRow() {
+  if (!renamingRowName.value) return
+  
+  const oldName = renamingRowName.value
+  const newName = renameInputValue.value.trim()
+  
+  // 验证新名称
+  if (!newName) {
+    showSuccessMessage('RowName 不能为空')
+    cancelRenameRow()
+    return
+  }
+  
+  if (newName === oldName) {
+    cancelRenameRow()
+    return
+  }
+  
+  // 检查是否重复
+  if (rowNames.value.includes(newName)) {
+    showSuccessMessage(`RowName "${newName}" 已存在`)
+    cancelRenameRow()
+    return
+  }
+  
+  // 执行重命名
+  const record = rowNameToRecord[oldName]
+  if (record) {
+    // 更新记录中的 RowName 字段
+    record[rowNameColumnLabel.value] = newName
+    if (record.RowName !== undefined) {
+      record.RowName = newName
     }
-    focusColumnSearchInput({ select: false })
-    if (matchingColumnNames.value.length) {
-      scrollToActiveColumn()
+    
+    // 更新 rowNameToRecord 映射
+    delete rowNameToRecord[oldName]
+    rowNameToRecord[newName] = record
+    
+    // 更新 rowNames 列表
+    const index = rowNames.value.indexOf(oldName)
+    if (index !== -1) {
+      rowNames.value[index] = newName
+    }
+    
+    // 更新 conditionFieldsMap
+    if (conditionFieldsMap[oldName]) {
+      conditionFieldsMap[newName] = conditionFieldsMap[oldName]
+      delete conditionFieldsMap[oldName]
+    }
+    
+    // 如果当前选中的是被重命名的行，更新选中状态和编辑记录
+    if (selectedRowName.value === oldName) {
+      selectedRowName.value = newName
+      // 同步更新 editableRecord 中的 RowName 字段
+      editableRecord[rowNameColumnLabel.value] = newName
+      if (editableRecord.RowName !== undefined) {
+        editableRecord.RowName = newName
+      }
+    }
+    
+    showSuccessMessage(`已重命名: ${oldName} → ${newName}`)
+  }
+  
+  cancelRenameRow()
+}
+
+/**
+ * 取消重命名
+ */
+function cancelRenameRow() {
+  renamingRowName.value = null
+  renameInputValue.value = ''
+}
+
+/**
+ * 处理重命名输入框的键盘事件
+ */
+function handleRenameKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    confirmRenameRow()
+  } else if (event.key === 'Escape') {
+    event.preventDefault()
+    cancelRenameRow()
+  }
+}
+
+/**
+ * 处理双击 RowName 开始重命名
+ */
+function handleRowDoubleClick(rowName: string) {
+  startRenameRow(rowName)
+}
+
+// 全局搜索功能
+function openGlobalSearch() {
+  globalSearchVisible.value = true
+  nextTick(() => {
+    globalSearchInputRef.value?.focus()
+    globalSearchInputRef.value?.select()
+  })
+}
+
+function closeGlobalSearch() {
+  globalSearchVisible.value = false
+  clearGlobalSearchHighlights()
+  globalSearchKeyword.value = ''
+  globalSearchMatches.value = []
+  globalSearchInputMatches.value = []
+  globalSearchCurrentIndex.value = 0
+}
+
+function clearGlobalSearchHighlights() {
+  // 清除 CSS Highlight API 高亮
+  if (typeof CSS !== 'undefined' && CSS.highlights) {
+    CSS.highlights.delete('global-search-highlight')
+    CSS.highlights.delete('global-search-current')
+  }
+  // 清除输入框高亮样式
+  document.querySelectorAll('.global-search-input-match').forEach(el => {
+    el.classList.remove('global-search-input-match', 'global-search-input-current')
+  })
+}
+
+function performGlobalSearch() {
+  clearGlobalSearchHighlights()
+  globalSearchMatches.value = []
+  globalSearchInputMatches.value = []
+  globalSearchCurrentIndex.value = 0
+
+  const keyword = globalSearchKeyword.value.trim()
+  if (!keyword) {
+    return
+  }
+
+  const mainContent = document.querySelector('main')
+  if (!mainContent) return
+
+  const ranges: Range[] = []
+  const inputMatches: HTMLElement[] = []
+  const lowerKeyword = keyword.toLowerCase()
+
+  // 1. 搜索文本节点
+  const treeWalker = document.createTreeWalker(mainContent, NodeFilter.SHOW_TEXT, null)
+  
+  while (treeWalker.nextNode()) {
+    const textNode = treeWalker.currentNode as Text
+    const text = textNode.textContent?.toLowerCase() ?? ''
+    let startIndex = 0
+    let index: number
+
+    while ((index = text.indexOf(lowerKeyword, startIndex)) !== -1) {
+      const range = document.createRange()
+      range.setStart(textNode, index)
+      range.setEnd(textNode, index + keyword.length)
+      ranges.push(range)
+      startIndex = index + 1
+    }
+  }
+
+  // 2. 搜索 input 和 textarea 的值
+  const inputs = mainContent.querySelectorAll('input[type="text"], input:not([type]), textarea')
+  inputs.forEach((input) => {
+    const el = input as HTMLInputElement | HTMLTextAreaElement
+    // 排除全局搜索框自身
+    if (el === globalSearchInputRef.value) return
+    
+    const value = el.value?.toLowerCase() ?? ''
+    if (value.includes(lowerKeyword)) {
+      inputMatches.push(el)
+      el.classList.add('global-search-input-match')
+    }
+  })
+
+  // 3. 搜索 select 的选中文本
+  const selects = mainContent.querySelectorAll('select')
+  selects.forEach((select) => {
+    const selectedOption = select.options[select.selectedIndex]
+    const text = selectedOption?.text?.toLowerCase() ?? ''
+    if (text.includes(lowerKeyword)) {
+      inputMatches.push(select)
+      select.classList.add('global-search-input-match')
+    }
+  })
+
+  globalSearchMatches.value = ranges
+  globalSearchInputMatches.value = inputMatches
+
+  // 应用文本节点高亮
+  if (ranges.length > 0 && typeof CSS !== 'undefined' && CSS.highlights) {
+    const highlight = new Highlight(...ranges)
+    CSS.highlights.set('global-search-highlight', highlight)
+  }
+
+  // 跳转到第一个匹配
+  if (ranges.length > 0 || inputMatches.length > 0) {
+    scrollToGlobalSearchMatch(0)
+  }
+}
+
+function scrollToGlobalSearchMatch(index: number) {
+  const textCount = globalSearchMatches.value.length
+  const inputCount = globalSearchInputMatches.value.length
+  const total = textCount + inputCount
+  
+  if (total === 0) return
+
+  // 确保 index 在有效范围内
+  if (index < 0) index = total - 1
+  if (index >= total) index = 0
+  globalSearchCurrentIndex.value = index
+
+  // 清除之前的当前高亮
+  if (typeof CSS !== 'undefined' && CSS.highlights) {
+    CSS.highlights.delete('global-search-current')
+  }
+  document.querySelectorAll('.global-search-input-current').forEach(el => {
+    el.classList.remove('global-search-input-current')
+  })
+
+  let targetElement: Element | null = null
+
+  if (index < textCount) {
+    // 文本节点匹配
+    const range = globalSearchMatches.value[index]
+    if (typeof CSS !== 'undefined' && CSS.highlights) {
+      const currentHighlight = new Highlight(range)
+      CSS.highlights.set('global-search-current', currentHighlight)
+    }
+    targetElement = range.startContainer.parentElement
+  } else {
+    // 输入框匹配
+    const inputIndex = index - textCount
+    const inputEl = globalSearchInputMatches.value[inputIndex]
+    inputEl.classList.add('global-search-input-current')
+    targetElement = inputEl
+  }
+
+  if (targetElement) {
+    targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+}
+
+function nextGlobalSearchMatch() {
+  if (globalSearchTotalCount.value === 0) return
+  scrollToGlobalSearchMatch(globalSearchCurrentIndex.value + 1)
+}
+
+function prevGlobalSearchMatch() {
+  if (globalSearchTotalCount.value === 0) return
+  scrollToGlobalSearchMatch(globalSearchCurrentIndex.value - 1)
+}
+
+function handleGlobalSearchKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    if (event.shiftKey) {
+      prevGlobalSearchMatch()
+    } else {
+      if (globalSearchTotalCount.value === 0) {
+        performGlobalSearch()
+      } else {
+        nextGlobalSearchMatch()
+      }
     }
   }
 }
@@ -1082,6 +1688,11 @@ onMounted(() => {
   }) ?? null
 
   window.addEventListener('keydown', handleKeydown)
+  document.addEventListener('click', handleClickOutsideContextMenu)
+  
+  // 启动自动保存
+  startAutoSave()
+  
   setTimeout(async () => {
     // 初始化原子字段配置系统
     await initializeAtomicFields()
@@ -1092,6 +1703,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('click', handleClickOutsideContextMenu)
+  stopAutoSave()
   externalExcelListenerDisposer?.()
   externalExcelListenerDisposer = null
 })
@@ -1202,7 +1815,7 @@ function mutateRecordValue(value: unknown): string {
     try {
       return JSON.stringify(value)
     } catch (error) {
-      console.warn('无法序列化条件对象，将使用空字符串', error)
+      console.warn('Failed to serialize condition object, using empty string', error)
       return ''
     }
   }
@@ -1539,6 +2152,67 @@ async function saveWorkbookAs() {
     errorMessage.value = error instanceof Error ? error.message : '保存 Excel 时失败。'
   }
 }
+
+/**
+ * 自动保存（静默保存，不显示进度条）
+ * 如果文件被占用则跳过本次保存
+ */
+async function autoSave() {
+  // 检查是否满足自动保存条件
+  if (!autoSaveEnabled.value) return
+  if (!openedFilePath.value) return
+  if (!Object.keys(rowNameToRecord).length) return
+  if (!window.excelBridge) return
+  
+  // 如果正在显示进度条（用户正在手动操作），跳过自动保存
+  if (isProgressVisible.value) return
+
+  try {
+    // 先保存当前编辑数据
+    saveEditableRecord()
+    
+    const rows = buildRowsForSaving()
+    
+    const result = await window.excelBridge.saveWorkbook({
+      filePath: openedFilePath.value,
+      sheetName: sheetName.value,
+      rows
+    })
+    
+    if (result.ok) {
+      lastAutoSaveTime.value = new Date()
+      console.log(`[AutoSave] Save success: ${lastAutoSaveTime.value.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`)
+    } else {
+      // File may be locked, skip silently
+      console.warn(`[AutoSave] Save skipped: ${result.error}`)
+    }
+  } catch (error) {
+    // Handle error silently
+    console.warn('[AutoSave] Save failed:', error instanceof Error ? error.message : error)
+  }
+}
+
+/**
+ * 启动自动保存定时器
+ */
+function startAutoSave() {
+  stopAutoSave()
+  autoSaveTimer = setInterval(() => {
+    autoSave()
+  }, AUTO_SAVE_INTERVAL)
+  console.log(`[AutoSave] Started, interval: ${AUTO_SAVE_INTERVAL / 1000 / 60} min`)
+}
+
+/**
+ * 停止自动保存定时器
+ */
+function stopAutoSave() {
+  if (autoSaveTimer) {
+    clearInterval(autoSaveTimer)
+    autoSaveTimer = null
+    console.log('[AutoSave] Stopped')
+  }
+}
 </script>
 
 <template>
@@ -1556,6 +2230,16 @@ async function saveWorkbookAs() {
             <span v-if="isDelegateMetadataLoading" class="loading loading-spinner text-primary"></span>
             <span v-if="workbookMeta" class="badge badge-outline">{{ sheetName }} · {{ workbookMeta.rowCount }} 行</span>
             <span v-if="openedFilePath" class="badge badge-ghost">{{ openedFilePath }}</span>
+            <span 
+              v-if="lastAutoSaveTime && openedFilePath" 
+              class="badge badge-success badge-sm gap-1"
+              :title="`自动保存已${autoSaveEnabled ? '启用' : '禁用'}，间隔 ${(AUTO_SAVE_INTERVAL / 1000 / 60).toFixed(2)} 分钟`"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              {{ lastAutoSaveTime.toLocaleTimeString() }}
+            </span>
           </div>
           <button
             class="btn btn-ghost btn-circle"
@@ -1643,18 +2327,51 @@ async function saveWorkbookAs() {
         <div class="h-px w-full bg-base-200"></div>
         <div class="scrollbar flex-1 px-4 pb-4 pt-2 min-h-0 overflow-y-auto">
           <div class="flex flex-1 flex-col space-y-2">
-            <button
-              v-for="row in filteredRowNames"
-              :ref="(el) => setRowButtonRef(row, el)"
-              class="btn btn-md w-full justify-start items-center text-left normal-case leading-tight h-auto py-2"
-              :class="{ 'btn-active btn-primary': row === selectedRowName }"
-              @click="selectedRowName = row"
-            >
-            <div class="flex flex-col items-start w-full gap-0">
-              <span class="font-semibold truncate">{{ row }}</span>
-              <span v-if="getRecordRemark(row)" class="remark-text text-xs w-full">{{ getRecordRemark(row) }}</span>
-            </div>
-            </button>
+            <template v-for="row in filteredRowNames" :key="row">
+              <!-- 重命名模式 -->
+              <div
+                v-if="renamingRowName === row"
+                class="flex items-center gap-2 px-2 py-2 bg-base-200 rounded-lg"
+              >
+                <input
+                  ref="renameInputRef"
+                  v-model="renameInputValue"
+                  type="text"
+                  class="input input-sm input-bordered flex-1"
+                  @keydown="handleRenameKeydown"
+                  @blur="confirmRenameRow"
+                />
+                <button
+                  type="button"
+                  class="btn btn-xs btn-primary"
+                  @click="confirmRenameRow"
+                >
+                  ✓
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-xs btn-ghost"
+                  @click="cancelRenameRow"
+                >
+                  ✕
+                </button>
+              </div>
+              <!-- 正常显示模式 -->
+              <button
+                v-else
+                :ref="(el) => setRowButtonRef(row, el)"
+                class="btn btn-md w-full justify-start items-center text-left normal-case leading-tight h-auto py-2"
+                :class="{ 'btn-active btn-primary': row === selectedRowName }"
+                @click="selectedRowName = row"
+                @dblclick="handleRowDoubleClick(row)"
+                @contextmenu="openRowContextMenu($event, row)"
+              >
+                <div class="flex flex-col items-start w-full gap-0">
+                  <span class="font-semibold truncate">{{ row }}</span>
+                  <span v-if="getRecordRemark(row)" class="remark-text text-xs w-full">{{ getRecordRemark(row) }}</span>
+                </div>
+              </button>
+            </template>
             <p v-if="!filteredRowNames.length" class="text-center text-sm text-base-content/60">
               暂无数据，请先打开 Excel 配置表。
             </p>
@@ -1670,40 +2387,6 @@ async function saveWorkbookAs() {
 
       <section class="card flex flex-1 min-h-0 flex-col overflow-hidden bg-base-100 shadow-md" style="gap: 0.75rem;">
         <div class="px-6 pt-6 pb-4 space-y-4">
-          <header class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 class="card-title text-2xl font-bold">
-                {{ activeMainTab === 'config' ? '配置详情' : '原子游乐场' }}
-              </h2>
-              <p class="text-sm text-base-content/60">
-                <template v-if="activeMainTab === 'config'">
-                  {{ selectedRowName ? `正在查看 RowName：${selectedRowName}` : '请选择左侧的 RowName 以查看详细配置。' }}
-                </template>
-                <template v-else>
-                  原子游乐场提供表达式直接解析与对象构建能力，无需打开Excel
-                </template>
-              </p>
-            </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <label class="input input-bordered flex items-center gap-2 w-64" :class="{ 'input-disabled opacity-60': !selectedRowName || activeMainTab !== 'config' }">
-                <input
-                  ref="columnSearchInputRef"
-                  v-model="columnSearchKeyword"
-                  :disabled="!selectedRowName || activeMainTab !== 'config'"
-                  type="text"
-                  class="grow"
-                  placeholder="搜索属性"
-                  @keydown.enter.prevent="moveToNextColumnMatch"
-                />
-                <kbd class="kbd kbd-xs">Ctrl</kbd>
-                <kbd class="kbd kbd-xs">L</kbd>
-              </label>
-              <div class="join">
-                <button class="btn join-item" :disabled="!selectedRowName || activeMainTab !== 'config'" @click="resetEditableRecord">重置</button>
-                <!-- <button class="btn join-item btn-primary" :disabled="!selectedRowName" @click="saveEditableRecord">保存修改</button> -->
-              </div>
-            </div>
-          </header>
           <div class="flex flex-wrap items-center gap-2">
             <div class="join">
               <button
@@ -1724,6 +2407,10 @@ async function saveWorkbookAs() {
               </button>
             </div>
           </div>
+          <!-- <div v-if="activeMainTab === 'config'" class="flex flex-wrap items-center gap-2">
+            <button class="btn btn-sm" :disabled="!selectedRowName" @click="resetEditableRecord">重置</button>
+          </div> -->
+          
           <p v-if="expressionParseError" class="text-sm text-error">
             {{ expressionParseError }}
           </p>
@@ -1782,18 +2469,7 @@ async function saveWorkbookAs() {
 
             <!-- 对象表单与 JSON 编辑 -->
             
-            <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
-              <div class="scrollbar max-h-[420px] overflow-y-auto pr-1">
-                <DynamicObjectFormInline
-                  :class-name="mockClassName"
-                  :registry="classRegistry"
-                  :subclass-options="subclassOptions"
-                  :model-value="mockObjectValue"
-                  @update:model-value="(value) => applyNormalizedObject(value as ParsedClassObject)"
-                />
-              </div>
-            </div>
-            
+
             <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
               <div class="scrollbar h-[1600px] overflow-y-auto pr-1">
                 <DynamicObjectForm
@@ -1820,7 +2496,7 @@ async function saveWorkbookAs() {
                       fieldLayoutDirection === 'horizontal' ? 'flex-shrink-0' : '',
                       { 'bg-primary/10 border-primary/60': columnName === highlightColumnName, 'border-base-300 hover:border-base-400': columnName !== highlightColumnName }
                     ]"
-                    :style="fieldLayoutDirection === 'horizontal' ? { width: (columnWidths[columnName] || 300) + 'px' } : {}"
+                    :style="fieldLayoutDirection === 'horizontal' ? { width: (columnWidths[columnName] || DEFAULT_COLUMN_WIDTH) + 'px' } : {}"
                     >
                     <div class="text-sm font-semibold text-base-content/70 truncate mb-1" :title="columnName">
                       {{ columnName }}
@@ -1847,7 +2523,7 @@ async function saveWorkbookAs() {
                           :registry="classRegistry"
                           placeholder="搜索原子类型..."
                           allow-empty
-                          empty-label="请选择原子类型"
+                          empty-label=""
                           @update:model-value="(value) => {
                             selectedAtomClassByField[columnName] = value
                             if (value) handleSelectAtomClass(columnName, value)
@@ -1861,14 +2537,20 @@ async function saveWorkbookAs() {
                           <div>
                             <label class="label">
                               <span class="label-text text-sm font-semibold">表达式</span>
+                              <span v-if="getExpressionEditState(columnName).isParsing" class="loading loading-spinner loading-xs ml-2"></span>
                             </label>
                             <input
-                              :value="editableRecord[columnName] as string"
-                              readonly
+                              :value="getExpressionEditState(columnName).value || (editableRecord[columnName] as string)"
                               type="text"
                               class="input input-bordered input-sm font-mono text-xs w-full"
+                              :class="{ 'input-error': getExpressionEditState(columnName).error }"
+                              @input="handleExpressionInput(columnName, ($event.target as HTMLInputElement).value)"
+                              @focus="getExpressionEditState(columnName).value = (editableRecord[columnName] as string) ?? ''"
                             />
-                            <p v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.expressionDesc" class="text-xs text-base-content/60 mt-1 leading-relaxed">
+                            <p v-if="getExpressionEditState(columnName).error" class="text-xs text-error mt-1">
+                              {{ getExpressionEditState(columnName).error }}
+                            </p>
+                            <p v-else-if="conditionFieldsMap[selectedRowName]?.[columnName]?.expressionDesc" class="text-xs text-base-content/60 mt-1 leading-relaxed">
                               <span class="font-semibold text-base-content/80">功能描述：</span>{{ conditionFieldsMap[selectedRowName][columnName].expressionDesc }}
                             </p>
                           </div>
@@ -1953,10 +2635,149 @@ async function saveWorkbookAs() {
       :message="successMessage"
       type="success"
     />
+
+    <!-- 全局搜索框 -->
+    <Teleport to="body">
+      <Transition name="slide-down">
+        <div
+          v-if="globalSearchVisible"
+          class="fixed top-4 right-4 z-50 flex items-center gap-2 bg-base-100 border border-base-300 rounded-lg shadow-lg px-3 py-2"
+        >
+          <input
+            ref="globalSearchInputRef"
+            v-model="globalSearchKeyword"
+            type="text"
+            class="input input-sm input-bordered w-64"
+            placeholder="搜索页面内容..."
+            @input="performGlobalSearch"
+            @keydown="handleGlobalSearchKeydown"
+          />
+          <span v-if="globalSearchTotalCount > 0" class="text-xs text-base-content/60 min-w-[60px] text-center">
+            {{ globalSearchCurrentIndex + 1 }} / {{ globalSearchTotalCount }}
+          </span>
+          <span v-else-if="globalSearchKeyword.trim()" class="text-xs text-base-content/40 min-w-[60px] text-center">
+            无结果
+          </span>
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs"
+              :disabled="globalSearchTotalCount === 0"
+              @click="prevGlobalSearchMatch"
+              title="上一个 (Shift+Enter)"
+            >
+              ▲
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs"
+              :disabled="globalSearchTotalCount === 0"
+              @click="nextGlobalSearchMatch"
+              title="下一个 (Enter)"
+            >
+              ▼
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs"
+              @click="closeGlobalSearch"
+              title="关闭 (Esc)"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- RowName 右键菜单 -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="rowContextMenu.visible"
+          class="row-context-menu fixed z-50 bg-base-100 border border-base-300 rounded-lg shadow-xl py-1 min-w-[180px]"
+          :style="{ left: rowContextMenu.x + 'px', top: rowContextMenu.y + 'px' }"
+        >
+          <div class="px-3 py-1.5 text-xs text-base-content/50 border-b border-base-200 truncate max-w-[200px]">
+            {{ rowContextMenu.targetRowName }}
+          </div>
+          <button
+            class="w-full px-3 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 transition-colors"
+            @click="rowContextMenu.targetRowName && startRenameRow(rowContextMenu.targetRowName)"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            重命名
+          </button>
+          <button
+            class="w-full px-3 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 transition-colors"
+            @click="duplicateRow"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            复制并创建新配置
+          </button>
+          <div class="h-px bg-base-200 my-1"></div>
+          <button
+            class="w-full px-3 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 transition-colors"
+            @click="copyRowRecord"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            复制到剪贴板
+          </button>
+          <button
+            class="w-full px-3 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 transition-colors"
+            :class="{ 'opacity-40 cursor-not-allowed': !copiedRowRecord }"
+            :disabled="!copiedRowRecord"
+            @click="pasteToCurrentRow"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m0 9l-3 3m0 0l-3-3m3 3V9" />
+            </svg>
+            粘贴覆盖内容
+            <span v-if="!copiedRowRecord" class="text-xs text-base-content/40">(无)</span>
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
+/* 全局搜索高亮样式 */
+::highlight(global-search-highlight) {
+  background-color: rgba(255, 235, 59, 0.4);
+}
+
+::highlight(global-search-current) {
+  background-color: rgba(255, 152, 0, 0.6);
+}
+
+/* 搜索框滑入动画 */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.2s ease;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* 输入框/选择框匹配高亮 - 需要全局样式 */
+:global(.global-search-input-match) {
+  box-shadow: 0 0 0 2px rgba(255, 235, 59, 0.6) !important;
+}
+
+:global(.global-search-input-current) {
+  box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.8) !important;
+}
+
 /* 拖动时禁用文本选择 */
 :global(body.resizing) {
   user-select: none;
@@ -1980,5 +2801,32 @@ async function saveWorkbookAs() {
   word-break: break-word;
   line-height: 1.4;
   max-height: 2.8em;
+}
+
+/* 右键菜单淡入淡出动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 右键菜单样式 */
+.row-context-menu {
+  animation: context-menu-in 0.1s ease-out;
+}
+
+@keyframes context-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 </style>

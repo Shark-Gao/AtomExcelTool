@@ -1720,17 +1720,14 @@ abstract class TaskDelegate extends DelegateBase {}
 //   }
 // }
 
-// @AtomGenClass()
-// class BoolValueBinaryOperatorOnBoolDelegate extends BoolValueDelegate {
+// class BoolValuesBinaryOperatorOnBoolDelegate extends BoolValueDelegate {
 //   public constructor(
-//     public readonly lhs: BoolValueDelegate,
-//     @AtomGenParam({ descName: "操作符", type: ue.EMHBoolTriggerValueBinaryOperatorOnBool})
 //     public readonly operator: ue.EMHBoolTriggerValueBinaryOperatorOnBool,
-//     public readonly rhs: BoolValueDelegate
+//     public readonly Conditions: BoolValueDelegate[],
 //   ) {
-//     super("MHTsBoolTriggerValueBinaryOperatorOnBoolean_C");
+//     super("MHTsBoolTriggerValuesBinaryOperatorOnBoolean_C");
 
-//     return FConstantFoldingHelper.ReplaceBoolBinaryOperatorOnBool(this) as any;
+//     // return FConstantFoldingHelper.ReplaceBoolBinaryOperatorOnBool(this) as any;
 //   }
 // }
 
@@ -6222,7 +6219,6 @@ class FAtomExpressionParser {
           if (
             operators.length &&
             DelegateFactory.getMetadataByFuncName(operators[operators.length - 1])
-            // FunctionNameToDelegate.has(operators[operators.length - 1])
           )
             ReversePolishNotation.push(operators.pop());
           break;
@@ -6279,7 +6275,6 @@ class FAtomExpressionParser {
         default:
           if (
             DelegateFactory.getMetadataByFuncName(CurrentToken)
-            // FunctionNameToDelegate.has(CurrentToken)
           ) {
             // function
             operators.push(CurrentToken);
@@ -6299,18 +6294,16 @@ class FAtomExpressionParser {
       )}`
     );
 
-    const stack = new Array<DelegateBase | string | number | boolean>();
+    const stack = new Array<any>();
     let PossibleNumber: string | number | boolean;
     let lhs: DelegateBase | string | number | boolean;
     let rhs: DelegateBase | string | number | boolean;
-    // let Fn: DelegateConstructorType;
     for (const CurrentToken of ReversePolishNotation) {
       switch (CurrentToken) {
         case "_":
           lhs = stack.pop();
           stack.push(
             DelegateFactory.createByDelegateKey("NumberValueUnaryOperator", [lhs])
-            // new NumberValueUnaryOperatorDelegate(lhs as NumberValueDelegate)
           );
           break;
 
@@ -6318,7 +6311,6 @@ class FAtomExpressionParser {
           lhs = stack.pop();
           stack.push(
             DelegateFactory.createByDelegateKey("BoolValueNot", [lhs])
-            // new BoolValueNotDelegate(lhs as BoolValueDelegate)
           );
           break;
 
@@ -6334,10 +6326,6 @@ class FAtomExpressionParser {
               lhs,
               OperatorStringToOperatorEnumInAtomSystem.get(CurrentToken),
               rhs]
-            // new NumberValueBinaryOperatorDelegate(
-            //   lhs as NumberValueDelegate,
-            //   OperatorStringToOperatorEnumInAtomSystem.get(CurrentToken),
-            //   rhs as NumberValueDelegate
             )
           );
           break;
@@ -6346,17 +6334,27 @@ class FAtomExpressionParser {
         case "||":
           rhs = stack.pop();
           lhs = stack.pop();
-          stack.push(
-            DelegateFactory.createByDelegateKey("BoolValueBinaryOperatorOnBool", [
-              lhs,
-              OperatorStringToOperatorEnumInAtomSystem.get(CurrentToken),
-              rhs]
-            // new BoolValueBinaryOperatorOnBoolDelegate(
-            //   lhs as BoolValueDelegate,
-            //   OperatorStringToOperatorEnumInAtomSystem.get(CurrentToken),
-            //   rhs as BoolValueDelegate
-            )
-          );
+          const currentBoolOperator = OperatorStringToOperatorEnumInAtomSystem.get(CurrentToken);
+          
+          // 检查 lhs 是否已经是同类型的 BoolValuesBinaryOperatorOnBoolDelegate
+          // 如果是，则合并到同一个数组中，避免嵌套
+          if (
+            typeof lhs === 'object' && 
+            lhs !== null &&
+            (lhs as any)._ClassName === 'BoolValuesBinaryOperatorOnBoolDelegate' &&
+            (lhs as any).operator === currentBoolOperator
+          ) {
+            // 追加 rhs 到已有的 Conditions 数组
+            (lhs as any).Conditions.push(rhs);
+            stack.push(lhs);
+          } else {
+            // 创建新的 BoolValuesBinaryOperatorOnBoolDelegate，使用数组形式
+            stack.push({
+              _ClassName: 'BoolValuesBinaryOperatorOnBoolDelegate',
+              operator: currentBoolOperator,
+              Conditions: [lhs, rhs]
+            });
+          }
           break;
 
         case ">":
@@ -6372,10 +6370,6 @@ class FAtomExpressionParser {
             lhs,
             OperatorStringToOperatorEnumInAtomSystem.get(CurrentToken),
             rhs]
-            // new BoolValueBinaryOperatorOnNumberDelegate(
-              // lhs as NumberValueDelegate,
-              // OperatorStringToOperatorEnumInAtomSystem.get(CurrentToken),
-              // rhs as NumberValueDelegate
             )
           );
           break;
@@ -6398,7 +6392,6 @@ class FAtomExpressionParser {
 
             const OrderedParams = ParamArr.reverse();
             
-            // ✨ 改用工厂方法替代 new Fn()
             const CreatedObject = DelegateFactory.createByDelegateKey(
               CurrentToken,
               OrderedParams

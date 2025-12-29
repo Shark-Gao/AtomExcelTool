@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import type { ClassMetadata, FieldMeta, ParamMetadata, RawAtomTSMetaMap, ScriptFunctionParameterMetaData, FAtomTypeBase, FAtomTypeArray, FAtomTypeUnion, BaseClassType, ClassInfo, FieldType } from '../../types/MetaDefine';
+import type { ClassMetadata, FieldMeta, ParamMetadata, RawAtomTSMetaMap, ScriptFunctionParameterMetaData, FAtomTypeBase, FAtomTypeArray, FAtomTypeUnion, BaseClassType, ClassInfo, FieldType, ElementTypeInfo } from '../../types/MetaDefine';
 import { EAtomType } from '../../types/MetaDefine';
 import { getConstructorParamNames, getConstructorRawParamName, getConstructorRawParamNames, PARAM_METADATA_KEY } from './DelegateDecorators';
 import { DELEGATE_BASE_CLASSES, DELEGATE_BASE_CLASSES_Def, DELEGATE_BASE_CLASS_DETECTION_ORDER } from '../../constants/DelegateBaseClassesConst';
@@ -11,6 +11,7 @@ import { NumberValueDelegate } from './MHTsAtomSystemUtils';
 type FieldTypeInfo = {
   type: FieldType;
   baseClass?: BaseClassType;
+  elementType?: ElementTypeInfo;
 };
 
 /**
@@ -410,7 +411,16 @@ export class DelegateMetadataGenerator {
       case EAtomType.Array: {
         const arrayType = atomType as FAtomTypeArray;
         const elementClass = this.getAtomTypeClass(arrayType.ElementType);
-        return { type: 'array', baseClass: elementClass };
+        const elementInfo = this.mapNonUnionAtomType(arrayType.ElementType);
+        return { 
+          type: 'array', 
+          baseClass: elementClass, 
+          elementType: elementInfo ? {
+            type: elementInfo.type,
+            baseClass: elementInfo.baseClass,
+            elementType: elementInfo.elementType
+          } : undefined 
+        };
       }
       case EAtomType.Number:
       case EAtomType.Action:
@@ -467,11 +477,26 @@ export class DelegateMetadataGenerator {
    */
   private static convertScriptParameterToFieldMeta(param: ScriptFunctionParameterMetaData, decoratorMetaItem: ClassMetadata): FieldMeta | null {
     const key = param.ParameterName;
-    let label = decoratorMetaItem ? decoratorMetaItem.fields[param.OrdinalIndex]?.label : param.ParameterName;
-    if (label === undefined) {
-      label = param.ParameterName;
+    
+    // 优先按 key 名查找装饰器配置，其次按索引查找
+    const decoratorField = decoratorMetaItem?.fields?.[key as any] ?? decoratorMetaItem?.fields?.[param.OrdinalIndex];
+    
+    let label = decoratorField?.label ?? param.ParameterName;
+    const description = decoratorField?.description ?? param.TypeString;
+
+    // 如果装饰器配置中明确指定了 type 为 select 且有 options，直接使用
+    if (decoratorField?.type === 'select' && decoratorField?.options?.length) {
+      const fieldMeta: FieldMeta = {
+        key,
+        label,
+        type: 'select',
+        description,
+        options: decoratorField.options
+      };
+      fieldMeta.isRest = param.bRest;
+      fieldMeta.isOptional = param.bOptional;
+      return fieldMeta;
     }
-    const description = decoratorMetaItem ? decoratorMetaItem.fields[param.OrdinalIndex]?.description : param.TypeString;
 
     const typeResult = this.collectFieldTypeInfo(param.AtomType);
     if (!typeResult.infos.length) {
@@ -493,6 +518,10 @@ export class DelegateMetadataGenerator {
       const matchedInfo = typeResult.infos.find((entry) => entry.type === targetType && entry.baseClass);
       if (matchedInfo) {
         fieldMeta.baseClass = matchedInfo.baseClass;
+        // 如果是数组类型，同时设置 elementType
+        if (targetType === 'array' && matchedInfo.elementType) {
+          fieldMeta.elementType = matchedInfo.elementType;
+        }
         break;
       }
     }

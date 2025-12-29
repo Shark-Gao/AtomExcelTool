@@ -48,8 +48,7 @@ export function normalizeClassInstance(
             return normalizeClassInstance(requestedClass, rawObject, registry, subclassOptions)
           } else {
             // 保持空值，让用户从下拉框选择
-            const options = getSubclassOptions(baseClass ? baseClass : '')
-            return normalizeClassInstance(options[0].value, rawObject, registry, subclassOptions)
+            return { _ClassName: '' }
           }
         })
       } else {
@@ -74,7 +73,7 @@ export function normalizeClassInstance(
         normalized[fieldKey] = normalizeClassInstance(selectedClass, rawObject, registry, subclassOptions)
       } else {
         // 保持空值，让用户从下拉框选择
-        normalized[fieldKey] = normalizeClassInstance(options[0].value, rawObject, registry, subclassOptions)
+        normalized[fieldKey] = { _ClassName: '' }
       }
       return
     }

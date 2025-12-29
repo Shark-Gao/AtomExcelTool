@@ -236,12 +236,12 @@ function extractHeaderMetadata(worksheet: ExcelJS.Worksheet, xlsxFileName?: stri
             headerRowNumber = headerConfig.headerRowNumber;
             dataStartRow = headerConfig.dataStartRow || (headerRowNumber + 1);
             descriptionRow = headerConfig.descriptionRow || 1;
-            logManager.info(`使用配置指定的列名行: ${headerRowNumber}, 数据起始行: ${dataStartRow}, 描述行: ${descriptionRow} (文件: ${xlsxFileName}, 工作表: ${sheetName})`);
+            // logManager.info(`Using configured header row: ${headerRowNumber}, data start row: ${dataStartRow}, description row: ${descriptionRow} (file: ${xlsxFileName}, sheet: ${sheetName})`);
         } else {
             headerRowNumber = findHeaderRowNumber(worksheet);
             dataStartRow = headerRowNumber + 1;
             descriptionRow = 1;
-            logManager.info(`未找到配置，使用自动识别的列名行: ${headerRowNumber}, 数据起始行: ${dataStartRow}, 描述行: ${descriptionRow}`);
+            // logManager.info(`Config not found, using auto-detected header row: ${headerRowNumber}, data start row: ${dataStartRow}, description row: ${descriptionRow}`);
         }
     } else {
         headerRowNumber = findHeaderRowNumber(worksheet);

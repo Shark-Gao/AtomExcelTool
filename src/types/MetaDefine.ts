@@ -26,6 +26,15 @@ export function isBaseClassNative(type: BaseClassType | undefined): boolean {
   return type === 'string' || type === 'number' || type === 'boolean';
 }
 /**
+ * 数组元素类型信息
+ */
+export interface ElementTypeInfo {
+  type: FieldType | FieldType[];
+  baseClass?: BaseClassType;
+  elementType?: ElementTypeInfo; // 支持嵌套数组
+}
+
+/**
  * 字段元数据 - 支持多种字段类型
  */
 export interface FieldMeta {
@@ -34,6 +43,7 @@ export interface FieldMeta {
   type: FieldType | FieldType[];
   description?: string;
   baseClass?: BaseClassType;
+  elementType?: ElementTypeInfo; // 数组元素的类型信息
   options?: Array<{ label: string; value: any }>;
   isOptional?: boolean;
   isRest?: boolean;

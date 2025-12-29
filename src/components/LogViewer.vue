@@ -41,7 +41,7 @@ function openLog() {
 
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text).then(() => {
-    console.log('已复制到剪贴板')
+    console.log('Copied to clipboard')
   })
 }
 </script>

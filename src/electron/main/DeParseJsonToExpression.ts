@@ -72,6 +72,19 @@ export function deParseJsonToExpression(jsonObject: any, isRoot = true): DeParse
     return {expression:`(${lhs.expression} ${operator} ${rhs.expression})`, expressionDesc:`(${lhs.expressionDesc} ${operator} ${rhs.expressionDesc})`};;
   }
 
+  // 处理多元操作符（布尔值数组）- 合并的连续逻辑运算
+  if (className === 'BoolValuesBinaryOperatorOnBoolDelegate') {
+    const conditions = jsonObject.Conditions as any[];
+    if (!conditions || conditions.length === 0) {
+      return {expression:'', expressionDesc:''};
+    }
+    const operator = getOperatorString(jsonObject.operator, 'bool');
+    const parsedConditions = conditions.map(c => deParseJsonToExpression(c, false));
+    const expressions = parsedConditions.map(p => p.expression).join(` ${operator} `);
+    const expressionDescs = parsedConditions.map(p => p.expressionDesc).join(` ${operator} `);
+    return {expression:`(${expressions})`, expressionDesc:`(${expressionDescs})`};
+  }
+
   // 处理二元操作符（数值比较）
   if (className === 'BoolValueBinaryOperatorOnNumberDelegate') {
     const lhs = deParseJsonToExpression(jsonObject.lhs, false);

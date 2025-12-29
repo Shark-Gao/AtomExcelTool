@@ -108,6 +108,17 @@ contextBridge.exposeInMainWorld('excelBridge', {
               columnDescriptions?: Record<string, string>;
               error?: string;
         }>,
+    readRow: (payload: { filePath: string; sheetName: string; rowName: string }) =>
+        ipcRenderer.invoke('excel:read-row', payload) as Promise<
+            | { ok: false; error: string }
+            | { ok: true; rowName: string; row: RowRecord; columnNames: string[]; conditionFields: Record<string, any> }
+        >,
+    loadConditionFields: (payload: { record: RowRecord; columnNames: string[] }) =>
+        ipcRenderer.invoke('excel:load-condition-fields', payload) as Promise<{
+            ok: boolean;
+            conditionFields?: Record<string, any>;
+            error?: string;
+        }>,
     saveWorkbook: (payload: { filePath: string; sheetName: string; rows: Record<string, string>[] }) =>
         ipcRenderer.invoke('excel:save', payload) as Promise<{ ok: boolean; error?: string }>,
     saveWorkbookAs: (payload: { defaultPath?: string; sheetName: string; rows: Record<string, string>[] }) =>
@@ -125,6 +136,7 @@ contextBridge.exposeInMainWorld('delegateBridge', {
         grouped?: Record<string, any[]>;
         count?: number;
         error?: string;
+        defaultJson?: string;
     }>,
     parseExpression: (payload: { expression: string }) => ipcRenderer.invoke('condition:parse-expression', payload) as Promise<{
         ok: boolean;
@@ -139,7 +151,7 @@ contextBridge.exposeInMainWorld('delegateBridge', {
     }>,
     deParseJsonToExpression: (payload: { json: any }) => ipcRenderer.invoke('delegate:deparse-json-to-expression', payload) as Promise<{
         ok: boolean;
-        expression?: string;
+        expression?: { expression: string; expressionDesc: string };
         error?: string;
     }>
 });

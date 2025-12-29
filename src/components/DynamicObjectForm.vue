@@ -555,9 +555,14 @@ function addArrayItem(fieldKey: string, fieldMeta: FieldMeta) {
   const elementType = getArrayElementType(fieldMeta)
   if (elementType == 'object') {
     const options = getSubclassOptions(fieldMeta.baseClass)
-    const defaultClassName = options[0]?.value ?? fieldMeta.baseClass
-    const newItem = normalizeClassInstance(defaultClassName, {})
-    localValue[fieldKey] = [...list, newItem]
+    // 如果没有可选的子类，创建一个空对象（None）
+    // if (!options.length) {
+      localValue[fieldKey] = [...list, { _ClassName: '' }]
+    //   return
+    // }
+    // const defaultClassName = options[0].value
+    // const newItem = normalizeClassInstance(defaultClassName, {})
+    // localValue[fieldKey] = [...list, newItem]
   } else {
     // 基础类型数组，添加默认值
     let defaultValue: any
@@ -971,6 +976,7 @@ function revertAllFieldsToDefault() {
                     <!-- 对象元素 -->
                     <template v-if="getArrayElementType(fieldMeta) === 'object'">
                       <div class="flex items-start">
+                        <!-- 有 _ClassName 时显示完整表单 -->
                         <DynamicObjectForm
                           v-if="(item as Record<string, unknown>)?._ClassName"
                           :ref="(el) => { 
@@ -988,6 +994,37 @@ function revertAllFieldsToDefault() {
                           class="flex-1"
                           @update:model-value="(value) => updateArrayItemValue(fieldKey, index, value)"
                         />
+                        <!-- _ClassName 为空时显示选择器 -->
+                        <div 
+                          v-else 
+                          class="flex-1 rounded border border-base-300 bg-base-100"
+                        >
+                          <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/50">
+                            <SearchableAtomSelect
+                              v-if="getSubclassOptions(fieldMeta.baseClass).length && !readonly"
+                              model-value=""
+                              :options="getSubclassOptions(fieldMeta.baseClass)"
+                              :registry="registry"
+                              :base-class="fieldMeta.baseClass"
+                              empty-label="请选择类型"
+                              :disabled="readonly"
+                              class="flex-1 text-xs"
+                              @update:model-value="(value) => {
+                                if (value) {
+                                  const normalized = normalizeClassInstance(value, {})
+                                  updateArrayItemValue(fieldKey as string, index, normalized)
+                                }
+                              }"
+                              @select-with-number="(className, numberValue) => {
+                                if (className === 'NumberValueConstDelegate') {
+                                  const normalized = normalizeClassInstance(className, { Constant: numberValue })
+                                  updateArrayItemValue(fieldKey as string, index, normalized)
+                                }
+                              }"
+                            />
+                            <span v-else class="text-xs text-base-content/50 flex-1">None</span>
+                          </div>
+                        </div>
                         <button
                           v-if="!readonly"
                           type="button"

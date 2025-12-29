@@ -7,6 +7,7 @@ import Toast from './components/Toast.vue'
 import ProgressModal from './components/ProgressModal.vue'
 import SkeletonLoader from './components/SkeletonLoader.vue'
 import CheckValidationModal, { type ValidationErrorItem, type ValidationResult } from './components/CheckValidationModal.vue'
+import CodeEditor from './components/CodeEditor.vue'
 import { loadSettingsFromStorage, saveSettingsToStorage } from './utils/settingsStorage'
 import type { ClassRegistry, ClassMetadata as DelegateClassMetadata } from './types/MetaDefine'
 import { normalizeClassInstance } from './utils/ClassNormalizer'
@@ -55,6 +56,12 @@ const initialSettings = loadSettingsFromStorage()
 const currentTheme = ref<string>(initialSettings.theme)
 const rowButtonRefs = reactive<Record<string, HTMLButtonElement>>({})
 const isSettingsModalOpen = ref(false)
+
+// 虚拟滚动相关
+const rowListContainerRef = ref<HTMLDivElement | null>(null)
+const virtualScrollTop = ref(0)
+const ROW_ITEM_HEIGHT = 44 // 每个行项目的估计高度（包含 space-y-2 的间距）
+const VIRTUAL_BUFFER = 5 // 上下缓冲区的额外渲染数量
 const showOnlyAtomicFields = ref(initialSettings.showOnlyAtomicFields)
 const isDebugMode = ref(initialSettings.isDebugMode)
 const fieldLayoutDirection = ref<'horizontal' | 'vertical'>(initialSettings.fieldLayoutDirection)
@@ -176,6 +183,16 @@ const parseErrorMessage = ref<string | null>(null)
 const expressionInput = ref<string>('')
 const expressionParseResult = ref<string>('')
 const expressionParseError = ref<string | null>(null)
+
+// 代码编辑空间相关
+const codeEditorInput = ref<string>(`// TypeScript 代码编辑空间
+// 输入函数式程序代码，点击解析生成原子UI控件
+
+GetCombatTime() > 5 
+`)
+const codeEditorParseResult = ref<string>('')
+const codeEditorParseError = ref<string | null>(null)
+const codeEditorRef = ref<InstanceType<typeof CodeEditor> | null>(null)
 
 // 条件字段相关
 type ConditionFieldInfo = {
@@ -606,6 +623,36 @@ const filteredRowNames = computed(() => {
   }
   return allRowNames.filter((rowName) => rowName.toLowerCase().includes(keyword))
 })
+
+// 虚拟滚动计算属性
+const virtualScrollInfo = computed(() => {
+  const containerHeight = rowListContainerRef.value?.clientHeight ?? 400
+  const totalItems = filteredRowNames.value.length
+  const totalHeight = totalItems * ROW_ITEM_HEIGHT
+  const scrollTop = virtualScrollTop.value
+  
+  // 计算可见范围
+  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_ITEM_HEIGHT) - VIRTUAL_BUFFER)
+  const visibleCount = Math.ceil(containerHeight / ROW_ITEM_HEIGHT) + VIRTUAL_BUFFER * 2
+  const endIndex = Math.min(totalItems, startIndex + visibleCount)
+  
+  return {
+    totalHeight,
+    startIndex,
+    endIndex,
+    offsetY: startIndex * ROW_ITEM_HEIGHT
+  }
+})
+
+const visibleRowNames = computed(() => {
+  const { startIndex, endIndex } = virtualScrollInfo.value
+  return filteredRowNames.value.slice(startIndex, endIndex)
+})
+
+function onRowListScroll(event: Event) {
+  const target = event.target as HTMLDivElement
+  virtualScrollTop.value = target.scrollTop
+}
 
 // 原始的当前选择的记录值
 const currentRecord = computed<RowRecord | null>(() => {
@@ -1070,6 +1117,91 @@ async function parseAtomExpression() {
 }
 
 /**
+ * 解析代码编辑器中的 TypeScript 代码
+ * 从代码中提取表达式并解析生成原子UI控件
+ */
+async function parseCodeEditorContent() {
+  const code = codeEditorInput.value.trim()
+  if (!code) {
+    codeEditorParseError.value = '请输入代码'
+    return
+  }
+
+  if (!window.delegateBridge) {
+    codeEditorParseError.value = '当前环境未暴露 Delegate 接口，请检查配置。'
+    return
+  }
+
+  try {
+    codeEditorParseError.value = null
+    codeEditorParseResult.value = '解析中...'
+
+    // 从代码中提取 return 语句后的表达式
+    // 支持多种格式：
+    // 1. return expression
+    // 2. 直接的表达式（如果没有 return）
+    let expression = code
+
+    // 尝试提取 return 语句中的表达式
+    const returnMatch = code.match(/return\s+(.+?)(?:;|\n|$)/s)
+    if (returnMatch) {
+      expression = returnMatch[1].trim()
+    } else {
+      // 如果没有 return，尝试提取最后一个非注释行作为表达式
+      const lines = code.split('\n').filter(line => {
+        const trimmed = line.trim()
+        return trimmed && !trimmed.startsWith('//') && !trimmed.startsWith('/*')
+      })
+      if (lines.length > 0) {
+        expression = lines[lines.length - 1].trim().replace(/;$/, '')
+      }
+    }
+
+    // 移除可能的分号
+    expression = expression.replace(/;$/, '').trim()
+
+    if (!expression) {
+      codeEditorParseError.value = '未能从代码中提取有效表达式'
+      codeEditorParseResult.value = ''
+      return
+    }
+
+    const result = await window.delegateBridge.parseExpression({
+      expression
+    })
+
+    if (result.ok && result.json) {
+      codeEditorParseResult.value = result.json
+      codeEditorParseError.value = null
+
+      // 解析成功，同时更新 DynamicObjectForm 测试界面
+      try {
+        const parsedJson = JSON.parse(result.json) as ParsedClassObject
+        applyNormalizedObject(parsedJson)
+      } catch (parseError) {
+        console.warn('Failed to parse JSON result:', parseError)
+      }
+    } else {
+      codeEditorParseResult.value = ''
+      codeEditorParseError.value = result.error || '代码解析失败'
+    }
+  } catch (error) {
+    codeEditorParseResult.value = ''
+    codeEditorParseError.value = error instanceof Error ? error.message : '未知错误'
+    console.error('[parseCodeEditorContent]', error)
+  }
+}
+
+/**
+ * 清空代码编辑器
+ */
+function clearCodeEditor() {
+  codeEditorInput.value = ''
+  codeEditorParseResult.value = ''
+  codeEditorParseError.value = null
+}
+
+/**
  * 解析条件字段字符串
  * 遍历记录中的所有字段，识别原子字段（Condition、Action、Task类型）
  * 调用主线程接口逐个解析，返回解析后的JSON字符串
@@ -1166,6 +1298,12 @@ watch(selectedRowName, async (newSelection) => {
 })
 
 watch(filteredRowNames, async (newFilteredRowNames) => {
+  // 搜索结果变化时重置虚拟滚动位置
+  virtualScrollTop.value = 0
+  if (rowListContainerRef.value) {
+    rowListContainerRef.value.scrollTop = 0
+  }
+  
   if (!selectedRowName.value) {
     return
   }
@@ -1188,11 +1326,31 @@ watch(
 )
 
 function scrollSelectedRowIntoView(options?: ScrollIntoViewOptions) {
-  if (!selectedRowName.value) {
+  if (!selectedRowName.value || !rowListContainerRef.value) {
     return
   }
-  const button = rowButtonRefs[selectedRowName.value]
-  button?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto', ...options })
+  
+  // 虚拟滚动：先计算目标位置并滚动容器
+  const index = filteredRowNames.value.indexOf(selectedRowName.value)
+  if (index === -1) {
+    return
+  }
+  
+  const targetScrollTop = index * ROW_ITEM_HEIGHT
+  const containerHeight = rowListContainerRef.value.clientHeight
+  const currentScrollTop = rowListContainerRef.value.scrollTop
+  
+  // 检查目标是否在可视区域内
+  if (targetScrollTop < currentScrollTop || targetScrollTop > currentScrollTop + containerHeight - ROW_ITEM_HEIGHT) {
+    // 滚动到目标位置（居中显示）
+    rowListContainerRef.value.scrollTop = Math.max(0, targetScrollTop - containerHeight / 2 + ROW_ITEM_HEIGHT / 2)
+  }
+  
+  // 等待虚拟滚动更新后，再尝试使用原生 scrollIntoView 微调
+  nextTick(() => {
+    const button = rowButtonRefs[selectedRowName.value!]
+    button?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto', ...options })
+  })
 }
 
 function clearWorkbookState() {
@@ -2368,57 +2526,67 @@ function stopAutoSave() {
           </div>
         </div>
         <div class="h-px w-full bg-base-200"></div>
-        <div class="scrollbar flex-1 px-4 pb-4 pt-2 min-h-0 overflow-y-auto">
-          <div class="flex flex-1 flex-col space-y-2">
-            <template v-for="row in filteredRowNames" :key="row">
-              <!-- 重命名模式 -->
-              <div
-                v-if="renamingRowName === row"
-                class="flex items-center gap-2 px-2 py-2 bg-base-200 rounded-lg"
-              >
-                <input
-                  ref="renameInputRef"
-                  v-model="renameInputValue"
-                  type="text"
-                  class="input input-sm input-bordered flex-1"
-                  @keydown="handleRenameKeydown"
-                  @blur="confirmRenameRow"
-                />
-                <button
-                  type="button"
-                  class="btn btn-xs btn-primary"
-                  @click="confirmRenameRow"
+        <div 
+          ref="rowListContainerRef"
+          class="scrollbar flex-1 px-4 pb-4 pt-2 min-h-0 overflow-y-auto"
+          @scroll="onRowListScroll"
+        >
+          <!-- 虚拟滚动容器 -->
+          <div :style="{ height: virtualScrollInfo.totalHeight + 'px', position: 'relative' }">
+            <div 
+              class="flex flex-col space-y-2"
+              :style="{ position: 'absolute', top: virtualScrollInfo.offsetY + 'px', left: 0, right: 0 }"
+            >
+              <template v-for="row in visibleRowNames" :key="row">
+                <!-- 重命名模式 -->
+                <div
+                  v-if="renamingRowName === row"
+                  class="flex items-center gap-2 px-2 py-2 bg-base-200 rounded-lg"
                 >
-                  ✓
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-xs btn-ghost"
-                  @click="cancelRenameRow"
-                >
-                  ✕
-                </button>
-              </div>
-              <!-- 正常显示模式 -->
-              <button
-                v-else
-                :ref="(el) => setRowButtonRef(row, el)"
-                class="btn btn-md w-full justify-start items-center text-left normal-case leading-tight h-auto py-2"
-                :class="{ 'btn-active btn-primary': row === selectedRowName }"
-                @click="selectedRowName = row"
-                @dblclick="handleRowDoubleClick(row)"
-                @contextmenu="openRowContextMenu($event, row)"
-              >
-                <div class="flex flex-col items-start w-full gap-0">
-                  <span class="font-semibold truncate">{{ row }}</span>
-                  <span v-if="getRecordRemark(row)" class="remark-text text-xs w-full">{{ getRecordRemark(row) }}</span>
+                  <input
+                    ref="renameInputRef"
+                    v-model="renameInputValue"
+                    type="text"
+                    class="input input-sm input-bordered flex-1"
+                    @keydown="handleRenameKeydown"
+                    @blur="confirmRenameRow"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-primary"
+                    @click="confirmRenameRow"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-ghost"
+                    @click="cancelRenameRow"
+                  >
+                    ✕
+                  </button>
                 </div>
-              </button>
-            </template>
-            <p v-if="!filteredRowNames.length" class="text-center text-sm text-base-content/60">
-              暂无数据，请先打开 Excel 配置表。
-            </p>
+                <!-- 正常显示模式 -->
+                <button
+                  v-else
+                  :ref="(el) => setRowButtonRef(row, el)"
+                  class="btn btn-md w-full justify-start items-center text-left normal-case leading-tight h-auto py-2"
+                  :class="{ 'btn-active btn-primary': row === selectedRowName }"
+                  @click="selectedRowName = row"
+                  @dblclick="handleRowDoubleClick(row)"
+                  @contextmenu="openRowContextMenu($event, row)"
+                >
+                  <div class="flex flex-col items-start w-full gap-0">
+                    <span class="font-semibold truncate">{{ row }}</span>
+                    <span v-if="getRecordRemark(row)" class="remark-text text-xs w-full">{{ getRecordRemark(row) }}</span>
+                  </div>
+                </button>
+              </template>
+            </div>
           </div>
+          <p v-if="!filteredRowNames.length" class="text-center text-sm text-base-content/60">
+            暂无数据，请先打开 Excel 配置表。
+          </p>
         </div>
       </aside>
 
@@ -2506,6 +2674,58 @@ function stopAutoSave() {
                 <p v-else class="text-sm text-base-content/60">开启调试模式以查看解析结果的 JSON 结构</p>
                 
               </div>
+            </div>
+
+            <!-- 代码编辑空间 -->
+            <div class="divider my-2">代码编辑空间</div>
+            <div class="form-control gap-2">
+              <label class="label">
+                <span class="label-text">TypeScript 代码编辑器</span>
+                <span class="label-text-alt text-base-content/60">输入函数式代码，点击解析生成原子UI控件</span>
+              </label>
+              <div class="flex gap-2">
+                <div class="flex-1">
+                  <CodeEditor
+                    ref="codeEditorRef"
+                    v-model="codeEditorInput"
+                    language="typescript"
+                    theme="vs-dark"
+                    height="200px"
+                    placeholder="// 在此输入 TypeScript 代码..."
+                  />
+                </div>
+                <div class="flex flex-col gap-2">
+                  <button
+                    class="btn btn-primary btn-sm"
+                    @click="parseCodeEditorContent"
+                    :disabled="!codeEditorInput.trim()"
+                  >
+                    解析代码
+                  </button>
+                  <button
+                    class="btn btn-outline btn-sm"
+                    @click="clearCodeEditor"
+                  >
+                    清空
+                  </button>
+                </div>
+              </div>
+              <p v-if="codeEditorParseError" class="text-sm text-error mt-1">
+                {{ codeEditorParseError }}
+              </p>
+            </div>
+
+            <div v-if="isDebugMode && codeEditorParseResult" class="form-control gap-2 mt-2">
+              <label class="label">
+                <span class="label-text">代码解析结果 (JSON)</span>
+              </label>
+              <textarea
+                v-model="codeEditorParseResult"
+                class="textarea textarea-bordered font-mono text-xs resize"
+                placeholder="代码解析结果将在此显示"
+                readonly
+                rows="6"
+              ></textarea>
             </div>
 
             <div class="divider my-2">对象表单与 JSON</div>

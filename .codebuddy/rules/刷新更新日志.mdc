@@ -6,6 +6,6 @@ updatedAt: 2025-12-27T03:23:24.279Z
 provider: 
 ---
 
-1.先判断git中是否有ChangesList，根据ChangesList文件修改内容生成提交日志描述
+1.先判断git中是否有ChangesList，根据ChangesList文件修改内容生成提交日志描述，提交到git的标题用一句话概括修改内容
 2.MHAtomExcelTool\config\changelog.json更新日志刷新，将提交日志作为更新日志
 3.最后commit and push到git中

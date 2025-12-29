@@ -379,10 +379,12 @@ function handleKeydown(event: KeyboardEvent) {
     }
     case 'Enter': {
       event.preventDefault()
-      if (keyboardState.activeIndex >= 0 && keyboardState.activeIndex < total) {
-        const option = flatVisibleOptions.value[keyboardState.activeIndex]
+      // 如果没有选中项，默认选择第一项
+      // const targetIndex = keyboardState.activeIndex >= 0 ? keyboardState.activeIndex : 0
+      // if (targetIndex < total) {
+        const option = flatVisibleOptions.value[0]
         selectOption(option.value, option.isNumberShortcut)
-      }
+      // }
       break
     }
     case 'Escape': {

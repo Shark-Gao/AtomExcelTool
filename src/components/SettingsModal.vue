@@ -20,6 +20,8 @@ const props = defineProps<{
   showOnlyAtomicFields: boolean
   isDebugMode: boolean
   fieldLayoutDirection: 'horizontal' | 'vertical'
+  autoSaveEnabled: boolean
+  autoSaveInterval: number
   themeOptions: FieldOption[]
 }>()
 
@@ -29,6 +31,8 @@ const emit = defineEmits<{
   'update:showOnlyAtomicFields': [value: boolean]
   'update:isDebugMode': [value: boolean]
   'update:fieldLayoutDirection': [value: 'horizontal' | 'vertical']
+  'update:autoSaveEnabled': [value: boolean]
+  'update:autoSaveInterval': [value: number]
 }>()
 
 const activeTab = ref<'settings' | 'changelog'>('settings')
@@ -53,6 +57,14 @@ function handleDebugModeToggle(value: boolean) {
 
 function handleFieldLayoutDirectionChange(direction: 'horizontal' | 'vertical') {
   emit('update:fieldLayoutDirection', direction)
+}
+
+function handleAutoSaveEnabledToggle(value: boolean) {
+  emit('update:autoSaveEnabled', value)
+}
+
+function handleAutoSaveIntervalChange(value: number) {
+  emit('update:autoSaveInterval', value)
 }
 </script>
 
@@ -152,6 +164,44 @@ function handleFieldLayoutDirectionChange(direction: 'horizontal' | 'vertical') 
                 </label>
               </div>
               <p class="text-xs text-base-content/60 mt-1">选择字段排列方向</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 自动保存设置分组 -->
+        <div class="card bg-base-200">
+          <div class="card-body p-4 space-y-4">
+            <h3 class="card-title text-sm">自动保存</h3>
+            
+            <!-- 自动保存开关 -->
+            <div class="form-control">
+              <label class="label cursor-pointer">
+                <span class="label-text font-semibold text-sm">启用自动保存</span>
+                <input
+                  type="checkbox"
+                  class="toggle toggle-primary toggle-sm"
+                  :checked="autoSaveEnabled"
+                  @change="(event) => handleAutoSaveEnabledToggle((event.target as HTMLInputElement).checked)"
+                />
+              </label>
+              <p class="text-xs text-base-content/60 mt-1">启用后，将定时自动保存已打开的文件</p>
+            </div>
+
+            <!-- 自动保存间隔 -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text font-semibold text-sm">保存间隔（分钟）</span>
+              </label>
+              <input
+                type="number"
+                class="input input-bordered input-sm w-32"
+                :value="autoSaveInterval"
+                :disabled="!autoSaveEnabled"
+                min="1"
+                max="60"
+                @change="(event) => handleAutoSaveIntervalChange(Number((event.target as HTMLInputElement).value))"
+              />
+              <p class="text-xs text-base-content/60 mt-1">设置自动保存的时间间隔，范围 1-60 分钟</p>
             </div>
           </div>
         </div>

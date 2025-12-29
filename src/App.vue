@@ -101,10 +101,10 @@ const progressType = ref<'saving' | 'loading' | 'processing'>('processing')
 const isSkeletonVisible = ref(true)
 
 // 自动保存相关
-const AUTO_SAVE_INTERVAL = 5 * 60 * 1000// 5分钟
 let autoSaveTimer: ReturnType<typeof setInterval> | null = null
 const lastAutoSaveTime = ref<Date | null>(null)
-const autoSaveEnabled = ref(true)
+const autoSaveEnabled = ref(initialSettings.autoSaveEnabled)
+const autoSaveInterval = ref(initialSettings.autoSaveInterval)
 
 // 字段宽度控制
 const columnWidths = reactive<Record<string, number>>({})
@@ -817,7 +817,9 @@ watch(currentTheme, (newTheme) => {
     theme: newTheme,
     showOnlyAtomicFields: showOnlyAtomicFields.value,
     isDebugMode: isDebugMode.value,
-    fieldLayoutDirection: fieldLayoutDirection.value
+    fieldLayoutDirection: fieldLayoutDirection.value,
+    autoSaveEnabled: autoSaveEnabled.value,
+    autoSaveInterval: autoSaveInterval.value
   })
 })
 
@@ -826,7 +828,9 @@ watch(showOnlyAtomicFields, (newValue) => {
     theme: currentTheme.value,
     showOnlyAtomicFields: newValue,
     isDebugMode: isDebugMode.value,
-    fieldLayoutDirection: fieldLayoutDirection.value
+    fieldLayoutDirection: fieldLayoutDirection.value,
+    autoSaveEnabled: autoSaveEnabled.value,
+    autoSaveInterval: autoSaveInterval.value
   })
 })
 
@@ -835,7 +839,9 @@ watch(isDebugMode, (newValue) => {
     theme: currentTheme.value,
     showOnlyAtomicFields: showOnlyAtomicFields.value,
     isDebugMode: newValue,
-    fieldLayoutDirection: fieldLayoutDirection.value
+    fieldLayoutDirection: fieldLayoutDirection.value,
+    autoSaveEnabled: autoSaveEnabled.value,
+    autoSaveInterval: autoSaveInterval.value
   })
 })
 
@@ -844,8 +850,42 @@ watch(fieldLayoutDirection, (newValue) => {
     theme: currentTheme.value,
     showOnlyAtomicFields: showOnlyAtomicFields.value,
     isDebugMode: isDebugMode.value,
-    fieldLayoutDirection: newValue
+    fieldLayoutDirection: newValue,
+    autoSaveEnabled: autoSaveEnabled.value,
+    autoSaveInterval: autoSaveInterval.value
   })
+})
+
+watch(autoSaveEnabled, (newValue) => {
+  saveSettingsToStorage({
+    theme: currentTheme.value,
+    showOnlyAtomicFields: showOnlyAtomicFields.value,
+    isDebugMode: isDebugMode.value,
+    fieldLayoutDirection: fieldLayoutDirection.value,
+    autoSaveEnabled: newValue,
+    autoSaveInterval: autoSaveInterval.value
+  })
+  // 根据开关状态启动或停止自动保存
+  if (newValue) {
+    startAutoSave()
+  } else {
+    stopAutoSave()
+  }
+})
+
+watch(autoSaveInterval, (newValue) => {
+  saveSettingsToStorage({
+    theme: currentTheme.value,
+    showOnlyAtomicFields: showOnlyAtomicFields.value,
+    isDebugMode: isDebugMode.value,
+    fieldLayoutDirection: fieldLayoutDirection.value,
+    autoSaveEnabled: autoSaveEnabled.value,
+    autoSaveInterval: newValue
+  })
+  // 如果自动保存已启用，重启定时器以应用新间隔
+  if (autoSaveEnabled.value) {
+    startAutoSave()
+  }
 })
 
 applyTheme(currentTheme.value)
@@ -1547,14 +1587,15 @@ function performGlobalSearch() {
     return
   }
 
-  const mainContent = document.querySelector('main')
+  // 只搜索右侧主内容区域（排除左侧 RowName 列表）
+  const mainContent = document.querySelector('main > section')
   if (!mainContent) return
 
   const ranges: Range[] = []
   const inputMatches: HTMLElement[] = []
   const lowerKeyword = keyword.toLowerCase()
 
-  // 1. 搜索文本节点
+  // 1. 搜索文本节点（仅右侧主内容区）
   const treeWalker = document.createTreeWalker(mainContent, NodeFilter.SHOW_TEXT, null)
   
   while (treeWalker.nextNode()) {
@@ -2197,10 +2238,12 @@ async function autoSave() {
  */
 function startAutoSave() {
   stopAutoSave()
+  if (!autoSaveEnabled.value) return
+  const intervalMs = autoSaveInterval.value * 60 * 1000
   autoSaveTimer = setInterval(() => {
     autoSave()
-  }, AUTO_SAVE_INTERVAL)
-  console.log(`[AutoSave] Started, interval: ${AUTO_SAVE_INTERVAL / 1000 / 60} min`)
+  }, intervalMs)
+  console.log(`[AutoSave] Started, interval: ${autoSaveInterval.value} min`)
 }
 
 /**
@@ -2233,7 +2276,7 @@ function stopAutoSave() {
             <span 
               v-if="lastAutoSaveTime && openedFilePath" 
               class="badge badge-success badge-sm gap-1"
-              :title="`自动保存已${autoSaveEnabled ? '启用' : '禁用'}，间隔 ${(AUTO_SAVE_INTERVAL / 1000 / 60).toFixed(2)} 分钟`"
+              :title="`自动保存已${autoSaveEnabled ? '启用' : '禁用'}，间隔 ${autoSaveInterval} 分钟`"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -2606,12 +2649,16 @@ function stopAutoSave() {
       :show-only-atomic-fields="showOnlyAtomicFields"
       :is-debug-mode="isDebugMode"
       :field-layout-direction="fieldLayoutDirection"
+      :auto-save-enabled="autoSaveEnabled"
+      :auto-save-interval="autoSaveInterval"
       :theme-options="themeOptions"
       @update:is-open="isSettingsModalOpen = $event"
       @update:current-theme="currentTheme = $event"
       @update:show-only-atomic-fields="showOnlyAtomicFields = $event"
       @update:is-debug-mode="isDebugMode = $event"
       @update:field-layout-direction="fieldLayoutDirection = $event"
+      @update:auto-save-enabled="autoSaveEnabled = $event"
+      @update:auto-save-interval="autoSaveInterval = $event"
     />
 
     <CheckValidationModal

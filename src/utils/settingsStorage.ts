@@ -7,6 +7,8 @@ export interface AppSettings {
   showOnlyAtomicFields: boolean
   isDebugMode: boolean
   fieldLayoutDirection: 'horizontal' | 'vertical'
+  autoSaveEnabled: boolean
+  autoSaveInterval: number // 分钟
 }
 
 const SETTINGS_STORAGE_KEY = 'mhatomexceltool_settings'
@@ -15,7 +17,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dracula_custom',
   showOnlyAtomicFields: true,
   isDebugMode: false,
-  fieldLayoutDirection: 'horizontal'
+  fieldLayoutDirection: 'horizontal',
+  autoSaveEnabled: false,
+  autoSaveInterval: 5
 }
 
 /**
@@ -30,7 +34,9 @@ export function loadSettingsFromStorage(): AppSettings {
         theme: settings.theme ?? DEFAULT_SETTINGS.theme,
         showOnlyAtomicFields: settings.showOnlyAtomicFields ?? DEFAULT_SETTINGS.showOnlyAtomicFields,
         isDebugMode: settings.isDebugMode ?? DEFAULT_SETTINGS.isDebugMode,
-        fieldLayoutDirection: settings.fieldLayoutDirection ?? DEFAULT_SETTINGS.fieldLayoutDirection
+        fieldLayoutDirection: settings.fieldLayoutDirection ?? DEFAULT_SETTINGS.fieldLayoutDirection,
+        autoSaveEnabled: settings.autoSaveEnabled ?? DEFAULT_SETTINGS.autoSaveEnabled,
+        autoSaveInterval: settings.autoSaveInterval ?? DEFAULT_SETTINGS.autoSaveInterval
       }
     }
   } catch (error) {

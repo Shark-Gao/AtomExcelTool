@@ -8,6 +8,20 @@ export type SearchableSelectOption = {
   funcName?: string
 }
 
+/** 分组后的选项结构 */
+type GroupedOption = SearchableSelectOption & { 
+  highlightedLabel: string
+  isNumberShortcut?: boolean
+  category?: string
+  author?: string
+}
+
+type CategoryGroup = {
+  category: string
+  isExpanded: boolean
+  options: GroupedOption[]
+}
+
 const props = withDefaults(
   defineProps<{
     modelValue: string
@@ -17,6 +31,8 @@ const props = withDefaults(
     disabled?: boolean
     allowEmpty?: boolean
     emptyLabel?: string
+    /** 当前字段的基类，用于智能推断选项 */
+    baseClass?: string
   }>(),
   {
     placeholder: '搜索...'
@@ -25,6 +41,8 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
+  /** 当用户输入数字并选择 NumberValueConstDelegate 时，传递输入的数字值 */
+  'select-with-number': [className: string, numberValue: number]
 }>()
 
 const rootRef = ref<HTMLElement | null>(null)
@@ -35,6 +53,9 @@ const tooltipRef = ref<HTMLElement | null>(null)
 const keyboardState = reactive({
   activeIndex: -1
 })
+
+/** 分类展开状态 */
+const expandedCategories = reactive<Record<string, boolean>>({})
 
 const normalizedOptions = computed<SearchableSelectOption[]>(() => {
   const baseOptions = props.options ?? []
@@ -87,45 +108,172 @@ const searchKeywords = computed(() => {
   return searchTerm.value.trim().toLowerCase().split(/\s+/).filter(Boolean)
 })
 
-const filteredOptions = computed<Array<SearchableSelectOption & { highlightedLabel: string }>>(() => {
+/** 检测搜索词是否为有效数字 */
+const parsedNumberValue = computed<number | null>(() => {
+  const trimmed = searchTerm.value.trim()
+  if (!trimmed) return null
+  const num = Number(trimmed)
+  return Number.isFinite(num) ? num : null
+})
+
+/** 是否应该显示 NumberValueConstDelegate 快捷选项 */
+const shouldShowNumberConstShortcut = computed(() => {
+  return (
+    parsedNumberValue.value !== null &&
+    props.baseClass === 'NumberValueDelegate' &&
+    props.options.some(opt => opt.value === 'NumberValueConstDelegate')
+  )
+})
+
+/** 获取选项的分类和作者信息 */
+function getOptionMeta(optionValue: string): { category?: string; author?: string } {
+  const info = props.registry[optionValue]
+  return {
+    category: info?.classMeta?.category,
+    author: info?.classMeta?.author
+  }
+}
+
+const filteredOptions = computed<GroupedOption[]>(() => {
   const keywords = searchKeywords.value
-  if (!keywords.length) {
-    return normalizedOptions.value.map(opt => ({
-      ...opt,
-      highlightedLabel: opt.label + (opt.funcName ? `_${opt.funcName}` : '')
-    }))
+  
+  // 如果应该显示数字常量快捷选项
+  if (shouldShowNumberConstShortcut.value) {
+    const numberConstOption = props.options.find(opt => opt.value === 'NumberValueConstDelegate')
+    if (numberConstOption) {
+      const displayLabel = `${numberConstOption.label}_${numberConstOption.funcName ?? 'NumberValueConst'}`
+      const highlightedLabel = `<span class="text-primary font-semibold">${parsedNumberValue.value}</span> → ${displayLabel}`
+      const meta = getOptionMeta(numberConstOption.value)
+      return [{
+        ...numberConstOption,
+        highlightedLabel,
+        isNumberShortcut: true,
+        category: meta.category,
+        author: meta.author
+      }]
+    }
   }
   
-  const results: Array<SearchableSelectOption & { highlightedLabel: string }> = []
+  if (!keywords.length) {
+    return normalizedOptions.value.map(opt => {
+      const meta = getOptionMeta(opt.value)
+      return {
+        ...opt,
+        highlightedLabel: opt.label + (opt.funcName ? `_${opt.funcName}` : ''),
+        category: meta.category,
+        author: meta.author
+      }
+    })
+  }
+  
+  const results: GroupedOption[] = []
   
   for (const option of normalizedOptions.value) {
-    const label = option.label?.toLowerCase() ?? ''
-    const value = option.value?.toLowerCase() ?? ''
-    const funcName = option.funcName?.toLowerCase() ?? ''
+    const label = option.label ?? ''
+    const funcName = option.funcName ?? ''
+    // 原始文本用于显示
     const fullText = label + (funcName ? `_${funcName}` : '')
+    // 小写文本用于匹配
     const fullTextLower = fullText.toLowerCase()
+    const valueLower = (option.value ?? '').toLowerCase()
+    const meta = getOptionMeta(option.value)
+    // 也支持按分类搜索
+    const categoryLower = (meta.category ?? '').toLowerCase()
     
     // 尝试在完整文本中匹配
     const fullIndices = multiKeywordMatch(fullTextLower, keywords)
     if (fullIndices) {
       results.push({
         ...option,
-        highlightedLabel: highlightText(fullText, fullIndices)
+        highlightedLabel: highlightText(fullText, fullIndices),
+        category: meta.category,
+        author: meta.author
       })
       continue
     }
     
     // 尝试在 value 中匹配
-    const valueIndices = multiKeywordMatch(value, keywords)
+    const valueIndices = multiKeywordMatch(valueLower, keywords)
     if (valueIndices) {
       results.push({
         ...option,
-        highlightedLabel: fullText // value 匹配时不高亮显示文本
+        highlightedLabel: fullText,
+        category: meta.category,
+        author: meta.author
+      })
+      continue
+    }
+    
+    // 尝试在分类中匹配
+    const categoryIndices = multiKeywordMatch(categoryLower, keywords)
+    if (categoryIndices) {
+      results.push({
+        ...option,
+        highlightedLabel: fullText,
+        category: meta.category,
+        author: meta.author
       })
     }
   }
   
   return results
+})
+
+/** 默认分类名称 */
+const DEFAULT_CATEGORY = '未分类'
+
+/** 按分类分组的选项 */
+const groupedByCategory = computed<CategoryGroup[]>(() => {
+  const options = filteredOptions.value
+  const categoryMap = new Map<string, GroupedOption[]>()
+  
+  // 按分类分组
+  for (const opt of options) {
+    const cat = opt.category || DEFAULT_CATEGORY
+    if (!categoryMap.has(cat)) {
+      categoryMap.set(cat, [])
+    }
+    categoryMap.get(cat)!.push(opt)
+  }
+  
+  // 转换为数组，未分类放在最后
+  const groups: CategoryGroup[] = []
+  const sortedCategories = Array.from(categoryMap.keys()).sort((a, b) => {
+    if (a === DEFAULT_CATEGORY) return 1
+    if (b === DEFAULT_CATEGORY) return -1
+    return a.localeCompare(b, 'zh-CN')
+  })
+  
+  for (const category of sortedCategories) {
+    groups.push({
+      category,
+      isExpanded: expandedCategories[category] ?? true, // 默认展开
+      options: categoryMap.get(category)!
+    })
+  }
+  
+  return groups
+})
+
+/** 是否有多个分类（用于决定是否显示分类折叠） */
+const hasMultipleCategories = computed(() => {
+  return groupedByCategory.value.length > 1
+})
+
+/** 切换分类展开状态 */
+function toggleCategory(category: string) {
+  expandedCategories[category] = !(expandedCategories[category] ?? true)
+}
+
+/** 获取扁平化的选项列表（用于键盘导航） */
+const flatVisibleOptions = computed<GroupedOption[]>(() => {
+  const result: GroupedOption[] = []
+  for (const group of groupedByCategory.value) {
+    if (group.isExpanded) {
+      result.push(...group.options)
+    }
+  }
+  return result
 })
 
 const selectedOption = computed(() => {
@@ -137,7 +285,17 @@ const hoveredDescription = computed(() => {
     return ''
   }
   const info = props.registry[hoveredValue.value]
-  return info?.classMeta.description ?? ''
+  if (!info?.classMeta) {
+    return ''
+  }
+  const parts: string[] = []
+  if (info.classMeta.author) {
+    parts.push(`作者: ${info.classMeta.author}`)
+  }
+  if (info.classMeta.description) {
+    parts.push(info.classMeta.description)
+  }
+  return parts.join('\n')
 })
 
 function openDropdown() {
@@ -158,15 +316,21 @@ function closeDropdown() {
 }
 
 function resetKeyboardNavigation() {
-  keyboardState.activeIndex = filteredOptions.value.findIndex(
+  keyboardState.activeIndex = flatVisibleOptions.value.findIndex(
     (option) => option.value === props.modelValue
   )
 }
 
-function selectOption(value: string) {
+function selectOption(value: string, isNumberShortcut?: boolean) {
   if (props.disabled) {
     return
   }
+  
+  // 如果是数字快捷方式选择 NumberValueConstDelegate，额外 emit 数字值
+  if (isNumberShortcut && value === 'NumberValueConstDelegate' && parsedNumberValue.value !== null) {
+    emit('select-with-number', value, parsedNumberValue.value)
+  }
+  
   emit('update:modelValue', value)
   nextTick(() => {
     closeDropdown()
@@ -196,7 +360,7 @@ function handleKeydown(event: KeyboardEvent) {
   if (!isOpen.value) {
     openDropdown()
   }
-  const total = filteredOptions.value.length
+  const total = flatVisibleOptions.value.length
   if (total === 0) {
     return
   }
@@ -216,8 +380,8 @@ function handleKeydown(event: KeyboardEvent) {
     case 'Enter': {
       event.preventDefault()
       if (keyboardState.activeIndex >= 0 && keyboardState.activeIndex < total) {
-        const option = filteredOptions.value[keyboardState.activeIndex]
-        selectOption(option.value)
+        const option = flatVisibleOptions.value[keyboardState.activeIndex]
+        selectOption(option.value, option.isNumberShortcut)
       }
       break
     }
@@ -325,32 +489,80 @@ onBeforeUnmount(() => {
         >
           无匹配结果
         </div>
-        <ul
+        <div
           v-else
           data-option-list
           class="max-h-160 overflow-auto py-2"
         >
-          <li
-            v-for="(option, index) in filteredOptions"
-            :key="option.value"
-            data-option-item
-            class="px-4 py-2 text-sm transition-colors cursor-pointer"
-            :class="[
-              option.value === modelValue ? 'bg-primary/10 text-primary' : 'hover:bg-base-200',
-              keyboardState.activeIndex === index ? 'bg-primary/20 text-primary' : ''
-            ]"
-            @mouseenter="(e) => {
-              setHoveredValue(option.value)
-              keyboardState.activeIndex = index
-              updateTooltipPosition(e as MouseEvent)
-            }"
-            @mousemove="updateTooltipPosition"
-            @mouseleave="clearHoveredValue"
-            @mousedown.prevent="selectOption(option.value)"
-          >
-            <span v-html="option.highlightedLabel"></span>
-          </li>
-        </ul>
+          <!-- 有多个分类时显示分类折叠 -->
+          <template v-if="hasMultipleCategories">
+            <div v-for="group in groupedByCategory" :key="group.category" class="mb-1">
+              <!-- 分类标题 -->
+              <div
+                class="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-base-content/70 bg-base-200/50 cursor-pointer select-none hover:bg-base-200"
+                @click="toggleCategory(group.category)"
+              >
+                <svg
+                  class="w-3 h-3 transition-transform"
+                  :class="{ 'rotate-90': group.isExpanded }"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+                <span>{{ group.category }}</span>
+                <span class="text-base-content/40 ml-1">({{ group.options.length }})</span>
+              </div>
+              <!-- 分类下的选项 -->
+              <ul v-show="group.isExpanded">
+                <li
+                  v-for="option in group.options"
+                  :key="option.value"
+                  data-option-item
+                  class="pl-8 pr-4 py-2 text-sm transition-colors cursor-pointer"
+                  :class="[
+                    option.value === modelValue ? 'bg-primary/10 text-primary' : 'hover:bg-base-200',
+                    flatVisibleOptions[keyboardState.activeIndex]?.value === option.value ? 'bg-primary/20 text-primary' : ''
+                  ]"
+                  @mouseenter="(e) => {
+                    setHoveredValue(option.value)
+                    keyboardState.activeIndex = flatVisibleOptions.findIndex(o => o.value === option.value)
+                    updateTooltipPosition(e as MouseEvent)
+                  }"
+                  @mousemove="updateTooltipPosition"
+                  @mouseleave="clearHoveredValue"
+                  @mousedown.prevent="selectOption(option.value, option.isNumberShortcut)"
+                >
+                  <span v-html="option.highlightedLabel"></span>
+                </li>
+              </ul>
+            </div>
+          </template>
+          <!-- 只有一个分类或无分类时，平铺显示 -->
+          <ul v-else>
+            <li
+              v-for="(option, index) in filteredOptions"
+              :key="option.value"
+              data-option-item
+              class="px-4 py-2 text-sm transition-colors cursor-pointer"
+              :class="[
+                option.value === modelValue ? 'bg-primary/10 text-primary' : 'hover:bg-base-200',
+                keyboardState.activeIndex === index ? 'bg-primary/20 text-primary' : ''
+              ]"
+              @mouseenter="(e) => {
+                setHoveredValue(option.value)
+                keyboardState.activeIndex = index
+                updateTooltipPosition(e as MouseEvent)
+              }"
+              @mousemove="updateTooltipPosition"
+              @mouseleave="clearHoveredValue"
+              @mousedown.prevent="selectOption(option.value, option.isNumberShortcut)"
+            >
+              <span v-html="option.highlightedLabel"></span>
+            </li>
+          </ul>
+        </div>
       </div>
     </Transition>
 
@@ -359,7 +571,7 @@ onBeforeUnmount(() => {
       <div
         v-if="hoveredDescription"
         ref="tooltipRef"
-        class="fixed z-[9999] max-w-xs rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-[12px] leading-relaxed text-base-content shadow-lg pointer-events-none"
+        class="fixed z-[9999] max-w-xs rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-[12px] leading-relaxed text-base-content shadow-lg pointer-events-none whitespace-pre-line"
       >
         {{ hoveredDescription }}
       </div>

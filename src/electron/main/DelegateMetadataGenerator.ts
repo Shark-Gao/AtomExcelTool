@@ -317,6 +317,7 @@ export class DelegateMetadataGenerator {
         displayName: decoratorMetaItem? decoratorMetaItem.displayName: scriptFunctionMeta.FunctionName,
         description: decoratorMetaItem? decoratorMetaItem.description: scriptFunctionMeta.FunctionName,
         category: decoratorMetaItem? decoratorMetaItem.category: '',
+        author: decoratorMetaItem? decoratorMetaItem.author: '',
         richDescription: decoratorMetaItem? decoratorMetaItem.richDescription: '',
         baseClass: this.getAtomTypeClass({AtomType: scriptFunctionMeta.AtomType}), // 默认基类，可根据需要调整
         fields

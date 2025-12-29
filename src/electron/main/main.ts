@@ -1,6 +1,6 @@
 // src/electron/main/main.ts
 import { join, extname, basename } from 'path';
-import { existsSync } from 'fs';
+import { existsSync, chmodSync, statSync, constants } from 'fs';
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -65,12 +65,12 @@ const pendingExternalExcelPaths: string[] = [];
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
-    console.log('[Single-Instance Lock] 应用已在运行，退出当前实例。');
+    console.log('[Single-Instance Lock] App already running, exiting current instance.');
     app.quit();
     process.exit(0);
 }
 
-console.log('[App Start] 获取单实例锁成功');
+console.log('[App Start] Single instance lock acquired successfully');
 
 function normalizeArgumentPath(arg: string): string {
     return arg.replace(/^['"']+|['"']+$/g, '');
@@ -85,24 +85,24 @@ function isExcelFilePath(targetPath: string): boolean {
 }
 
 function extractExcelFilePathFromArgs(args: string[]): string | null {
-    console.log('[Startup Args] 解析启动参数:', JSON.stringify(args));
+    console.log('[Startup Args] Parsing startup arguments:', JSON.stringify(args));
     for (const rawArg of args) {
         if (!rawArg || rawArg.startsWith('-')) {
             continue;
         }
         const normalized = normalizeArgumentPath(rawArg);
         if (!isExcelFilePath(normalized)) {
-            console.log('[Startup Args] 跳过非 Excel 文件:', normalized);
+            console.log('[Startup Args] Skipping non-Excel file:', normalized);
             continue;
         }
         if (!existsSync(normalized)) {
-            console.log('[Startup Args] 文件不存在:', normalized);
+            console.log('[Startup Args] File does not exist:', normalized);
             continue;
         }
-        console.log('[Startup Args] 发现有效的 Excel 文件:', normalized);
+        console.log('[Startup Args] Found valid Excel file:', normalized);
         return normalized;
     }
-    console.log('[Startup Args] 未发现启动参数中的 Excel 文件');
+    console.log('[Startup Args] No Excel file found in startup arguments');
     return null;
 }
 
@@ -110,20 +110,20 @@ function queueExternalExcelPath(filePath: string | null | undefined) {
     if (!filePath) {
         return;
     }
-    console.log('[External Excel Path] 队列化文件路径:', filePath);
+    console.log('[External Excel Path] Queuing file path:', filePath);
     pendingExternalExcelPaths.push(filePath);
     dispatchExternalExcelPaths();
 }
 
 function dispatchExternalExcelPaths() {
     if (!mainWindow || mainWindow.isDestroyed()) {
-        console.log('[Dispatch Excel Paths] 主窗口未就绪，待命传递 ' + pendingExternalExcelPaths.length + ' 个文件');
+        console.log('[Dispatch Excel Paths] Main window not ready, pending ' + pendingExternalExcelPaths.length + ' file(s)');
         return;
     }
     while (pendingExternalExcelPaths.length > 0) {
         const nextPath = pendingExternalExcelPaths.shift();
         if (nextPath) {
-            console.log('[Dispatch Excel Paths] 向渲染层发送文件路径:', nextPath);
+            console.log('[Dispatch Excel Paths] Sending file path to renderer:', nextPath);
             mainWindow.webContents.send('excel:open-external-path', nextPath);
         }
     }
@@ -134,24 +134,24 @@ queueExternalExcelPath(startupExcelPath);
 
 app.on('second-instance', (event, commandLine) => {
     event.preventDefault();
-    console.log('[Second Instance] 捕获第二实例，命令行:', JSON.stringify(commandLine));
+    console.log('[Second Instance] Captured second instance, command line:', JSON.stringify(commandLine));
     const filePath = extractExcelFilePathFromArgs(commandLine);
     if (filePath) {
         queueExternalExcelPath(filePath);
     }
     if (mainWindow) {
         if (mainWindow.isMinimized()) {
-            console.log('[Second Instance] 还原最小化窗口');
+            console.log('[Second Instance] Restoring minimized window');
             mainWindow.restore();
         }
-        console.log('[Second Instance] 聚焦主窗口');
+        console.log('[Second Instance] Focusing main window');
         mainWindow.focus();
     }
 });
 
 app.on('open-file', (event, filePath) => {
     event.preventDefault();
-    console.log('[Open File Event] 捕获 macOS 打开文件事件:', filePath);
+    console.log('[Open File Event] Captured macOS open-file event:', filePath);
     queueExternalExcelPath(filePath);
 });
 
@@ -400,6 +400,20 @@ async function handleOpenWorkbook() {
 }
 
 async function writeWorkbookToDisk(filePath: string, rows: RowRecord[], sheetName: string) {
+    // Check if file is read-only, if so, set it to writable first
+    if (existsSync(filePath)) {
+        try {
+            const stats = statSync(filePath);
+            const isReadOnly = !(stats.mode & constants.S_IWUSR);
+            if (isReadOnly) {
+                console.log('[writeWorkbookToDisk] File is read-only, setting to writable:', filePath);
+                chmodSync(filePath, stats.mode | constants.S_IWUSR | constants.S_IWGRP | constants.S_IWOTH);
+            }
+        } catch (error) {
+            console.warn('[writeWorkbookToDisk] Error checking/modifying file permissions:', error);
+        }
+    }
+
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(filePath);
 
@@ -482,7 +496,7 @@ async function registerExcelContextMenu() {
 
     const exePath = app.getPath('exe');
     const commandValue = `"${exePath}" "%1"`;
-    console.log('注册右键菜单:', commandValue);
+    console.log('[registerExcelContextMenu] Registering context menu:', commandValue);
 
     for (const ext of EXCEL_CONTEXT_EXTENSIONS) {
         const shellKey = `${EXCEL_CONTEXT_BASE_KEY}\\${ext}\\shell\\${EXCEL_CONTEXT_MENU_KEY}`;
@@ -507,15 +521,15 @@ ipcMain.handle('excel:open', async () => {
 ipcMain.handle('excel:open-by-path', async (_event, payload: { filePath: string }) => {
     try {
         if (!payload?.filePath) {
-            throw new Error('文件路径为空。');
+            throw new Error('File path is empty.');
         }
-        console.log('[IPC excel:open-by-path] 开始加载文件:', payload.filePath);
+        console.log('[IPC excel:open-by-path] Loading file:', payload.filePath);
         const result = await loadWorkbookFromFile(payload.filePath);
-        console.log('[IPC excel:open-by-path] 文件加载成功，工作表:', result.sheetName, '行数:', result.rowCount);
+        console.log('[IPC excel:open-by-path] File loaded successfully, sheet:', result.sheetName, 'rows:', result.rowCount);
         return { canceled: false, ...result };
     } catch (error) {
-        const message = error instanceof Error ? error.message : '通过路径打开 Excel 文件失败。';
-        console.error('[IPC excel:open-by-path] 错误:', message);
+        const message = error instanceof Error ? error.message : 'Failed to open Excel file by path.';
+        console.error('[IPC excel:open-by-path] Error:', message);
         return { canceled: false, error: message };
     }
 });
@@ -797,13 +811,13 @@ ipcMain.handle('app:get-log-info', async () => {
 ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
     try {
         if (!filePath) {
-            return { ok: false, error: '文件路径为空' };
+            return { ok: false, error: 'File path is empty' };
         }
         await shell.openPath(filePath);
-        console.log('[shell:openPath] 打开目录:', filePath);
+        console.log('[shell:openPath] Opening path:', filePath);
         return { ok: true };
     } catch (error) {
-        const message = error instanceof Error ? error.message : '打开路径失败。';
+        const message = error instanceof Error ? error.message : 'Failed to open path.';
         console.error('[shell:openPath]:', message);
         return { ok: false, error: message };
     }
@@ -811,13 +825,13 @@ ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
 
 ipcMain.handle('shell:register-excel-context-menu', async () => {
     try {
-        console.log('[IPC shell:register-excel-context-menu] 开始注册 Excel 右键菜单');
+        console.log('[IPC shell:register-excel-context-menu] Registering Excel context menu');
         await registerExcelContextMenu();
-        console.log('[IPC shell:register-excel-context-menu] 右键菜单注册成功');
+        console.log('[IPC shell:register-excel-context-menu] Context menu registered successfully');
         return { ok: true };
     } catch (error) {
-        const message = error instanceof Error ? error.message : '注册右键菜单失败。';
-        console.error('[IPC shell:register-excel-context-menu] 失败:', message);
+        const message = error instanceof Error ? error.message : 'Failed to register context menu.';
+        console.error('[IPC shell:register-excel-context-menu] Failed:', message);
         return { ok: false, error: message };
     }
 });
@@ -885,30 +899,30 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-    console.log('[main] 应用准备就绪，开始初始化...');
+    console.log('[main] App ready, starting initialization...');
     
-    // 初始化原子字段配置加载器
+    // Initialize atom fields config loader
     try {
-        console.log('[main] 开始加载原子字段配置...');
+        console.log('[main] Loading atom fields config...');
         const configLoader = AtomFieldsConfigLoader.getInstance();
         await configLoader.load();
-        console.log('[main] ✅ 原子字段配置加载成功');
+        console.log('[main] Atom fields config loaded successfully');
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        console.error('[main] ❌ 原子字段配置加载失败，将使用默认规则');
-        console.error('[main] 详细错误:', errorMsg);
+        console.error('[main] Failed to load atom fields config, using default rules');
+        console.error('[main] Error details:', errorMsg);
         if (error instanceof Error) {
-            console.error('[main] 堆栈:', error.stack);
+            console.error('[main] Stack:', error.stack);
         }
     }
     
-    console.log('[main] 创建应用窗口...');
+    console.log('[main] Creating app window...');
     createWindow();
-    console.log('[main] 窗口创建完成');
+    console.log('[main] Window created');
     
     app.on('activate', function () {
         if (BrowserWindow.getAllWindows().length === 0) {
-            console.log('[main] 激活事件：重新创建窗口');
+            console.log('[main] Activate event: recreating window');
             createWindow();
         }
     });

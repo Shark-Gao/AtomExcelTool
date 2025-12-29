@@ -7,6 +7,77 @@ import PrimitiveInput, { type PrimitiveType } from './PrimitiveInput.vue'
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object' | 'array'
 
+// ============ 撤销/重做历史记录管理 ============
+const MAX_HISTORY_SIZE = 50
+const historyStack = ref<string[]>([])
+const historyIndex = ref(-1)
+const isUndoRedoing = ref(false)
+
+function pushHistory() {
+  if (isUndoRedoing.value || isHydrating.value || isUpdatingFromParent.value) {
+    return
+  }
+  const snapshot = JSON.stringify(localValue)
+  // 如果当前不在历史末尾，截断后面的历史
+  if (historyIndex.value < historyStack.value.length - 1) {
+    historyStack.value = historyStack.value.slice(0, historyIndex.value + 1)
+  }
+  // 避免重复记录相同状态
+  if (historyStack.value[historyStack.value.length - 1] === snapshot) {
+    return
+  }
+  historyStack.value.push(snapshot)
+  // 限制历史记录大小
+  if (historyStack.value.length > MAX_HISTORY_SIZE) {
+    historyStack.value.shift()
+  }
+  historyIndex.value = historyStack.value.length - 1
+}
+
+function undo() {
+  if (!canUndo.value) return
+  isUndoRedoing.value = true
+  historyIndex.value--
+  const snapshot = historyStack.value[historyIndex.value]
+  setLocalValue(JSON.parse(snapshot))
+  emit('update:modelValue', JSON.parse(snapshot) as Record<string, unknown>)
+  nextTick(() => {
+    isUndoRedoing.value = false
+  })
+}
+
+function redo() {
+  if (!canRedo.value) return
+  isUndoRedoing.value = true
+  historyIndex.value++
+  const snapshot = historyStack.value[historyIndex.value]
+  setLocalValue(JSON.parse(snapshot))
+  emit('update:modelValue', JSON.parse(snapshot) as Record<string, unknown>)
+  nextTick(() => {
+    isUndoRedoing.value = false
+  })
+}
+
+const canUndo = computed(() => historyIndex.value > 0)
+const canRedo = computed(() => historyIndex.value < historyStack.value.length - 1)
+
+// 键盘快捷键处理
+function handleKeyboardShortcut(event: KeyboardEvent) {
+  // 只在根节点处理快捷键
+  if (!props.isRoot) return
+  
+  const isCtrlOrCmd = event.ctrlKey || event.metaKey
+  if (!isCtrlOrCmd) return
+  
+  if (event.key === 'z' && !event.shiftKey) {
+    event.preventDefault()
+    undo()
+  } else if ((event.key === 'z' && event.shiftKey) || event.key === 'y') {
+    event.preventDefault()
+    redo()
+  }
+}
+
 export type FieldOption = {
   label: string
   value: string
@@ -99,6 +170,26 @@ async function updateRootClass(newClassName: string) {
     return
   }
   const normalized = normalizeClassInstance(newClassName, localValue)
+
+  isHydrating.value = true
+  setLocalValue(normalized)
+  
+  emit(
+    'update:modelValue',
+    JSON.parse(JSON.stringify(localValue)) as Record<string, unknown>
+  )
+
+  await nextTick()
+  isHydrating.value = false
+}
+
+/** 处理数字快捷输入选择 NumberValueConstDelegate 的情况 */
+async function updateRootClassWithNumber(newClassName: string, numberValue: number) {
+  if (newClassName !== 'NumberValueConstDelegate') {
+    return updateRootClass(newClassName)
+  }
+  
+  const normalized = normalizeClassInstance(newClassName, { Constant: numberValue })
 
   isHydrating.value = true
   setLocalValue(normalized)
@@ -233,7 +324,11 @@ function collapseAll() {
 
 defineExpose({
   expandAll,
-  collapseAll
+  collapseAll,
+  undo,
+  redo,
+  canUndo,
+  canRedo
 })
 
 // 右键菜单状态
@@ -404,8 +499,12 @@ watch(
 watch(
   localValue,
   () => {
-    if (isHydrating.value || isUpdatingFromParent.value) {
+    if (isHydrating.value || isUpdatingFromParent.value || isUndoRedoing.value) {
       return
+    }
+    // 只在根节点记录历史
+    if (props.isRoot) {
+      pushHistory()
     }
     emit(
       'update:modelValue',
@@ -479,10 +578,19 @@ function addArrayItem(fieldKey: string, fieldMeta: FieldMeta) {
 
 onMounted(() => {
   document.addEventListener('click', handleGlobalClick)
+  // 只在根节点添加键盘快捷键监听
+  if (props.isRoot) {
+    document.addEventListener('keydown', handleKeyboardShortcut)
+    // 初始化历史记录
+    pushHistory()
+  }
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
+  if (props.isRoot) {
+    document.removeEventListener('keydown', handleKeyboardShortcut)
+  }
 })
 
 /**
@@ -553,8 +661,10 @@ function revertFieldToDefault(fieldKey: string, fieldMeta: FieldMeta) {
   localValue[fieldKey] = getFieldDefaultValue(fieldMeta)
 }
 
+
+
 /**
- * 判断 root 节点是否被修改（有任何非默认值的字段）
+ * 判断 root 节点是否被修改（有任何字段值非默认）
  */
 function isRootModified(): boolean {
   for (const [fieldKey, fieldMeta] of Object.entries(fields.value)) {
@@ -566,13 +676,17 @@ function isRootModified(): boolean {
 }
 
 /**
- * 将所有字段重置为默认值
+ * 将所有字段重置为默认值（保持 _ClassName 不变）
  */
 function revertAllFieldsToDefault() {
   for (const [fieldKey, fieldMeta] of Object.entries(fields.value)) {
     localValue[fieldKey] = getFieldDefaultValue(fieldMeta)
   }
 }
+
+
+
+
 
 </script>
 
@@ -598,14 +712,38 @@ function revertAllFieldsToDefault() {
           :model-value="rootClassName ?? ''"
           :options="rootSubclassOptions"
           :registry="registry"
+          :base-class="classInfo?.baseClass"
           empty-label="请选择类型"
-          allow-empty
           :disabled="readonly"
           class="flex-1 text-xs"
           @update:model-value="(value) => updateRootClass(value)"
+          @select-with-number="(className, numberValue) => updateRootClassWithNumber(className, numberValue)"
         />
         <span v-else class="text-xs font-medium text-base-content/80 flex-1">{{ classInfo.displayName }}</span>
-        <!-- Root Revert 按钮：当有任何字段被修改时显示 -->
+        <!-- 撤销/重做按钮（仅根节点显示） -->
+        <template v-if="props.isRoot && !readonly">
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs p-0 min-h-0 h-5 w-5 shrink-0"
+            :class="{ 'opacity-30 cursor-not-allowed': !canUndo }"
+            :disabled="!canUndo"
+            title="撤销 (Ctrl+Z)"
+            @click="undo"
+          >
+            ↶
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs p-0 min-h-0 h-5 w-5 shrink-0"
+            :class="{ 'opacity-30 cursor-not-allowed': !canRedo }"
+            :disabled="!canRedo"
+            title="重做 (Ctrl+Shift+Z / Ctrl+Y)"
+            @click="redo"
+          >
+            ↷
+          </button>
+        </template>
+        <!-- Root Revert 按钮：当有字段被修改时显示，点击重置所有字段为默认值 -->
         <button
           v-if="!readonly && isRootModified()"
           type="button"
@@ -716,6 +854,7 @@ function revertAllFieldsToDefault() {
                     :model-value="((localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName as string) ?? ''"
                     :options="getSubclassOptions(fieldMeta.baseClass)"
                     :registry="registry"
+                    :base-class="fieldMeta.baseClass"
                     empty-label="None"
                     allow-empty
                     :disabled="readonly"
@@ -726,6 +865,12 @@ function revertAllFieldsToDefault() {
                         localValue[fieldKey] = normalized
                       } else {
                         localValue[fieldKey] = { _ClassName: '' }
+                      }
+                    }"
+                    @select-with-number="(className, numberValue) => {
+                      if (className === 'NumberValueConstDelegate') {
+                        const normalized = normalizeClassInstance(className, { Constant: numberValue })
+                        localValue[fieldKey] = normalized
                       }
                     }"
                   />

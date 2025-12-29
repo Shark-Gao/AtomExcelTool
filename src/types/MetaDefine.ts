@@ -88,6 +88,7 @@ export interface ClassMetadata {
   funcName:string;
   displayName: string;
   category?: string;
+  author?: string;
   richDescription?: string;
   isDelegate?: boolean;
   description?: string;

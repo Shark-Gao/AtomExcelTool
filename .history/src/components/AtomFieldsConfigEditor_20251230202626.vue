@@ -87,22 +87,6 @@ function closeModal() {
   emit('update:isOpen', false)
 }
 
-// 防止误触：记录鼠标按下位置
-const mouseDownOnOverlay = ref(false)
-
-function handleOverlayMouseDown(e: MouseEvent) {
-  if (e.target === e.currentTarget) {
-    mouseDownOnOverlay.value = true
-  }
-}
-
-function handleOverlayMouseUp(e: MouseEvent) {
-  if (mouseDownOnOverlay.value && e.target === e.currentTarget) {
-    closeModal()
-  }
-  mouseDownOnOverlay.value = false
-}
-
 function saveConfig() {
   if (editConfig.value) {
     emit('save', editConfig.value)
@@ -269,7 +253,7 @@ const currentSpecificRule = computed(() => {
 
 <template>
   <Teleport to="body">
-    <div v-if="isOpen" class="modal-overlay" @mousedown="handleOverlayMouseDown" @mouseup="handleOverlayMouseUp">
+    <div v-if="isOpen" class="modal-overlay">
       <div class="modal-container">
         <!-- 标题栏 -->
         <div class="modal-header">

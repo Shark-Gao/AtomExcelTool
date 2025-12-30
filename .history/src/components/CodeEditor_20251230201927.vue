@@ -135,11 +135,21 @@ function openModal() {
 }
 
 function closeModal() {
+  isModalOpen.value = false
+  disposeEditor()
+}
+
+function confirmEdit() {
+  emit('update:modelValue', tempValue.value)
+  emit('change', tempValue.value)
+  closeModal()
+}
+
+function cancelEdit() {
   // 自动保存编辑内容
   emit('update:modelValue', tempValue.value)
   emit('change', tempValue.value)
-  isModalOpen.value = false
-  disposeEditor()
+  closeModal()
 }
 
 // 键盘快捷键
@@ -208,7 +218,7 @@ onBeforeUnmount(() => {
 
   <!-- 弹窗编辑器 -->
   <Teleport to="body">
-    <div v-if="isModalOpen" class="modal-overlay" @click.self="closeModal">
+    <div v-if="isModalOpen" class="modal-overlay" @click.self="cancelEdit">
       <div 
         class="modal-container"
         :style="{ width: modalWidth, height: modalHeight }"
@@ -223,7 +233,9 @@ onBeforeUnmount(() => {
             {{ modalTitle }}
           </h3>
           <div class="modal-actions">
-            <button class="btn-close" @click="closeModal">关闭</button>
+            <span class="shortcut-hint">Ctrl+Enter 确认 | Esc 取消</span>
+            <button class="btn-cancel" @click="cancelEdit">取消</button>
+            <button class="btn-confirm" @click="confirmEdit">确认</button>
           </div>
         </div>
         
@@ -384,7 +396,13 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
-.btn-close {
+.shortcut-hint {
+  font-size: 12px;
+  color: var(--fallback-bc, oklch(var(--bc) / 0.5));
+}
+
+.btn-cancel,
+.btn-confirm {
   padding: 6px 16px;
   border: none;
   border-radius: 6px;
@@ -392,11 +410,23 @@ onBeforeUnmount(() => {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.btn-cancel {
+  background: var(--fallback-b3, oklch(var(--b3)));
+  color: var(--fallback-bc, oklch(var(--bc)));
+}
+
+.btn-cancel:hover {
+  background: var(--fallback-bc, oklch(var(--bc) / 0.2));
+}
+
+.btn-confirm {
   background: var(--fallback-p, oklch(var(--p)));
   color: var(--fallback-pc, oklch(var(--pc)));
 }
 
-.btn-close:hover {
+.btn-confirm:hover {
   filter: brightness(1.1);
 }
 

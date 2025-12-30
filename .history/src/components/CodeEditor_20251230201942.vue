@@ -135,11 +135,21 @@ function openModal() {
 }
 
 function closeModal() {
+  isModalOpen.value = false
+  disposeEditor()
+}
+
+function confirmEdit() {
+  emit('update:modelValue', tempValue.value)
+  emit('change', tempValue.value)
+  closeModal()
+}
+
+function cancelEdit() {
   // 自动保存编辑内容
   emit('update:modelValue', tempValue.value)
   emit('change', tempValue.value)
-  isModalOpen.value = false
-  disposeEditor()
+  closeModal()
 }
 
 // 键盘快捷键
@@ -208,7 +218,7 @@ onBeforeUnmount(() => {
 
   <!-- 弹窗编辑器 -->
   <Teleport to="body">
-    <div v-if="isModalOpen" class="modal-overlay" @click.self="closeModal">
+    <div v-if="isModalOpen" class="modal-overlay" @click.self="cancelEdit">
       <div 
         class="modal-container"
         :style="{ width: modalWidth, height: modalHeight }"

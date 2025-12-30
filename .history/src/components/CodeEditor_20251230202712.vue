@@ -142,6 +142,24 @@ function closeModal() {
   disposeEditor()
 }
 
+// 防止误触：记录鼠标按下位置
+const mouseDownOnOverlay = ref(false)
+
+function handleOverlayMouseDown(e: MouseEvent) {
+  // 只有直接点击 overlay 才记录
+  if (e.target === e.currentTarget) {
+    mouseDownOnOverlay.value = true
+  }
+}
+
+function handleOverlayMouseUp(e: MouseEvent) {
+  // 只有按下和抬起都在 overlay 上才关闭
+  if (mouseDownOnOverlay.value && e.target === e.currentTarget) {
+    closeModal()
+  }
+  mouseDownOnOverlay.value = false
+}
+
 // 键盘快捷键
 function handleKeydown(e: KeyboardEvent) {
   if (!isModalOpen.value) return
@@ -208,7 +226,7 @@ onBeforeUnmount(() => {
 
   <!-- 弹窗编辑器 -->
   <Teleport to="body">
-    <div v-if="isModalOpen" class="modal-overlay" @click.self="closeModal">
+    <div v-if="isModalOpen" class="modal-overlay" @mousedown="handleOverlayMouseDown" @mouseup="handleOverlayMouseUp">
       <div 
         class="modal-container"
         :style="{ width: modalWidth, height: modalHeight }"

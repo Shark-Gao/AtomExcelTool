@@ -269,7 +269,7 @@ const currentSpecificRule = computed(() => {
 
 <template>
   <Teleport to="body">
-    <div v-if="isOpen" class="modal-overlay" @mousedown="handleOverlayMouseDown" @mouseup="handleOverlayMouseUp">
+    <div v-if="isOpen" class="modal-overlay">
       <div class="modal-container">
         <!-- 标题栏 -->
         <div class="modal-header">

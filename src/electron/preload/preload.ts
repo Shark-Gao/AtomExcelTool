@@ -165,5 +165,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
         logDir?: string;
         logFilePath?: string;
         error?: string;
+    }>,
+    getAtomFieldsConfig: () => ipcRenderer.invoke('config:get-atom-fields-config') as Promise<{
+        ok: boolean;
+        config?: any;
+        error?: string;
+    }>,
+    saveAtomFieldsConfig: (config: any) => ipcRenderer.invoke('config:save-atom-fields-config', config) as Promise<{
+        ok: boolean;
+        error?: string;
     }>
 });

@@ -31,6 +31,13 @@
         "headerRowNumber": 2,
         "dataStartRow": 4,
         "descriptionRow": 3
+      },
+      {
+        "xlsxFile": "PilotMode",
+        "sheetName": "Sheet4",
+        "headerRowNumber": 2,
+        "dataStartRow": 4,
+        "descriptionRow": 3
       }
     ]
   },
@@ -68,8 +75,7 @@
         "allowCombination": true
       }
     ],
-    "prefixRules": [
-    ],
+    "prefixRules": [],
     "exactFieldNames": [
       {
         "value": "BeginActions",
@@ -103,7 +109,7 @@
         }
       ]
     },
-	  {
+    {
       "description": "特定工作表的自定义规则",
       "sheetName": "Sheet1",
       "xlsxFile": "PlayerBulletCombatNumber",
@@ -119,7 +125,7 @@
     },
     {
       "description": "特定工作表的自定义规则",
-      "sheetName": "Sheet1",
+      "sheetName": "Sheet4",
       "xlsxFile": "PilotMode",
       "suffixRules": [],
       "prefixRules": [],
@@ -130,35 +136,6 @@
           "allowCombination": false
         }
       ]
-    },
-    {
-      "description": "特定工作表的自定义规则",
-      "sheetName": "Sheet2",
-      "xlsxFile": "PilotMode",
-      "suffixRules": [],
-      "prefixRules": [],
-      "exactFieldNames": [
-        {
-          "value": "Condition",
-          "baseClass": "BoolValueDelegate",
-          "allowCombination": false
-        }
-      ]
-    },
-    {
-      "description": "特定工作表的自定义规则",
-      "sheetName": "Sheet3",
-      "xlsxFile": "PilotMode",
-      "suffixRules": [
-        {
-          "value": "Condition",
-          "baseClass": "BoolValueDelegate",
-          "allowCombination": false
-        }
-      ],
-      "prefixRules": [],
-      "exactFieldNames": []
     }
-    
   ]
 }

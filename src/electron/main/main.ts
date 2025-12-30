@@ -760,18 +760,6 @@ ipcMain.handle('delegate:deparse-json-to-expression', async (_event, payload: { 
     }
 });
 
-ipcMain.handle('config:get-atom-fields-config', async () => {
-    try {
-        const loader = AtomFieldsConfigLoader.getInstance();
-        const config = loader.getConfig();
-        return { ok: true, config };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : '获取原子字段配置失败。';
-        console.error('[config:get-atom-fields-config]:', message);
-        return { ok: false, error: message };
-    }
-});
-
 ipcMain.handle('config:get-allowed-base-classes', async (_event, payload: { fieldName: string; sheetName?: string; fileName?: string }) => {
     try {
         const loader = AtomFieldsConfigLoader.getInstance();
@@ -804,6 +792,34 @@ ipcMain.handle('app:get-log-info', async () => {
     } catch (error) {
         const message = error instanceof Error ? error.message : '获取日志信息失败。';
         console.error('[app:get-log-info]:', message);
+        return { ok: false, error: message };
+    }
+});
+
+// 获取原子字段配置
+ipcMain.handle('config:get-atom-fields-config', async () => {
+    try {
+        const configLoader = AtomFieldsConfigLoader.getInstance();
+        const config = configLoader.getConfig();
+        return { ok: true, config };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '获取配置失败。';
+        console.error('[config:get-atom-fields-config]:', message);
+        return { ok: false, error: message };
+    }
+});
+
+// 保存原子字段配置
+ipcMain.handle('config:save-atom-fields-config', async (_event, config: any) => {
+    try {
+        const configLoader = AtomFieldsConfigLoader.getInstance();
+        configLoader.setConfig(config);
+        configLoader.save();
+        console.log('[config:save-atom-fields-config] 配置已保存');
+        return { ok: true };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '保存配置失败。';
+        console.error('[config:save-atom-fields-config]:', message);
         return { ok: false, error: message };
     }
 });
@@ -914,6 +930,16 @@ app.whenReady().then(async () => {
         if (error instanceof Error) {
             console.error('[main] Stack:', error.stack);
         }
+    }
+    
+    // 初始化配置加载器
+    try {
+        const configLoader = AtomFieldsConfigLoader.getInstance();
+        await configLoader.load();
+        console.log('[main] Config loaded successfully');
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '配置加载失败';
+        console.warn('[main] Config loading failed:', message);
     }
     
     console.log('[main] Creating app window...');

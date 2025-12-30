@@ -8,11 +8,67 @@ import ProgressModal from './components/ProgressModal.vue'
 import SkeletonLoader from './components/SkeletonLoader.vue'
 import CheckValidationModal, { type ValidationErrorItem, type ValidationResult } from './components/CheckValidationModal.vue'
 import CodeEditor from './components/CodeEditor.vue'
+import AtomFieldsConfigEditor from './components/AtomFieldsConfigEditor.vue'
 import { loadSettingsFromStorage, saveSettingsToStorage } from './utils/settingsStorage'
 import type { ClassRegistry, ClassMetadata as DelegateClassMetadata } from './types/MetaDefine'
 import { normalizeClassInstance } from './utils/ClassNormalizer'
 
 import { initializeAtomicFields, isAtomicFieldAsync, getAllowedBaseClassesForField as getRemoteAllowedBaseClasses } from './utils/AtomicFieldsHelper'
+
+// 原子字段配置类型定义
+interface AtomFieldsConfig {
+  description: string
+  fileLocation: string
+  configRulePriority: string[]
+  deploymentNote: string
+  headerRowConfig: {
+    description: string
+    files: Array<{
+      xlsxFile: string
+      sheetName: string
+      headerRowNumber: number
+      dataStartRow?: number
+      descriptionRow?: number
+    }>
+  }
+  defaultRules: {
+    suffixRules: Array<{
+      value: string
+      baseClass: string
+      allowCombination: boolean
+    }>
+    prefixRules: Array<{
+      value: string
+      baseClass: string
+      allowCombination: boolean
+    }>
+    exactFieldNames: Array<{
+      value: string
+      baseClass: string
+      allowCombination: boolean
+    }>
+  }
+  SpecificFieldNames: Array<{
+    description: string
+    sheetName: string
+    xlsxFile: string | null
+    suffixRules: Array<{
+      value: string
+      baseClass: string
+      allowCombination: boolean
+    }>
+    prefixRules: Array<{
+      value: string
+      baseClass: string
+      allowCombination: boolean
+    }>
+    exactFieldNames: Array<{
+      value: string
+      baseClass: string
+      allowCombination: boolean
+    }>
+  }>
+}
 
 type RowRecord = Record<string, string>
 
@@ -56,6 +112,10 @@ const initialSettings = loadSettingsFromStorage()
 const currentTheme = ref<string>(initialSettings.theme)
 const rowButtonRefs = reactive<Record<string, HTMLButtonElement>>({})
 const isSettingsModalOpen = ref(false)
+
+// 原子字段配置编辑器相关
+const isAtomFieldsConfigEditorOpen = ref(false)
+const atomFieldsConfig = ref<AtomFieldsConfig | null>(null)
 
 // 虚拟滚动相关
 const rowListContainerRef = ref<HTMLDivElement | null>(null)
@@ -2076,6 +2136,56 @@ function showSuccessMessage(message: string) {
   }, 3000)
 }
 
+/**
+ * 打开原子字段配置编辑器
+ */
+async function openAtomFieldsConfigEditor() {
+  const electronAPI = window.electronAPI
+  if (!electronAPI?.getAtomFieldsConfig) {
+    errorMessage.value = '当前环境不支持获取配置，请检查预加载配置。'
+    return
+  }
+
+  try {
+    const result = await electronAPI.getAtomFieldsConfig()
+    if (result.ok && result.config) {
+      atomFieldsConfig.value = result.config
+      isAtomFieldsConfigEditorOpen.value = true
+    } else {
+      errorMessage.value = result.error || '获取配置失败'
+    }
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '获取配置失败'
+    console.error('Failed to get atom fields config:', error)
+  }
+}
+
+/**
+ * 保存原子字段配置
+ */
+async function saveAtomFieldsConfig(config: AtomFieldsConfig) {
+  const electronAPI = window.electronAPI
+  if (!electronAPI?.saveAtomFieldsConfig) {
+    errorMessage.value = '当前环境不支持保存配置，请检查预加载配置。'
+    return
+  }
+
+  try {
+    // 深度序列化配置对象以确保可以通过 IPC 传输
+    const serializedConfig = JSON.parse(JSON.stringify(config))
+    const result = await electronAPI.saveAtomFieldsConfig(serializedConfig)
+    if (result.ok) {
+      showSuccessMessage('配置保存成功')
+      isAtomFieldsConfigEditorOpen.value = false
+    } else {
+      errorMessage.value = result.error || '保存配置失败'
+    }
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '保存配置失败'
+    console.error('Failed to save atom fields config:', error)
+  }
+}
+
 async function registerExcelContextMenu() {
   const electronAPI = window.electronAPI
   if (!electronAPI?.registerExcelContextMenu) {
@@ -2466,6 +2576,16 @@ function stopAutoSave() {
             检查所有原子配置
           </button>
           <button
+            class="btn btn-sm btn-outline gap-2 border border-success/40"
+            @click="openAtomFieldsConfigEditor"
+            title="编辑原子字段配置"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            配置编辑器
+          </button>
+          <button
             class="btn btn-sm btn-outline gap-2 border border-info/40"
             @click="registerExcelContextMenu"
           >
@@ -2676,8 +2796,8 @@ function stopAutoSave() {
               </div>
             </div>
 
-            <!-- 代码编辑空间 -->
-            <div class="divider my-2">代码编辑空间</div>
+            <!-- 代码编辑控件 -->
+            <div class="divider my-2">代码编辑控件</div>
             <div class="form-control gap-2">
               <label class="label">
                 <span class="label-text">TypeScript 代码编辑器</span>
@@ -3011,6 +3131,14 @@ function stopAutoSave() {
         </div>
       </Transition>
     </Teleport>
+
+    <!-- 原子字段配置编辑器 -->
+    <AtomFieldsConfigEditor
+      :is-open="isAtomFieldsConfigEditorOpen"
+      :config="atomFieldsConfig"
+      @update:is-open="isAtomFieldsConfigEditorOpen = $event"
+      @save="saveAtomFieldsConfig"
+    />
   </div>
 </template>
 

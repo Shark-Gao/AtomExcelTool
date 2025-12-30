@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { getConfigFilePath } from './ConfigManager';
 import path from 'path';
 
@@ -390,14 +390,46 @@ export class AtomFieldsConfigLoader {
   }
 
   /**
+   * 设置配置对象
+   */
+  public setConfig(config: any): void {
+    // 先进行序列化以移除任何不可序列化的对象
+    try {
+      this.fullConfig = JSON.parse(JSON.stringify(config));
+      // 重新解析配置
+      this.config.clear();
+      this.defaultSuffixRules = [];
+      this.defaultExactFieldNames.clear();
+      this.parseJsonConfig(JSON.stringify(this.fullConfig));
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('[AtomFieldsConfigLoader] setConfig 失败:', errorMsg);
+      throw error;
+    }
+  }
+
+  /**
+   * 保存配置到文件
+   */
+  public save(): void {
+    try {
+      const configPath = this.getConfigPath();
+      const configJson = JSON.stringify(this.fullConfig, null, 2);
+      writeFileSync(configPath, configJson, 'utf-8');
+      console.log('[AtomFieldsConfigLoader] 配置已保存到:', configPath);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('[AtomFieldsConfigLoader] 保存配置失败:', errorMsg);
+      throw error;
+    }
+  }
+
+  /**
    * 获取所有配置（用于调试）
    */
   public getConfig() {
     return {
-      ...this.fullConfig,
-      defaultSuffixRules: this.defaultSuffixRules,
-      defaultExactFieldNames: Array.from(this.defaultExactFieldNames.entries()),
-      sheetConfigs: Array.from(this.config.entries())
+      ...this.fullConfig
     };
   }
 

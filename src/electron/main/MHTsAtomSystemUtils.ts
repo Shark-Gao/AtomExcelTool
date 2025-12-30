@@ -4845,7 +4845,7 @@ function HasHigherOrEqualPrecedenceThan(lhs: string, rhs: string): boolean {
     OperatorStringToPrecedenceInAtomSystem.get(rhs)
   );
 }
-
+ 
 const OperatorStringToOperatorEnumInAtomSystem: ReadonlyMap<string, number> =
   new Map<string, number>([
     // eslint-disable-line

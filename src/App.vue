@@ -2755,7 +2755,7 @@ function stopAutoSave() {
                     v-show="!showOnlyAtomicFields || conditionFieldSet.has(columnName)"
                     :ref="(el) => setColumnInputRef(columnName, el)"
                     :class="[
-                      'column-field-container rounded-lg px-3 py-2 transition-all duration-150 cursor-pointer border relative overflow-hidden',
+                      'column-field-container rounded-lg px-3 py-2 transition-all duration-150 cursor-pointer border relative',
                       fieldLayoutDirection === 'horizontal' ? 'flex-shrink-0' : '',
                       { 'bg-primary/10 border-primary/60': columnName === highlightColumnName, 'border-base-300 hover:border-base-400': columnName !== highlightColumnName }
                     ]"

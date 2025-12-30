@@ -483,7 +483,7 @@ onBeforeUnmount(() => {
     <Transition name="fade">
       <div
         v-if="isOpen"
-        class="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border border-base-300 bg-base-100 shadow-xl"
+        class="absolute z-[9999] mt-1 w-full overflow-hidden rounded-lg border border-base-300 bg-base-100 shadow-xl"
       >
         <div
           v-if="filteredOptions.length === 0"

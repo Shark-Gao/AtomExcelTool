@@ -843,7 +843,7 @@ ipcMain.handle('config:save-atom-fields-config', async (_event, config: any) => 
 // ============ AI 助手相关 IPC 处理器 ============
 
 // 内置 API Key（直接写入代码，打包后可用）
-const BUILTIN_API_KEY = 'sk-Dn7bJCpYCWJ2XKOxJBzKCjjW8vRkOlHGHvBJLJPFzNGPYhLm';
+const BUILTIN_API_KEY = '9a0d84de-caed-4048-9c3e-c7ec16ea8a1d';
 const BUILTIN_API_HOST = 'hunyuanapi.woa.com';
 
 // 应用启动时自动初始化 AI 服务（如果有内置 Key）

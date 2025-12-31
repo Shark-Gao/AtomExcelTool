@@ -10,7 +10,17 @@ import {DelegateMetadataGenerator} from './DelegateMetadataGenerator';
 import { deParseJsonToExpression } from './DeParseJsonToExpression';
 import { AtomFieldsConfigLoader } from './AtomFieldsConfigLoader';
 import { LogManager } from './LogManager';
+import { initHunyuanService, getHunyuanService, HunyuanConfig } from './HunyuanService';
 // import { runAllTests } from './DeParseJsonToExpression.test';
+
+// 加载环境变量
+import * as dotenv from 'dotenv';
+dotenv.config();
+
+// AI 服务相关变量（需要在 delegate:get-metadata 之前声明）
+let aiConfigured = false;
+let aiConfig: { model: string } = { model: 'hunyuan-2.0-thinking-20251109' };
+let cachedAtomMetadata: any[] | null = null;
 
 // 在应用启动时立即初始化日志系统
 const logManager = LogManager.getInstance();
@@ -662,6 +672,14 @@ ipcMain.handle('delegate:get-metadata', async () => {
         const registry = DelegateMetadataGenerator.generateClassRegistry(metadata);
         const grouped = DelegateMetadataGenerator.groupMetadataByBaseClass(metadata);
 
+        // 缓存 metadata 并初始化 AI 知识库（如果 AI 服务已配置）
+        cachedAtomMetadata = metadata;
+        const aiService = getHunyuanService();
+        if (aiService && !aiService.isKnowledgeLoaded()) {
+            aiService.initializeWithAtomKnowledge(metadata);
+            console.log('[delegate:get-metadata] AI knowledge base initialized with', metadata.length, 'atoms');
+        }
+
         return {
             ok: true,
             metadata,
@@ -821,6 +839,155 @@ ipcMain.handle('config:save-atom-fields-config', async (_event, config: any) => 
         const message = error instanceof Error ? error.message : '保存配置失败。';
         console.error('[config:save-atom-fields-config]:', message);
         return { ok: false, error: message };
+    }
+});
+
+// ============ AI 助手相关 IPC 处理器 ============
+
+// 内置 API Key（从环境变量读取）
+const BUILTIN_API_KEY = process.env.HUNYUAN_API_KEY || '';
+const BUILTIN_API_HOST = process.env.HUNYUAN_API_HOST || 'hunyuanapi.woa.com';
+
+// 应用启动时自动初始化 AI 服务（如果有内置 Key）
+// 注意：此时知识库尚未加载，会在 delegate:get-metadata 调用后自动注入
+if (BUILTIN_API_KEY) {
+    console.log('[AI] Found builtin API key, auto-initializing...');
+    try {
+        initHunyuanService({
+            apiKey: BUILTIN_API_KEY,
+            apiHost: BUILTIN_API_HOST,
+            model: 'hunyuan-2.0-thinking-20251109'
+        });
+        aiConfigured = true;
+        console.log('[AI] Service initialized, knowledge will be loaded after metadata is ready');
+    } catch (error) {
+        console.error('[AI] Auto-init failed:', error);
+    }
+}
+
+// 获取内置配置状态
+ipcMain.handle('ai:get-builtin-config', async () => {
+    return {
+        hasBuiltinConfig: !!BUILTIN_API_KEY
+    };
+});
+
+// 配置 AI 服务
+ipcMain.handle('ai:configure', async (_event, config: { apiKey: string; apiHost?: string; model?: string }) => {
+    try {
+        console.log('[ai:configure] Configuring AI service...');
+        const hunyuanConfig: HunyuanConfig = {
+            apiKey: config.apiKey,
+            apiHost: config.apiHost || 'hunyuanapi.woa.com',
+            model: config.model || 'hunyuan-2.0-thinking-20251109'
+        };
+        const service = initHunyuanService(hunyuanConfig);
+        
+        // 如果已有缓存的 metadata，直接注入知识库
+        if (cachedAtomMetadata && cachedAtomMetadata.length > 0) {
+            service.initializeWithAtomKnowledge(cachedAtomMetadata);
+            console.log('[ai:configure] Knowledge base initialized with cached metadata');
+        }
+        
+        aiConfigured = true;
+        aiConfig = { model: hunyuanConfig.model! };
+        console.log('[ai:configure] AI service configured successfully');
+        return { success: true };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'AI 配置失败';
+        console.error('[ai:configure] Error:', message);
+        return { success: false, error: message };
+    }
+});
+
+// 获取 AI 服务状态
+ipcMain.handle('ai:get-status', async () => {
+    return {
+        configured: aiConfigured,
+        config: aiConfigured ? aiConfig : undefined
+    };
+});
+
+// 初始化原子知识库
+ipcMain.handle('ai:init-knowledge', async (_event, metadata: any[]) => {
+    try {
+        const service = getHunyuanService();
+        if (!service) {
+            return { success: false, error: 'AI 服务未配置' };
+        }
+        console.log('[ai:init-knowledge] Initializing knowledge base with', metadata.length, 'atoms');
+        service.initializeWithAtomKnowledge(metadata);
+        console.log('[ai:init-knowledge] Knowledge base initialized');
+        return { success: true };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '初始化知识库失败';
+        console.error('[ai:init-knowledge] Error:', message);
+        return { success: false, error: message };
+    }
+});
+
+// 发送聊天消息
+ipcMain.handle('ai:chat', async (_event, payload: { message: string; currentAtom?: any; stream?: boolean }) => {
+    try {
+        const service = getHunyuanService();
+        if (!service) {
+            return { success: false, error: 'AI 服务未配置' };
+        }
+        console.log('[ai:chat] Sending message:', payload.message.substring(0, 50) + '...');
+        const response = await service.chat(payload.message, { currentAtom: payload.currentAtom });
+        console.log('[ai:chat] Response received');
+        return {
+            success: response.success,
+            content: response.content,
+            error: response.error
+        };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '聊天请求失败';
+        console.error('[ai:chat] Error:', message);
+        return { success: false, error: message };
+    }
+});
+
+// 流式聊天
+ipcMain.on('ai:chat-stream', async (event, payload: { message: string; currentAtom?: any; requestId: string }) => {
+    try {
+        const service = getHunyuanService();
+        if (!service) {
+            event.reply('ai:chat-stream-chunk', {
+                requestId: payload.requestId,
+                chunk: { type: 'error', error: 'AI 服务未配置' }
+            });
+            return;
+        }
+        console.log('[ai:chat-stream] Starting stream for:', payload.message.substring(0, 50) + '...');
+        for await (const chunk of service.chatStream(payload.message, { currentAtom: payload.currentAtom })) {
+            event.reply('ai:chat-stream-chunk', {
+                requestId: payload.requestId,
+                chunk
+            });
+        }
+        console.log('[ai:chat-stream] Stream completed');
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '流式聊天失败';
+        console.error('[ai:chat-stream] Error:', message);
+        event.reply('ai:chat-stream-chunk', {
+            requestId: payload.requestId,
+            chunk: { type: 'error', error: message }
+        });
+    }
+});
+
+// 清空对话历史
+ipcMain.handle('ai:clear-history', async () => {
+    try {
+        const service = getHunyuanService();
+        if (service) {
+            service.clearHistory();
+            console.log('[ai:clear-history] History cleared');
+        }
+        return { success: true };
+    } catch (error) {
+        return { success: false };
     }
 });
 

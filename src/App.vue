@@ -9,6 +9,7 @@ import SkeletonLoader from './components/SkeletonLoader.vue'
 import CheckValidationModal, { type ValidationErrorItem, type ValidationResult } from './components/CheckValidationModal.vue'
 import CodeEditor from './components/CodeEditor.vue'
 import AtomFieldsConfigEditor from './components/AtomFieldsConfigEditor.vue'
+import AIAssistantPanel from './components/AIAssistantPanel.vue'
 import { loadSettingsFromStorage, saveSettingsToStorage } from './utils/settingsStorage'
 import type { ClassRegistry, ClassMetadata as DelegateClassMetadata } from './types/MetaDefine'
 import { normalizeClassInstance } from './utils/ClassNormalizer'
@@ -116,6 +117,10 @@ const isSettingsModalOpen = ref(false)
 // 原子字段配置编辑器相关
 const isAtomFieldsConfigEditorOpen = ref(false)
 const atomFieldsConfig = ref<AtomFieldsConfig | null>(null)
+
+// AI 助手相关
+const isAIAssistantOpen = ref(false)
+const allAtomMetadata = ref<DelegateClassMetadata[]>([])
 
 // 虚拟滚动相关
 const rowListContainerRef = ref<HTMLDivElement | null>(null)
@@ -409,6 +414,9 @@ metadataList: DelegateClassMetadata[], grouped: Record<string, DelegateClassMeta
       subclassOptions[baseClassName] = options.sort((a, b) => a.label.localeCompare(b.label))
     })
   }
+
+  // 保存元数据供 AI 助手使用
+  allAtomMetadata.value = metadataList
 }
 
 function resetMockFormStateToClass(className: string) {
@@ -486,6 +494,18 @@ const mockClassOptions = computed<FieldOption[]>(() => {
     return []
   }
   return subclassOptions[targetBaseClass] ?? []
+})
+
+// 当前正在编辑的原子元数据（供 AI 助手使用）
+const currentEditingAtomMeta = computed<DelegateClassMetadata | null>(() => {
+  if (!selectedConditionField.value || !selectedConditionFieldData.value?.parsed) {
+    return null
+  }
+  const className = selectedConditionFieldData.value.parsed._ClassName
+  if (!className) return null
+  
+  // 从 allAtomMetadata 中查找对应的元数据
+  return allAtomMetadata.value.find(meta => meta.className === className) || null
 })
 
 function applyNormalizedObject(normalized: ParsedClassObject) {
@@ -2562,6 +2582,16 @@ function stopAutoSave() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
+          <!-- AI 助手按钮 -->
+          <button
+            class="btn btn-ghost btn-circle"
+            @click="isAIAssistantOpen = true"
+            title="AI 原子助手"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </button>
         </div>
 
         <!-- 分割线 -->
@@ -3138,6 +3168,13 @@ function stopAutoSave() {
       :config="atomFieldsConfig"
       @update:is-open="isAtomFieldsConfigEditorOpen = $event"
       @save="saveAtomFieldsConfig"
+    />
+
+    <!-- AI 助手面板 -->
+    <AIAssistantPanel
+      v-model:visible="isAIAssistantOpen"
+      :current-atom="currentEditingAtomMeta"
+      :all-atom-metadata="allAtomMetadata"
     />
   </div>
 </template>

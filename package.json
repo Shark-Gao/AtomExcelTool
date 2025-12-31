@@ -15,7 +15,9 @@
     "app:preview": "npm run vite:build && tsc && electron ."
   },
   "dependencies": {
+    "dotenv": "^17.2.3",
     "exceljs": "^4.4.0",
+    "marked": "^17.0.1",
     "monaco-editor": "^0.55.1",
     "reflect-metadata": "^0.2.2",
     "vite-plugin-monaco-editor": "^1.1.0",

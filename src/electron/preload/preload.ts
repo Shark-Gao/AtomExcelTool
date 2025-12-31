@@ -176,3 +176,59 @@ contextBridge.exposeInMainWorld('electronAPI', {
         error?: string;
     }>
 });
+
+// ============ AI 助手 Bridge ============
+contextBridge.exposeInMainWorld('aiBridge', {
+    /** 配置 AI 服务 */
+    configure: (config: { apiKey: string; apiHost?: string; model?: string }) =>
+        ipcRenderer.invoke('ai:configure', config) as Promise<{ success: boolean; error?: string }>,
+    
+    /** 获取 AI 服务状态 */
+    getStatus: () =>
+        ipcRenderer.invoke('ai:get-status') as Promise<{
+            configured: boolean;
+            config?: { model: string };
+        }>,
+    
+    /** 获取内置配置状态 */
+    getBuiltinConfig: () =>
+        ipcRenderer.invoke('ai:get-builtin-config') as Promise<{ hasBuiltinConfig: boolean }>,
+    
+    /** 初始化原子知识库 */
+    initKnowledge: (metadata: any[]) =>
+        ipcRenderer.invoke('ai:init-knowledge', metadata) as Promise<{ success: boolean; error?: string }>,
+    
+    /** 发送聊天消息 */
+    chat: (payload: { message: string; currentAtom?: any; stream?: boolean }) =>
+        ipcRenderer.invoke('ai:chat', payload) as Promise<{
+            success: boolean;
+            content?: string;
+            error?: string;
+            stream?: AsyncIterable<{ type: string; content?: string; error?: string }>;
+        }>,
+    
+    /** 流式聊天（通过事件） */
+    chatStream: (payload: { message: string; currentAtom?: any }) => {
+        const requestId = `ai-stream-${Date.now()}`;
+        ipcRenderer.send('ai:chat-stream', { ...payload, requestId });
+        return {
+            requestId,
+            onChunk: (callback: (chunk: { type: string; content?: string; error?: string }) => void) => {
+                const handler = (_event: any, data: any) => {
+                    if (data.requestId === requestId) {
+                        callback(data.chunk);
+                        if (data.chunk.type === 'done' || data.chunk.type === 'error') {
+                            ipcRenderer.removeListener('ai:chat-stream-chunk', handler);
+                        }
+                    }
+                };
+                ipcRenderer.on('ai:chat-stream-chunk', handler);
+                return () => ipcRenderer.removeListener('ai:chat-stream-chunk', handler);
+            }
+        };
+    },
+    
+    /** 清空对话历史 */
+    clearHistory: () =>
+        ipcRenderer.invoke('ai:clear-history') as Promise<{ success: boolean }>
+});

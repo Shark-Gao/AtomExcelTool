@@ -142,10 +142,44 @@ declare global {
     getLogInfo: () => Promise<{ ok: boolean; logDir?: string; logFilePath?: string; error?: string }>
   }
 
+  // ============ AI 助手相关类型 ============
+  interface AIStreamChunk {
+    type: 'content' | 'done' | 'error'
+    content?: string
+    error?: string
+  }
+
+  interface AIStreamHandle {
+    requestId: string
+    onChunk: (callback: (chunk: AIStreamChunk) => void) => () => void
+  }
+
+  interface AIBridge {
+    /** 配置 AI 服务 */
+    configure: (config: { apiKey: string; apiHost?: string; model?: string }) => Promise<{ success: boolean; error?: string }>
+    /** 获取 AI 服务状态 */
+    getStatus: () => Promise<{ configured: boolean; config?: { model: string } }>
+    /** 获取内置配置状态 */
+    getBuiltinConfig: () => Promise<{ hasBuiltinConfig: boolean }>
+    /** 初始化原子知识库 */
+    initKnowledge: (metadata: ClassMetadata[]) => Promise<{ success: boolean; error?: string }>
+    /** 发送聊天消息 */
+    chat: (payload: { message: string; currentAtom?: ClassMetadata; stream?: boolean }) => Promise<{
+      success: boolean
+      content?: string
+      error?: string
+    }>
+    /** 流式聊天 */
+    chatStream: (payload: { message: string; currentAtom?: ClassMetadata }) => AIStreamHandle
+    /** 清空对话历史 */
+    clearHistory: () => Promise<{ success: boolean }>
+  }
+
   interface Window {
     excelBridge?: ExcelBridge
     delegateBridge?: DelegateBridge
     electronAPI?: ElectronAPI
+    aiBridge?: AIBridge
   }
 }
 

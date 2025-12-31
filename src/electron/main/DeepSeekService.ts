@@ -232,20 +232,16 @@ ${atomSummary}
 
   /**
    * 流式调用 DeepSeek API（火山引擎）
+   * 使用 OpenAI 兼容格式：base_url + /responses
    */
   private async *callDeepSeekAPIStream(messages: ChatMessage[]): AsyncGenerator<StreamChunk> {
     const { apiKey, model } = this.config;
     
-    // 构建 DeepSeek API 请求格式
-    // 将 messages 转换为 DeepSeek 的 input 格式
+    // 构建请求格式（OpenAI SDK 兼容格式）
+    // input 格式: [{"role": "user", "content": "..."}]
     const input = messages.map(m => ({
       role: m.role,
-      content: [
-        {
-          type: 'input_text',
-          text: m.content
-        }
-      ]
+      content: m.content
     }));
 
     const payload = {
@@ -257,6 +253,7 @@ ${atomSummary}
     const url = 'https://ark.cn-beijing.volces.com/api/v3/responses';
     console.log('[DeepSeekAPI Stream] Request URL:', url);
     console.log('[DeepSeekAPI Stream] Model:', model);
+    console.log('[DeepSeekAPI Stream] Input messages count:', input.length);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -295,7 +292,7 @@ ${atomSummary}
         buffer += chunk;
         
         if (isFirstChunk) {
-          console.log('[DeepSeekAPI Stream] First chunk (100 chars):', chunk.substring(0, 100));
+          console.log('[DeepSeekAPI Stream] First chunk (200 chars):', chunk.substring(0, 200));
           isFirstChunk = false;
         }
 
@@ -308,37 +305,21 @@ ${atomSummary}
           if (!trimmedLine) continue;
           
           // SSE 格式: event: xxx 或 data: {...}
+          if (trimmedLine.startsWith('event:')) {
+            // 事件类型，可以忽略或记录
+            continue;
+          }
+          
           if (trimmedLine.startsWith('data:')) {
             const data = trimmedLine.slice(5).trim();
             if (data === '[DONE]') {
               yield { type: 'done' };
               return;
             }
+            
             try {
               const json = JSON.parse(data);
-              
-              // DeepSeek 响应格式解析
-              // 尝试多种可能的响应格式
-              let content = '';
-              
-              // 格式1: response.output[].content[].text
-              if (json.output) {
-                for (const outputItem of json.output) {
-                  if (outputItem.content) {
-                    for (const contentItem of outputItem.content) {
-                      if (contentItem.text) {
-                        content += contentItem.text;
-                      }
-                    }
-                  }
-                }
-              }
-              
-              // 格式2: choices[].delta.content (OpenAI 兼容格式)
-              if (!content && json.choices) {
-                content = json.choices[0]?.delta?.content || json.choices[0]?.message?.content || '';
-              }
-              
+              const content = this.extractContentFromResponse(json);
               if (content) {
                 yield { type: 'content', content };
               }
@@ -351,62 +332,41 @@ ${atomSummary}
 
       // 处理剩余 buffer
       if (buffer.trim()) {
-        console.log('[DeepSeekAPI Stream] Remaining buffer (200 chars):', buffer.substring(0, 200));
-        try {
-          const json = JSON.parse(buffer);
-          let content = '';
+        console.log('[DeepSeekAPI Stream] Remaining buffer (300 chars):', buffer.substring(0, 300));
+        
+        // 尝试按行解析
+        const lines = buffer.split('\n');
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
           
-          if (json.output) {
-            for (const outputItem of json.output) {
-              if (outputItem.content) {
-                for (const contentItem of outputItem.content) {
-                  if (contentItem.text) {
-                    content += contentItem.text;
-                  }
-                }
-              }
-            }
-          }
-          
-          if (!content && json.choices) {
-            content = json.choices[0]?.message?.content || json.choices[0]?.delta?.content || '';
-          }
-          
-          if (content) {
-            yield { type: 'content', content };
-          }
-          
-          if (json.error) {
-            yield { type: 'error', error: json.error.message || json.error.code || '请求失败' };
-            return;
-          }
-        } catch {
-          // 可能是 SSE 的最后一行
-          if (buffer.startsWith('data:')) {
-            const data = buffer.slice(5).trim();
+          if (trimmedLine.startsWith('data:')) {
+            const data = trimmedLine.slice(5).trim();
             if (data && data !== '[DONE]') {
               try {
                 const json = JSON.parse(data);
-                let content = '';
-                
-                if (json.output) {
-                  for (const outputItem of json.output) {
-                    if (outputItem.content) {
-                      for (const contentItem of outputItem.content) {
-                        if (contentItem.text) {
-                          content += contentItem.text;
-                        }
-                      }
-                    }
-                  }
-                }
-                
+                const content = this.extractContentFromResponse(json);
                 if (content) {
                   yield { type: 'content', content };
+                }
+                if (json.error) {
+                  yield { type: 'error', error: json.error.message || json.error.code || '请求失败' };
+                  return;
                 }
               } catch {
                 // 忽略
               }
+            }
+          } else {
+            // 尝试直接解析为 JSON（非流式响应）
+            try {
+              const json = JSON.parse(trimmedLine);
+              const content = this.extractContentFromResponse(json);
+              if (content) {
+                yield { type: 'content', content };
+              }
+            } catch {
+              // 忽略
             }
           }
         }
@@ -416,6 +376,55 @@ ${atomSummary}
     }
 
     yield { type: 'done' };
+  }
+
+  /**
+   * 从响应 JSON 中提取文本内容
+   * 支持多种可能的响应格式
+   */
+  private extractContentFromResponse(json: any): string {
+    let content = '';
+    
+    // 格式1: output[].content[].text（火山引擎 responses API 格式）
+    if (json.output) {
+      for (const outputItem of json.output) {
+        if (outputItem.content) {
+          if (Array.isArray(outputItem.content)) {
+            for (const contentItem of outputItem.content) {
+              if (contentItem.text) {
+                content += contentItem.text;
+              }
+            }
+          } else if (typeof outputItem.content === 'string') {
+            content += outputItem.content;
+          }
+        }
+        // 直接是 text 字段
+        if (outputItem.text) {
+          content += outputItem.text;
+        }
+      }
+    }
+    
+    // 格式2: choices[].delta.content（OpenAI 流式格式）
+    if (!content && json.choices) {
+      content = json.choices[0]?.delta?.content || json.choices[0]?.message?.content || '';
+    }
+    
+    // 格式3: 直接的 content 字段
+    if (!content && json.content) {
+      if (typeof json.content === 'string') {
+        content = json.content;
+      } else if (Array.isArray(json.content)) {
+        for (const item of json.content) {
+          if (item.text) {
+            content += item.text;
+          }
+        }
+      }
+    }
+    
+    return content;
   }
 }
 

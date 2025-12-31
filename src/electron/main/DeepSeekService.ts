@@ -232,28 +232,25 @@ ${atomSummary}
 
   /**
    * 流式调用 DeepSeek API（火山引擎）
-   * 使用 OpenAI 兼容格式：base_url + /responses
+   * 使用 OpenAI 兼容格式：/api/v3/chat/completions
    */
   private async *callDeepSeekAPIStream(messages: ChatMessage[]): AsyncGenerator<StreamChunk> {
     const { apiKey, model } = this.config;
     
-    // 构建请求格式（OpenAI SDK 兼容格式）
-    // input 格式: [{"role": "user", "content": "..."}]
-    const input = messages.map(m => ({
-      role: m.role,
-      content: m.content
-    }));
-
+    // 构建请求格式（OpenAI 兼容格式）
     const payload = {
       model: model,
       stream: true,
-      input: input
+      messages: messages.map(m => ({
+        role: m.role,
+        content: m.content
+      }))
     };
 
-    const url = 'https://ark.cn-beijing.volces.com/api/v3/responses';
+    const url = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
     console.log('[DeepSeekAPI Stream] Request URL:', url);
     console.log('[DeepSeekAPI Stream] Model:', model);
-    console.log('[DeepSeekAPI Stream] Input messages count:', input.length);
+    console.log('[DeepSeekAPI Stream] Messages count:', messages.length);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -304,12 +301,6 @@ ${atomSummary}
           const trimmedLine = line.trim();
           if (!trimmedLine) continue;
           
-          // SSE 格式: event: xxx 或 data: {...}
-          if (trimmedLine.startsWith('event:')) {
-            // 事件类型，可以忽略或记录
-            continue;
-          }
-          
           if (trimmedLine.startsWith('data:')) {
             const data = trimmedLine.slice(5).trim();
             if (data === '[DONE]') {
@@ -319,7 +310,8 @@ ${atomSummary}
             
             try {
               const json = JSON.parse(data);
-              const content = this.extractContentFromResponse(json);
+              // OpenAI 格式: choices[].delta.content
+              const content = json.choices?.[0]?.delta?.content || '';
               if (content) {
                 yield { type: 'content', content };
               }
@@ -334,7 +326,6 @@ ${atomSummary}
       if (buffer.trim()) {
         console.log('[DeepSeekAPI Stream] Remaining buffer (300 chars):', buffer.substring(0, 300));
         
-        // 尝试按行解析
         const lines = buffer.split('\n');
         for (const line of lines) {
           const trimmedLine = line.trim();
@@ -345,7 +336,7 @@ ${atomSummary}
             if (data && data !== '[DONE]') {
               try {
                 const json = JSON.parse(data);
-                const content = this.extractContentFromResponse(json);
+                const content = json.choices?.[0]?.delta?.content || json.choices?.[0]?.message?.content || '';
                 if (content) {
                   yield { type: 'content', content };
                 }
@@ -357,17 +348,6 @@ ${atomSummary}
                 // 忽略
               }
             }
-          } else {
-            // 尝试直接解析为 JSON（非流式响应）
-            try {
-              const json = JSON.parse(trimmedLine);
-              const content = this.extractContentFromResponse(json);
-              if (content) {
-                yield { type: 'content', content };
-              }
-            } catch {
-              // 忽略
-            }
           }
         }
       }
@@ -376,55 +356,6 @@ ${atomSummary}
     }
 
     yield { type: 'done' };
-  }
-
-  /**
-   * 从响应 JSON 中提取文本内容
-   * 支持多种可能的响应格式
-   */
-  private extractContentFromResponse(json: any): string {
-    let content = '';
-    
-    // 格式1: output[].content[].text（火山引擎 responses API 格式）
-    if (json.output) {
-      for (const outputItem of json.output) {
-        if (outputItem.content) {
-          if (Array.isArray(outputItem.content)) {
-            for (const contentItem of outputItem.content) {
-              if (contentItem.text) {
-                content += contentItem.text;
-              }
-            }
-          } else if (typeof outputItem.content === 'string') {
-            content += outputItem.content;
-          }
-        }
-        // 直接是 text 字段
-        if (outputItem.text) {
-          content += outputItem.text;
-        }
-      }
-    }
-    
-    // 格式2: choices[].delta.content（OpenAI 流式格式）
-    if (!content && json.choices) {
-      content = json.choices[0]?.delta?.content || json.choices[0]?.message?.content || '';
-    }
-    
-    // 格式3: 直接的 content 字段
-    if (!content && json.content) {
-      if (typeof json.content === 'string') {
-        content = json.content;
-      } else if (Array.isArray(json.content)) {
-        for (const item of json.content) {
-          if (item.text) {
-            content += item.text;
-          }
-        }
-      }
-    }
-    
-    return content;
   }
 }
 

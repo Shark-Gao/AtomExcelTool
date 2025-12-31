@@ -13,9 +13,7 @@ import { LogManager } from './LogManager';
 import { initHunyuanService, getHunyuanService, HunyuanConfig } from './HunyuanService';
 // import { runAllTests } from './DeParseJsonToExpression.test';
 
-// 加载环境变量
-import * as dotenv from 'dotenv';
-dotenv.config();
+
 
 // AI 服务相关变量（需要在 delegate:get-metadata 之前声明）
 let aiConfigured = false;
@@ -844,9 +842,9 @@ ipcMain.handle('config:save-atom-fields-config', async (_event, config: any) => 
 
 // ============ AI 助手相关 IPC 处理器 ============
 
-// 内置 API Key（从环境变量读取）
-const BUILTIN_API_KEY = process.env.HUNYUAN_API_KEY || '';
-const BUILTIN_API_HOST = process.env.HUNYUAN_API_HOST || 'hunyuanapi.woa.com';
+// 内置 API Key（直接写入代码，打包后可用）
+const BUILTIN_API_KEY = 'sk-Dn7bJCpYCWJ2XKOxJBzKCjjW8vRkOlHGHvBJLJPFzNGPYhLm';
+const BUILTIN_API_HOST = 'hunyuanapi.woa.com';
 
 // 应用启动时自动初始化 AI 服务（如果有内置 Key）
 // 注意：此时知识库尚未加载，会在 delegate:get-metadata 调用后自动注入

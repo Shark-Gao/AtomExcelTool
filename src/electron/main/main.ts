@@ -842,35 +842,91 @@ ipcMain.handle('config:save-atom-fields-config', async (_event, config: any) => 
 
 // ============ AI 助手相关 IPC 处理器 ============
 
-// 内置 API Key（直接写入代码，打包后可用）
-const BUILTIN_API_KEY = '9a0d84de-caed-4048-9c3e-c7ec16ea8a1d';
-const BUILTIN_API_HOST = 'hunyuanapi.woa.com';
+// 模型配置
+type AIModelType = 'deepseek' | 'hunyuan';
 
-// 应用启动时自动初始化 AI 服务（如果有内置 Key）
-// 注意：此时知识库尚未加载，会在 delegate:get-metadata 调用后自动注入
-if (BUILTIN_API_KEY) {
-    console.log('[AI] Found builtin API key, auto-initializing...');
-    try {
-        initHunyuanService({
-            apiKey: BUILTIN_API_KEY,
-            apiHost: BUILTIN_API_HOST,
-            model: 'hunyuan-2.0-thinking-20251109'
-        });
-        aiConfigured = true;
-        console.log('[AI] Service initialized, knowledge will be loaded after metadata is ready');
-    } catch (error) {
-        console.error('[AI] Auto-init failed:', error);
-    }
+interface ModelConfig {
+  apiKey: string;
+  apiHost: string;
+  model: string;
+}
+
+const MODEL_CONFIGS: Record<AIModelType, ModelConfig> = {
+  deepseek: {
+    apiKey: '779b1227-d043-4fb7-8d2d-d4572773dbe7',
+    apiHost: 'hunyuanapi.woa.com',  // DeepSeek 也走混元网关
+    model: 'deepseek-v3'
+  },
+  hunyuan: {
+    apiKey: '9a0d84de-caed-4048-9c3e-c7ec16ea8a1d',
+    apiHost: 'hunyuanapi.woa.com',
+    model: 'hunyuan-t1-latest'
+  }
+};
+
+// 当前选择的模型
+let currentModelType: AIModelType = 'deepseek';  // 默认 DeepSeek（免费）
+
+// 应用启动时自动初始化 AI 服务
+console.log('[AI] Auto-initializing with default model:', currentModelType);
+try {
+    const defaultConfig = MODEL_CONFIGS[currentModelType];
+    initHunyuanService({
+        apiKey: defaultConfig.apiKey,
+        apiHost: defaultConfig.apiHost,
+        model: defaultConfig.model
+    });
+    aiConfigured = true;
+    aiConfig = { model: defaultConfig.model };
+    console.log('[AI] Service initialized with model:', defaultConfig.model);
+} catch (error) {
+    console.error('[AI] Auto-init failed:', error);
 }
 
 // 获取内置配置状态
 ipcMain.handle('ai:get-builtin-config', async () => {
     return {
-        hasBuiltinConfig: !!BUILTIN_API_KEY
+        hasBuiltinConfig: true,
+        currentModel: currentModelType,
+        availableModels: Object.keys(MODEL_CONFIGS)
     };
 });
 
-// 配置 AI 服务
+// 切换模型
+ipcMain.handle('ai:switch-model', async (_event, modelType: string) => {
+    try {
+        if (!MODEL_CONFIGS[modelType as AIModelType]) {
+            return { success: false, error: `不支持的模型类型: ${modelType}` };
+        }
+        
+        console.log('[ai:switch-model] Switching to model:', modelType);
+        currentModelType = modelType as AIModelType;
+        const config = MODEL_CONFIGS[currentModelType];
+        
+        const service = initHunyuanService({
+            apiKey: config.apiKey,
+            apiHost: config.apiHost,
+            model: config.model
+        });
+        
+        // 如果已有缓存的 metadata，直接注入知识库
+        if (cachedAtomMetadata && cachedAtomMetadata.length > 0) {
+            service.initializeWithAtomKnowledge(cachedAtomMetadata);
+            console.log('[ai:switch-model] Knowledge base initialized with cached metadata');
+        }
+        
+        aiConfigured = true;
+        aiConfig = { model: config.model };
+        console.log('[ai:switch-model] Model switched successfully to:', config.model);
+        return { success: true, model: config.model };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '切换模型失败';
+        console.error('[ai:switch-model] Error:', message);
+        return { success: false, error: message };
+    }
+});
+
+// 配置 AI 服务（保留兼容性，但不再需要手动配置）
 ipcMain.handle('ai:configure', async (_event, config: { apiKey: string; apiHost?: string; model?: string }) => {
     try {
         console.log('[ai:configure] Configuring AI service...');

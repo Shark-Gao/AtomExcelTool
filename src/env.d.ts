@@ -160,7 +160,9 @@ declare global {
     /** 获取 AI 服务状态 */
     getStatus: () => Promise<{ configured: boolean; config?: { model: string } }>
     /** 获取内置配置状态 */
-    getBuiltinConfig: () => Promise<{ hasBuiltinConfig: boolean }>
+    getBuiltinConfig: () => Promise<{ hasBuiltinConfig: boolean; currentModel?: string; availableModels?: string[] }>
+    /** 切换模型 */
+    switchModel: (modelType: string) => Promise<{ success: boolean; model?: string; error?: string }>
     /** 初始化原子知识库 */
     initKnowledge: (metadata: ClassMetadata[]) => Promise<{ success: boolean; error?: string }>
     /** 发送聊天消息 */

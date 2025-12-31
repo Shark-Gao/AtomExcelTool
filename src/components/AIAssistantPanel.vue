@@ -63,12 +63,13 @@ const minPanelWidth = 320;  // 最小宽度
 const isResizing = ref(false);
 const resizeHandleRef = ref<HTMLElement | null>(null);
 
-// API 配置（用户手动输入，仅在无内置配置时使用）
-const apiConfig = ref({
-  apiKey: '',
-  apiHost: 'hunyuanapi.woa.com',
-  model: 'hunyuan-2.0-thinkin1g-20251109'
-});
+// API 配置
+const currentModel = ref<'deepseek' | 'hunyuan'>('deepseek');
+const availableModels = ref<string[]>(['deepseek', 'hunyuan']);
+const modelLabels: Record<string, string> = {
+  deepseek: 'DeepSeek V3（免费）',
+  hunyuan: '腾讯混元 T1'
+};
 
 // 快捷问题
 const quickQuestions = [
@@ -223,30 +224,17 @@ function closePanel() {
   emit('update:visible', false);
 }
 
-/** 保存 API 配置 */
-async function saveApiConfig() {
-  if (!apiConfig.value.apiKey) {
-    return;
-  }
-
+/** 切换模型 */
+async function switchModel(modelType: string) {
   try {
-    const result = await window.aiBridge?.configure({
-      apiKey: apiConfig.value.apiKey,
-      apiHost: apiConfig.value.apiHost,
-      model: apiConfig.value.model
-    });
-
+    const result = await (window as any).aiBridge?.switchModel(modelType);
     if (result?.success) {
-      isConfigured.value = true;
-      showSettings.value = false;
-      
-      // 初始化原子知识库
-      if (props.allAtomMetadata && props.allAtomMetadata.length > 0) {
-        await window.aiBridge?.initKnowledge(props.allAtomMetadata);
-      }
+      currentModel.value = modelType as 'deepseek' | 'hunyuan';
+      // 清空对话历史，因为切换了模型
+      clearChat();
     }
   } catch (error) {
-    console.error('配置 AI 服务失败:', error);
+    console.error('切换模型失败:', error);
   }
 }
 
@@ -321,12 +309,20 @@ onMounted(async () => {
   
   // 检查内置配置和服务状态
   const [builtinResult, status] = await Promise.all([
-    window.aiBridge?.getBuiltinConfig(),
+    (window as any).aiBridge?.getBuiltinConfig(),
     window.aiBridge?.getStatus()
   ]);
   
   hasBuiltinConfig.value = builtinResult?.hasBuiltinConfig || false;
   isConfigured.value = status?.configured || false;
+  
+  // 获取当前模型和可用模型列表
+  if (builtinResult?.currentModel) {
+    currentModel.value = builtinResult.currentModel;
+  }
+  if (builtinResult?.availableModels) {
+    availableModels.value = builtinResult.availableModels;
+  }
   
   // 如果有内置配置且已配置，初始化原子知识库
   if (isConfigured.value && props.allAtomMetadata && props.allAtomMetadata.length > 0) {
@@ -530,30 +526,28 @@ watch(() => props.currentAtom, (newAtom) => {
   <!-- 设置弹窗 -->
   <div v-if="showSettings" class="modal modal-open">
     <div class="modal-box">
-      <h3 class="font-bold text-lg mb-4">AI 服务配置</h3>
+      <h3 class="font-bold text-lg mb-4">AI 模型设置</h3>
       
       <div class="form-control mb-4">
         <label class="label">
-          <span class="label-text">API Key</span>
+          <span class="label-text">选择模型</span>
         </label>
-        <input 
-          v-model="apiConfig.apiKey"
-          type="password" 
-          class="input input-bordered"
-          placeholder="内网申请的 API Key"
-        />
-      </div>
-
-      <div class="form-control mb-4">
+        <select 
+          class="select select-bordered w-full"
+          :value="currentModel"
+          @change="switchModel(($event.target as HTMLSelectElement).value)"
+        >
+          <option 
+            v-for="model in availableModels" 
+            :key="model" 
+            :value="model"
+          >
+            {{ modelLabels[model] || model }}
+          </option>
+        </select>
         <label class="label">
-          <span class="label-text">API 地址（可选）</span>
+          <span class="label-text-alt text-base-content/60">DeepSeek 免费使用，混元需要消耗配额</span>
         </label>
-        <input 
-          v-model="apiConfig.apiHost"
-          type="text" 
-          class="input input-bordered"
-          placeholder="hunyuanapi.woa.com"
-        />
       </div>
 
       <div class="alert alert-info text-sm mb-4">
@@ -561,18 +555,11 @@ watch(() => props.currentAtom, (newAtom) => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
             d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span>请从内网申请混元 OpenAPI Key</span>
+        <span>切换模型会清空当前对话历史</span>
       </div>
 
       <div class="modal-action">
-        <button class="btn btn-ghost" @click="showSettings = false">取消</button>
-        <button 
-          class="btn btn-primary"
-          :disabled="!apiConfig.apiKey"
-          @click="saveApiConfig"
-        >
-          保存配置
-        </button>
+        <button class="btn" @click="showSettings = false">关闭</button>
       </div>
     </div>
     <div class="modal-backdrop" @click="showSettings = false"></div>

@@ -192,7 +192,19 @@ contextBridge.exposeInMainWorld('aiBridge', {
     
     /** 获取内置配置状态 */
     getBuiltinConfig: () =>
-        ipcRenderer.invoke('ai:get-builtin-config') as Promise<{ hasBuiltinConfig: boolean }>,
+        ipcRenderer.invoke('ai:get-builtin-config') as Promise<{
+            hasBuiltinConfig: boolean;
+            currentModel?: string;
+            availableModels?: string[];
+        }>,
+    
+    /** 切换模型 */
+    switchModel: (modelType: string) =>
+        ipcRenderer.invoke('ai:switch-model', modelType) as Promise<{
+            success: boolean;
+            model?: string;
+            error?: string;
+        }>,
     
     /** 初始化原子知识库 */
     initKnowledge: (metadata: any[]) =>

@@ -67,12 +67,9 @@ const resizeHandleRef = ref<HTMLElement | null>(null);
 const currentModel = ref<'deepseek' | 'hunyuan'>('deepseek');
 const availableModels = ref<string[]>(['deepseek', 'hunyuan']);
 const modelLabels: Record<string, string> = {
-  deepseek: 'DeepSeek v3.2（免费）',
-  hunyuan: '腾讯混元 Thinking'
+  deepseek: 'DeepSeek V3（免费）',
+  hunyuan: '腾讯混元 T1'
 };
-
-// 流式输出控制
-let currentStreamUnsubscribe: (() => void) | null = null;
 
 // 快捷问题
 const quickQuestions = [
@@ -196,20 +193,15 @@ async function sendMessage(content?: string) {
           isStreaming: false 
         };
         isLoading.value = false;
-        currentStreamUnsubscribe = null;
         unsubscribe?.();
       } else if (chunk.type === 'done') {
         const currentMsg = messages.value[messageIndex];
         messages.value[messageIndex] = { ...currentMsg, isStreaming: false };
         isLoading.value = false;
-        currentStreamUnsubscribe = null;
         unsubscribe?.();
         scrollToBottom();
       }
     });
-    
-    // 保存取消订阅函数，用于停止输出
-    currentStreamUnsubscribe = unsubscribe;
   } catch (error) {
     messages.value[messageIndex] = { 
       ...messages.value[messageIndex], 
@@ -227,42 +219,35 @@ function clearChat() {
   window.aiBridge?.clearHistory();
 }
 
-/** 停止 AI 输出 */
-function stopGeneration() {
-  if (currentStreamUnsubscribe) {
-    currentStreamUnsubscribe();
-    currentStreamUnsubscribe = null;
-  }
-  
-  // 找到正在流式输出的消息，标记为完成
-  const streamingMsgIndex = messages.value.findIndex(m => m.isStreaming);
-  if (streamingMsgIndex !== -1) {
-    messages.value[streamingMsgIndex] = {
-      ...messages.value[streamingMsgIndex],
-      isStreaming: false,
-      content: messages.value[streamingMsgIndex].content + '\n\n[已停止]'
-    };
-  }
-  
-  isLoading.value = false;
-}
-
 /** 关闭面板 */
 function closePanel() {
   emit('update:visible', false);
 }
 
-/** 切换模型 */
-async function switchModel(modelType: string) {
+/** 保存 API 配置 */
+async function saveApiConfig() {
+  if (!apiConfig.value.apiKey) {
+    return;
+  }
+
   try {
-    const result = await (window as any).aiBridge?.switchModel(modelType);
+    const result = await window.aiBridge?.configure({
+      apiKey: apiConfig.value.apiKey,
+      apiHost: apiConfig.value.apiHost,
+      model: apiConfig.value.model
+    });
+
     if (result?.success) {
-      currentModel.value = modelType as 'deepseek' | 'hunyuan';
-      // 清空对话历史，因为切换了模型
-      clearChat();
+      isConfigured.value = true;
+      showSettings.value = false;
+      
+      // 初始化原子知识库
+      if (props.allAtomMetadata && props.allAtomMetadata.length > 0) {
+        await window.aiBridge?.initKnowledge(props.allAtomMetadata);
+      }
     }
   } catch (error) {
-    console.error('切换模型失败:', error);
+    console.error('配置 AI 服务失败:', error);
   }
 }
 
@@ -337,20 +322,12 @@ onMounted(async () => {
   
   // 检查内置配置和服务状态
   const [builtinResult, status] = await Promise.all([
-    (window as any).aiBridge?.getBuiltinConfig(),
+    window.aiBridge?.getBuiltinConfig(),
     window.aiBridge?.getStatus()
   ]);
   
   hasBuiltinConfig.value = builtinResult?.hasBuiltinConfig || false;
   isConfigured.value = status?.configured || false;
-  
-  // 获取当前模型和可用模型列表
-  if (builtinResult?.currentModel) {
-    currentModel.value = builtinResult.currentModel;
-  }
-  if (builtinResult?.availableModels) {
-    availableModels.value = builtinResult.availableModels;
-  }
   
   // 如果有内置配置且已配置，初始化原子知识库
   if (isConfigured.value && props.allAtomMetadata && props.allAtomMetadata.length > 0) {
@@ -524,26 +501,6 @@ watch(() => props.currentAtom, (newAtom) => {
 
       <!-- 输入区域 -->
       <div class="p-4 border-t border-base-content/10 bg-base-300/30">
-        <!-- 模型选择下拉框 -->
-        <div class="flex items-center gap-2 mb-2">
-          <span class="text-xs text-base-content/60">模型:</span>
-          <select 
-            class="select select-bordered select-xs flex-1"
-            :value="currentModel"
-            :disabled="isLoading"
-            @change="switchModel(($event.target as HTMLSelectElement).value)"
-          >
-            <option 
-              v-for="model in availableModels" 
-              :key="model" 
-              :value="model"
-            >
-              {{ modelLabels[model] || model }}
-            </option>
-          </select>
-        </div>
-        
-        <!-- 输入框和发送/停止按钮 -->
         <div class="flex gap-2">
           <textarea
             ref="inputRef"
@@ -555,28 +512,16 @@ watch(() => props.currentAtom, (newAtom) => {
             @keydown="handleKeydown"
             @input="autoResize"
           ></textarea>
-          <!-- 发送按钮 / 停止按钮 -->
           <button 
-            v-if="!isLoading"
             class="btn btn-primary btn-square"
-            :disabled="!inputMessage.trim()"
+            :disabled="!inputMessage.trim() || isLoading"
             @click="sendMessage()"
-            title="发送消息"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg v-if="!isLoading" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
                 d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
-          </button>
-          <button 
-            v-else
-            class="btn btn-error btn-square"
-            @click="stopGeneration"
-            title="停止生成"
-          >
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-              <rect x="6" y="6" width="12" height="12" rx="1" />
-            </svg>
+            <span v-else class="loading loading-spinner loading-sm"></span>
           </button>
         </div>
       </div>
@@ -586,28 +531,30 @@ watch(() => props.currentAtom, (newAtom) => {
   <!-- 设置弹窗 -->
   <div v-if="showSettings" class="modal modal-open">
     <div class="modal-box">
-      <h3 class="font-bold text-lg mb-4">AI 模型设置</h3>
+      <h3 class="font-bold text-lg mb-4">AI 服务配置</h3>
       
       <div class="form-control mb-4">
         <label class="label">
-          <span class="label-text">选择模型</span>
+          <span class="label-text">API Key</span>
         </label>
-        <select 
-          class="select select-bordered w-full"
-          :value="currentModel"
-          @change="switchModel(($event.target as HTMLSelectElement).value)"
-        >
-          <option 
-            v-for="model in availableModels" 
-            :key="model" 
-            :value="model"
-          >
-            {{ modelLabels[model] || model }}
-          </option>
-        </select>
+        <input 
+          v-model="apiConfig.apiKey"
+          type="password" 
+          class="input input-bordered"
+          placeholder="内网申请的 API Key"
+        />
+      </div>
+
+      <div class="form-control mb-4">
         <label class="label">
-          <span class="label-text-alt text-base-content/60">DeepSeek 免费使用，混元需要消耗配额</span>
+          <span class="label-text">API 地址（可选）</span>
         </label>
+        <input 
+          v-model="apiConfig.apiHost"
+          type="text" 
+          class="input input-bordered"
+          placeholder="hunyuanapi.woa.com"
+        />
       </div>
 
       <div class="alert alert-info text-sm mb-4">
@@ -615,11 +562,18 @@ watch(() => props.currentAtom, (newAtom) => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
             d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span>切换模型会清空当前对话历史</span>
+        <span>请从内网申请混元 OpenAPI Key</span>
       </div>
 
       <div class="modal-action">
-        <button class="btn" @click="showSettings = false">关闭</button>
+        <button class="btn btn-ghost" @click="showSettings = false">取消</button>
+        <button 
+          class="btn btn-primary"
+          :disabled="!apiConfig.apiKey"
+          @click="saveApiConfig"
+        >
+          保存配置
+        </button>
       </div>
     </div>
     <div class="modal-backdrop" @click="showSettings = false"></div>

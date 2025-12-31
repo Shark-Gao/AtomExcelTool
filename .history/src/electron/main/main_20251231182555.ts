@@ -865,7 +865,7 @@ const MODEL_CONFIGS: Record<AIModelType, ModelConfig> = {
   deepseek: {
     type: 'deepseek',
     apiKey: '779b1227-d043-4fb7-8d2d-d4572773dbe7',
-    model: 'ep-20251231180434-9vq8m'
+    model: 'doubao-seed-1-8-251215'
   },
   hunyuan: {
     type: 'hunyuan',

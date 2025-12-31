@@ -11,7 +11,6 @@ import { deParseJsonToExpression } from './DeParseJsonToExpression';
 import { AtomFieldsConfigLoader } from './AtomFieldsConfigLoader';
 import { LogManager } from './LogManager';
 import { initHunyuanService, getHunyuanService, HunyuanConfig } from './HunyuanService';
-import { initDeepSeekService, getDeepSeekService, DeepSeekConfig } from './DeepSeekService';
 // import { runAllTests } from './DeParseJsonToExpression.test';
 
 
@@ -843,116 +842,35 @@ ipcMain.handle('config:save-atom-fields-config', async (_event, config: any) => 
 
 // ============ AI 助手相关 IPC 处理器 ============
 
-// 模型配置
-type AIModelType = 'deepseek' | 'hunyuan';
+// 内置 API Key（直接写入代码，打包后可用）
+const BUILTIN_API_KEY = '9a0d84de-caed-4048-9c3e-c7ec16ea8a1d';
+const BUILTIN_API_HOST = 'hunyuanapi.woa.com';
 
-interface DeepSeekModelConfig {
-  type: 'deepseek';
-  apiKey: string;
-  model: string;
-}
-
-interface HunyuanModelConfig {
-  type: 'hunyuan';
-  apiKey: string;
-  apiHost: string;
-  model: string;
-}
-
-type ModelConfig = DeepSeekModelConfig | HunyuanModelConfig;
-
-const MODEL_CONFIGS: Record<AIModelType, ModelConfig> = {
-  deepseek: {
-    type: 'deepseek',
-    apiKey: '779b1227-d043-4fb7-8d2d-d4572773dbe7',
-    model: 'ep-20251231180434-9vq8m'
-  },
-  hunyuan: {
-    type: 'hunyuan',
-    apiKey: '9a0d84de-caed-4048-9c3e-c7ec16ea8a1d',
-    apiHost: 'hunyuanapi.woa.com',
-    model: 'hunyuan-2.0-thinking-20251109'
-  }
-};
-
-// 当前选择的模型
-let currentModelType: AIModelType = 'deepseek';  // 默认 DeepSeek（免费）
-
-// 应用启动时自动初始化 AI 服务
-console.log('[AI] Auto-initializing with default model:', currentModelType);
-try {
-    const defaultConfig = MODEL_CONFIGS[currentModelType];
-    if (defaultConfig.type === 'deepseek') {
-        initDeepSeekService({
-            apiKey: defaultConfig.apiKey,
-            model: defaultConfig.model
-        });
-    } else {
+// 应用启动时自动初始化 AI 服务（如果有内置 Key）
+// 注意：此时知识库尚未加载，会在 delegate:get-metadata 调用后自动注入
+if (BUILTIN_API_KEY) {
+    console.log('[AI] Found builtin API key, auto-initializing...');
+    try {
         initHunyuanService({
-            apiKey: defaultConfig.apiKey,
-            apiHost: defaultConfig.apiHost,
-            model: defaultConfig.model
+            apiKey: BUILTIN_API_KEY,
+            apiHost: BUILTIN_API_HOST,
+            model: 'hunyuan-2.0-thinking-20251109'
         });
+        aiConfigured = true;
+        console.log('[AI] Service initialized, knowledge will be loaded after metadata is ready');
+    } catch (error) {
+        console.error('[AI] Auto-init failed:', error);
     }
-    aiConfigured = true;
-    aiConfig = { model: defaultConfig.model };
-    console.log('[AI] Service initialized with model:', defaultConfig.model);
-} catch (error) {
-    console.error('[AI] Auto-init failed:', error);
 }
 
 // 获取内置配置状态
 ipcMain.handle('ai:get-builtin-config', async () => {
     return {
-        hasBuiltinConfig: true,
-        currentModel: currentModelType,
-        availableModels: Object.keys(MODEL_CONFIGS)
+        hasBuiltinConfig: !!BUILTIN_API_KEY
     };
 });
 
-// 切换模型
-ipcMain.handle('ai:switch-model', async (_event, modelType: string) => {
-    try {
-        if (!MODEL_CONFIGS[modelType as AIModelType]) {
-            return { success: false, error: `不支持的模型类型: ${modelType}` };
-        }
-        
-        console.log('[ai:switch-model] Switching to model:', modelType);
-        currentModelType = modelType as AIModelType;
-        const config = MODEL_CONFIGS[currentModelType];
-        
-        let service: any;
-        if (config.type === 'deepseek') {
-            service = initDeepSeekService({
-                apiKey: config.apiKey,
-                model: config.model
-            });
-        } else {
-            service = initHunyuanService({
-                apiKey: config.apiKey,
-                apiHost: config.apiHost,
-                model: config.model
-            });
-        }
-        
-        // 如果已有缓存的 metadata，直接注入知识库
-        if (cachedAtomMetadata && cachedAtomMetadata.length > 0) {
-            service.initializeWithAtomKnowledge(cachedAtomMetadata);
-            console.log('[ai:switch-model] Knowledge base initialized with cached metadata');
-        }
-        
-        aiConfigured = true;
-        aiConfig = { model: config.model };
-        console.log('[ai:switch-model] Model switched successfully to:', config.model);
-        return { success: true, model: config.model };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : '切换模型失败';
-        console.error('[ai:switch-model] Error:', message);
-        return { success: false, error: message };
-    }
-});
-
-// 配置 AI 服务（保留兼容性，但不再需要手动配置）
+// 配置 AI 服务
 ipcMain.handle('ai:configure', async (_event, config: { apiKey: string; apiHost?: string; model?: string }) => {
     try {
         console.log('[ai:configure] Configuring AI service...');
@@ -988,19 +906,10 @@ ipcMain.handle('ai:get-status', async () => {
     };
 });
 
-// 获取当前 AI 服务实例（根据模型类型）
-function getCurrentAIService() {
-    if (currentModelType === 'deepseek') {
-        return getDeepSeekService();
-    } else {
-        return getHunyuanService();
-    }
-}
-
 // 初始化原子知识库
 ipcMain.handle('ai:init-knowledge', async (_event, metadata: any[]) => {
     try {
-        const service = getCurrentAIService();
+        const service = getHunyuanService();
         if (!service) {
             return { success: false, error: 'AI 服务未配置' };
         }
@@ -1018,7 +927,7 @@ ipcMain.handle('ai:init-knowledge', async (_event, metadata: any[]) => {
 // 发送聊天消息
 ipcMain.handle('ai:chat', async (_event, payload: { message: string; currentAtom?: any; stream?: boolean }) => {
     try {
-        const service = getCurrentAIService();
+        const service = getHunyuanService();
         if (!service) {
             return { success: false, error: 'AI 服务未配置' };
         }
@@ -1040,7 +949,7 @@ ipcMain.handle('ai:chat', async (_event, payload: { message: string; currentAtom
 // 流式聊天
 ipcMain.on('ai:chat-stream', async (event, payload: { message: string; currentAtom?: any; requestId: string }) => {
     try {
-        const service = getCurrentAIService();
+        const service = getHunyuanService();
         if (!service) {
             event.reply('ai:chat-stream-chunk', {
                 requestId: payload.requestId,
@@ -1069,7 +978,7 @@ ipcMain.on('ai:chat-stream', async (event, payload: { message: string; currentAt
 // 清空对话历史
 ipcMain.handle('ai:clear-history', async () => {
     try {
-        const service = getCurrentAIService();
+        const service = getHunyuanService();
         if (service) {
             service.clearHistory();
             console.log('[ai:clear-history] History cleared');

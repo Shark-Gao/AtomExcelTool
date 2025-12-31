@@ -871,7 +871,7 @@ const MODEL_CONFIGS: Record<AIModelType, ModelConfig> = {
     type: 'hunyuan',
     apiKey: '9a0d84de-caed-4048-9c3e-c7ec16ea8a1d',
     apiHost: 'hunyuanapi.woa.com',
-    model: 'hunyuan-2.0-thinking-20251109'
+    model: 'hunyuan-t1-latest'
   }
 };
 
@@ -921,19 +921,11 @@ ipcMain.handle('ai:switch-model', async (_event, modelType: string) => {
         currentModelType = modelType as AIModelType;
         const config = MODEL_CONFIGS[currentModelType];
         
-        let service: any;
-        if (config.type === 'deepseek') {
-            service = initDeepSeekService({
-                apiKey: config.apiKey,
-                model: config.model
-            });
-        } else {
-            service = initHunyuanService({
-                apiKey: config.apiKey,
-                apiHost: config.apiHost,
-                model: config.model
-            });
-        }
+        const service = initHunyuanService({
+            apiKey: config.apiKey,
+            apiHost: config.apiHost,
+            model: config.model
+        });
         
         // 如果已有缓存的 metadata，直接注入知识库
         if (cachedAtomMetadata && cachedAtomMetadata.length > 0) {
@@ -988,19 +980,10 @@ ipcMain.handle('ai:get-status', async () => {
     };
 });
 
-// 获取当前 AI 服务实例（根据模型类型）
-function getCurrentAIService() {
-    if (currentModelType === 'deepseek') {
-        return getDeepSeekService();
-    } else {
-        return getHunyuanService();
-    }
-}
-
 // 初始化原子知识库
 ipcMain.handle('ai:init-knowledge', async (_event, metadata: any[]) => {
     try {
-        const service = getCurrentAIService();
+        const service = getHunyuanService();
         if (!service) {
             return { success: false, error: 'AI 服务未配置' };
         }
@@ -1018,7 +1001,7 @@ ipcMain.handle('ai:init-knowledge', async (_event, metadata: any[]) => {
 // 发送聊天消息
 ipcMain.handle('ai:chat', async (_event, payload: { message: string; currentAtom?: any; stream?: boolean }) => {
     try {
-        const service = getCurrentAIService();
+        const service = getHunyuanService();
         if (!service) {
             return { success: false, error: 'AI 服务未配置' };
         }
@@ -1040,7 +1023,7 @@ ipcMain.handle('ai:chat', async (_event, payload: { message: string; currentAtom
 // 流式聊天
 ipcMain.on('ai:chat-stream', async (event, payload: { message: string; currentAtom?: any; requestId: string }) => {
     try {
-        const service = getCurrentAIService();
+        const service = getHunyuanService();
         if (!service) {
             event.reply('ai:chat-stream-chunk', {
                 requestId: payload.requestId,
@@ -1069,7 +1052,7 @@ ipcMain.on('ai:chat-stream', async (event, payload: { message: string; currentAt
 // 清空对话历史
 ipcMain.handle('ai:clear-history', async () => {
     try {
-        const service = getCurrentAIService();
+        const service = getHunyuanService();
         if (service) {
             service.clearHistory();
             console.log('[ai:clear-history] History cleared');

@@ -10,16 +10,11 @@ import {DelegateMetadataGenerator} from './DelegateMetadataGenerator';
 import { deParseJsonToExpression } from './DeParseJsonToExpression';
 import { AtomFieldsConfigLoader } from './AtomFieldsConfigLoader';
 import { LogManager } from './LogManager';
-import { initHunyuanService, getHunyuanService, HunyuanConfig } from './HunyuanService';
-import { initDeepSeekService, getDeepSeekService, DeepSeekConfig } from './DeepSeekService';
 // import { runAllTests } from './DeParseJsonToExpression.test';
 
-
-
-// AI 服务相关变量（需要在 delegate:get-metadata 之前声明）
-let aiConfigured = false;
-let aiConfig: { model: string } = { model: 'hunyuan-2.0-thinking-20251109' };
-let cachedAtomMetadata: any[] | null = null;
+// 加载环境变量
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 // 在应用启动时立即初始化日志系统
 const logManager = LogManager.getInstance();
@@ -671,14 +666,6 @@ ipcMain.handle('delegate:get-metadata', async () => {
         const registry = DelegateMetadataGenerator.generateClassRegistry(metadata);
         const grouped = DelegateMetadataGenerator.groupMetadataByBaseClass(metadata);
 
-        // 缓存 metadata 并初始化 AI 知识库（如果 AI 服务已配置）
-        cachedAtomMetadata = metadata;
-        const aiService = getHunyuanService();
-        if (aiService && !aiService.isKnowledgeLoaded()) {
-            aiService.initializeWithAtomKnowledge(metadata);
-            console.log('[delegate:get-metadata] AI knowledge base initialized with', metadata.length, 'atoms');
-        }
-
         return {
             ok: true,
             metadata,
@@ -842,117 +829,71 @@ ipcMain.handle('config:save-atom-fields-config', async (_event, config: any) => 
 });
 
 // ============ AI 助手相关 IPC 处理器 ============
+import { initHunyuanService, getHunyuanService, HunyuanConfig } from './HunyuanService';
 
-// 模型配置
-type AIModelType = 'deepseek' | 'hunyuan';
+let aiConfigured = false;
+let aiConfig: { model: string } = { model: 'hunyuan-2.0-thinking-20251109' };
 
-interface DeepSeekModelConfig {
-  type: 'deepseek';
-  apiKey: string;
-  model: string;
-}
+// 缓存已解析的原子元数据（复用 delegate:get-metadata 的数据）
+let cachedAtomMetadata: any[] | null = null;
 
-interface HunyuanModelConfig {
-  type: 'hunyuan';
-  apiKey: string;
-  apiHost: string;
-  model: string;
-}
-
-type ModelConfig = DeepSeekModelConfig | HunyuanModelConfig;
-
-const MODEL_CONFIGS: Record<AIModelType, ModelConfig> = {
-  deepseek: {
-    type: 'deepseek',
-    apiKey: '779b1227-d043-4fb7-8d2d-d4572773dbe7',
-    model: 'ep-20251231180434-9vq8m'
-  },
-  hunyuan: {
-    type: 'hunyuan',
-    apiKey: '9a0d84de-caed-4048-9c3e-c7ec16ea8a1d',
-    apiHost: 'hunyuanapi.woa.com',
-    model: 'hunyuan-2.0-thinking-20251109'
-  }
-};
-
-// 当前选择的模型
-let currentModelType: AIModelType = 'deepseek';  // 默认 DeepSeek（免费）
-
-// 应用启动时自动初始化 AI 服务
-console.log('[AI] Auto-initializing with default model:', currentModelType);
-try {
-    const defaultConfig = MODEL_CONFIGS[currentModelType];
-    if (defaultConfig.type === 'deepseek') {
-        initDeepSeekService({
-            apiKey: defaultConfig.apiKey,
-            model: defaultConfig.model
-        });
-    } else {
-        initHunyuanService({
-            apiKey: defaultConfig.apiKey,
-            apiHost: defaultConfig.apiHost,
-            model: defaultConfig.model
-        });
+/**
+ * 获取或加载原子元数据（懒加载，复用已解析的数据）
+ */
+function getOrLoadAtomMetadata(): any[] {
+    if (cachedAtomMetadata) {
+        return cachedAtomMetadata;
     }
-    aiConfigured = true;
-    aiConfig = { model: defaultConfig.model };
-    console.log('[AI] Service initialized with model:', defaultConfig.model);
-} catch (error) {
-    console.error('[AI] Auto-init failed:', error);
+    try {
+        cachedAtomMetadata = DelegateMetadataGenerator.generateMetadataFromMetaJsonConfig();
+        console.log('[AI] Loaded atom metadata:', cachedAtomMetadata.length, 'atoms');
+        return cachedAtomMetadata;
+    } catch (error) {
+        console.error('[AI] Failed to load atom metadata:', error);
+        return [];
+    }
+}
+
+/**
+ * 初始化 AI 服务并注入知识库
+ */
+function initAIServiceWithKnowledge(config: HunyuanConfig): void {
+    const service = initHunyuanService(config);
+    const metadata = getOrLoadAtomMetadata();
+    if (metadata.length > 0) {
+        service.initializeWithAtomKnowledge(metadata);
+        console.log('[AI] Knowledge base initialized with', metadata.length, 'atoms');
+    }
+}
+
+// 内置 API Key（从环境变量读取）
+const BUILTIN_API_KEY = process.env.HUNYUAN_API_KEY || '';
+const BUILTIN_API_HOST = process.env.HUNYUAN_API_HOST || 'hunyuanapi.woa.com';
+
+// 应用启动时自动初始化（如果有内置 Key）
+if (BUILTIN_API_KEY) {
+    console.log('[AI] Found builtin API key, auto-initializing...');
+    try {
+        initAIServiceWithKnowledge({
+            apiKey: BUILTIN_API_KEY,
+            apiHost: BUILTIN_API_HOST,
+            model: 'hunyuan-2.0-thinking-20251109'
+        });
+        aiConfigured = true;
+        console.log('[AI] Auto-initialized successfully');
+    } catch (error) {
+        console.error('[AI] Auto-init failed:', error);
+    }
 }
 
 // 获取内置配置状态
 ipcMain.handle('ai:get-builtin-config', async () => {
     return {
-        hasBuiltinConfig: true,
-        currentModel: currentModelType,
-        availableModels: Object.keys(MODEL_CONFIGS)
+        hasBuiltinConfig: !!BUILTIN_API_KEY
     };
 });
 
-// 切换模型
-ipcMain.handle('ai:switch-model', async (_event, modelType: string) => {
-    try {
-        if (!MODEL_CONFIGS[modelType as AIModelType]) {
-            return { success: false, error: `不支持的模型类型: ${modelType}` };
-        }
-        
-        console.log('[ai:switch-model] Switching to model:', modelType);
-        currentModelType = modelType as AIModelType;
-        const config = MODEL_CONFIGS[currentModelType];
-        
-        let service: any;
-        if (config.type === 'deepseek') {
-            service = initDeepSeekService({
-                apiKey: config.apiKey,
-                model: config.model
-            });
-        } else {
-            service = initHunyuanService({
-                apiKey: config.apiKey,
-                apiHost: config.apiHost,
-                model: config.model
-            });
-        }
-        
-        // 如果已有缓存的 metadata，直接注入知识库
-        if (cachedAtomMetadata && cachedAtomMetadata.length > 0) {
-            service.initializeWithAtomKnowledge(cachedAtomMetadata);
-            console.log('[ai:switch-model] Knowledge base initialized with cached metadata');
-        }
-        
-        aiConfigured = true;
-        aiConfig = { model: config.model };
-        console.log('[ai:switch-model] Model switched successfully to:', config.model);
-        return { success: true, model: config.model };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : '切换模型失败';
-        console.error('[ai:switch-model] Error:', message);
-        return { success: false, error: message };
-    }
-});
-
-// 配置 AI 服务（保留兼容性，但不再需要手动配置）
+// 配置 AI 服务
 ipcMain.handle('ai:configure', async (_event, config: { apiKey: string; apiHost?: string; model?: string }) => {
     try {
         console.log('[ai:configure] Configuring AI service...');
@@ -961,14 +902,7 @@ ipcMain.handle('ai:configure', async (_event, config: { apiKey: string; apiHost?
             apiHost: config.apiHost || 'hunyuanapi.woa.com',
             model: config.model || 'hunyuan-2.0-thinking-20251109'
         };
-        const service = initHunyuanService(hunyuanConfig);
-        
-        // 如果已有缓存的 metadata，直接注入知识库
-        if (cachedAtomMetadata && cachedAtomMetadata.length > 0) {
-            service.initializeWithAtomKnowledge(cachedAtomMetadata);
-            console.log('[ai:configure] Knowledge base initialized with cached metadata');
-        }
-        
+        initHunyuanService(hunyuanConfig);
         aiConfigured = true;
         aiConfig = { model: hunyuanConfig.model! };
         console.log('[ai:configure] AI service configured successfully');
@@ -988,19 +922,10 @@ ipcMain.handle('ai:get-status', async () => {
     };
 });
 
-// 获取当前 AI 服务实例（根据模型类型）
-function getCurrentAIService() {
-    if (currentModelType === 'deepseek') {
-        return getDeepSeekService();
-    } else {
-        return getHunyuanService();
-    }
-}
-
 // 初始化原子知识库
 ipcMain.handle('ai:init-knowledge', async (_event, metadata: any[]) => {
     try {
-        const service = getCurrentAIService();
+        const service = getHunyuanService();
         if (!service) {
             return { success: false, error: 'AI 服务未配置' };
         }
@@ -1018,7 +943,7 @@ ipcMain.handle('ai:init-knowledge', async (_event, metadata: any[]) => {
 // 发送聊天消息
 ipcMain.handle('ai:chat', async (_event, payload: { message: string; currentAtom?: any; stream?: boolean }) => {
     try {
-        const service = getCurrentAIService();
+        const service = getHunyuanService();
         if (!service) {
             return { success: false, error: 'AI 服务未配置' };
         }
@@ -1040,7 +965,7 @@ ipcMain.handle('ai:chat', async (_event, payload: { message: string; currentAtom
 // 流式聊天
 ipcMain.on('ai:chat-stream', async (event, payload: { message: string; currentAtom?: any; requestId: string }) => {
     try {
-        const service = getCurrentAIService();
+        const service = getHunyuanService();
         if (!service) {
             event.reply('ai:chat-stream-chunk', {
                 requestId: payload.requestId,
@@ -1069,7 +994,7 @@ ipcMain.on('ai:chat-stream', async (event, payload: { message: string; currentAt
 // 清空对话历史
 ipcMain.handle('ai:clear-history', async () => {
     try {
-        const service = getCurrentAIService();
+        const service = getHunyuanService();
         if (service) {
             service.clearHistory();
             console.log('[ai:clear-history] History cleared');

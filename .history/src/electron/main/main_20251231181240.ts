@@ -871,7 +871,7 @@ const MODEL_CONFIGS: Record<AIModelType, ModelConfig> = {
     type: 'hunyuan',
     apiKey: '9a0d84de-caed-4048-9c3e-c7ec16ea8a1d',
     apiHost: 'hunyuanapi.woa.com',
-    model: 'hunyuan-2.0-thinking-20251109'
+    model: 'hunyuan-t1-latest'
   }
 };
 

@@ -346,6 +346,7 @@ type AIExplanationState = {
   error: string | null
 }
 const aiExplanationMap = reactive<Record<string, Record<string, AIExplanationState>>>({})
+const isAIExplanationKnowledgeInitialized = ref(false) // AI 解释功能的知识库是否已初始化
 
 // 虚拟滚动相关
 const rowListContainerRef = ref<HTMLDivElement | null>(null)
@@ -950,15 +951,15 @@ async function requestAIExplanation(columnName: string) {
   state.isLoading = true
   state.error = null
   
-  try {
-    // 构建请求消息
+  try {    
+    // 构建请求消息（知识库已在 initKnowledge 中注入，AI 会自动参考）
     const expression = editableRecord[columnName] as string || ''
     
     const prompt = `请用一句简洁的中文解释这个原子配置的功能：
 表达式: ${expression}
 
 要求：
-1. 只用一句话总结这个配置的实际功能，但是每个函数的功能要说明清楚，还有参数和各种数字的意义也要体现
+1. 参考原子知识库，用一句话总结这个配置的实际功能，要接近口述的语气，读起来尽量通顺口语化
 2. 不要解释技术细节，只说明业务含义
 3. 直接给出答案，不要有前缀`
 

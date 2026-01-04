@@ -64,8 +64,19 @@ if exist release\0.0.2 (
     )
   )
   
+  REM 先 P4 checkout 目标目录下的所有文件（解除只读）
+  echo.
+  echo [5/6] 正在 P4 checkout 目标目录...
+  p4 edit "!TARGET_DIR!/..."
+  if !errorlevel! equ 0 (
+    echo   ✓ P4 checkout 成功
+  ) else (
+    echo   ⚠ P4 checkout 可能部分失败，继续复制...
+  )
+  
   REM 复制新文件
-  echo   正在复制新文件...
+  echo.
+  echo [6/6] 正在复制新文件...
   xcopy "!SOURCE_DIR!\*" "!TARGET_DIR!\" /E /Y /I >nul
   
   if !errorlevel! equ 0 (

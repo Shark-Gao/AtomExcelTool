@@ -469,12 +469,12 @@ export async function checkExeUpdateWithoutConfig(exePath: string): Promise<{
 export function openCmdForP4Sync(dirPath: string): void {
     const { exec } = require('child_process');
     
-    // 构建 p4 sync 命令
-    const syncCommand = `p4 sync "${dirPath}/..."`;
+    // 构建 p4 sync 命令，先显示更新提示，再执行同步
+    const syncCommand = `echo 正在更新 MHAtomExcelTool，请稍候... && echo. && p4 sync "${dirPath}/..." && echo. && echo 更新完成，请重新启动工具。`;
     
     // 使用 start 命令在新窗口中运行，完全独立于父进程
     // start "" 启动新窗口，/D 设置工作目录，cmd /K 保持窗口打开
-    const startCommand = `start "P4 Sync" /D "${dirPath}" cmd /K "${syncCommand}"`;
+    const startCommand = `start "P4 Sync - MHAtomExcelTool 更新" /D "${dirPath}" cmd /K "${syncCommand}"`;
     
     exec(startCommand, {
         cwd: dirPath,

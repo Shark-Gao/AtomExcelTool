@@ -1299,15 +1299,8 @@ app.whenReady().then(async () => {
                         // 打开 CMD 执行 p4 sync
                         openCmdForP4Sync(updateInfo.exeDir);
                         
-                        // 生产模式下提示重启并退出
+                        // 生产模式下直接退出，避免更新当前 exe 时冲突
                         if (!isDev && updateInfo.hasUpdate) {
-                            await dialog.showMessageBox({
-                                type: 'info',
-                                title: '更新中',
-                                message: '正在更新...',
-                                detail: '请在命令行窗口中等待 P4 同步完成，然后重新启动工具。',
-                                buttons: ['确定']
-                            });
                             app.quit();
                             return;
                         } else {

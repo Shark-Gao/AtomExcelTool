@@ -1299,8 +1299,9 @@ app.whenReady().then(async () => {
                         // 打开 CMD 执行 p4 sync
                         openCmdForP4Sync(updateInfo.exeDir);
                         
-                        // 生产模式下直接退出，避免更新当前 exe 时冲突
+                        // 生产模式下延迟退出，确保 CMD 窗口启动
                         if (!isDev && updateInfo.hasUpdate) {
+                            await new Promise(resolve => setTimeout(resolve, 500));
                             app.quit();
                             return;
                         } else {

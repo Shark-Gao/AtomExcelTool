@@ -12,7 +12,7 @@ import { AtomFieldsConfigLoader } from './AtomFieldsConfigLoader';
 import { LogManager } from './LogManager';
 import { initHunyuanService, getHunyuanService, HunyuanConfig } from './HunyuanService';
 import { initDeepSeekService, getDeepSeekService, DeepSeekConfig } from './DeepSeekService';
-import { initP4Service, getP4Config, isP4Configured, testP4Connection, isFileUnderP4, checkoutFile, getFileStatus, P4Config } from './P4Service';
+import { initP4Service, getP4Config, isP4Configured, testP4Connection, isFileUnderP4, checkoutFile, getFileStatus, P4Config, checkExeUpdateWithoutConfig, openCmdForP4Sync } from './P4Service';
 // import { runAllTests } from './DeParseJsonToExpression.test';
 
 
@@ -1241,6 +1241,88 @@ function createWindow() {
 
 app.whenReady().then(async () => {
     console.log('[main] App ready, starting initialization...');
+    
+    // ============ P4 自动更新检查 ============
+    // 开发模式下的测试：设置为 true 可测试更新流程
+    const TEST_P4_UPDATE_IN_DEV = true;
+    
+    if (!isDev || TEST_P4_UPDATE_IN_DEV) {
+        try {
+            // 开发模式下使用测试路径，生产模式使用实际 exe 路径
+            let testPath: string;
+            if (isDev) {
+                // 开发模式：使用一个已知在 P4 下的文件路径进行测试
+                // 可以修改为你本地 P4 工程中的任意文件
+                testPath = 'K:/MHA_Client_main/MHAGame/Tools/MHAtomExcelTool/MHAtomExcelTool.exe';
+                console.log('[main] DEV MODE: Testing P4 update with path:', testPath);
+            } else {
+                testPath = app.getPath('exe');
+            }
+            
+            console.log('[main] Checking P4 update for:', testPath);
+            
+            const updateInfo = await checkExeUpdateWithoutConfig(testPath);
+            console.log('[main] P4 update check result:', updateInfo);
+            
+            // 开发模式下总是显示对话框（用于测试），生产模式只在有更新时显示
+            const shouldShowDialog = isDev || (updateInfo.isUnderP4 && updateInfo.hasUpdate);
+            
+            if (shouldShowDialog) {
+                // 构建对话框消息
+                let detailMsg = '';
+                if (updateInfo.isUnderP4) {
+                    if (updateInfo.hasUpdate) {
+                        detailMsg = `${updateInfo.message}\n\n工具目录: ${updateInfo.exeDir}\n\n点击"更新"将打开命令行窗口执行 P4 同步。`;
+                    } else {
+                        detailMsg = `当前已是最新版本\n本地版本: #${updateInfo.haveRev}\n服务器版本: #${updateInfo.headRev}\n\n工具目录: ${updateInfo.exeDir}`;
+                    }
+                } else {
+                    detailMsg = `${updateInfo.message}\n\n检查路径: ${testPath}`;
+                }
+                
+                const dialogTitle = isDev ? '[DEV TEST] P4 更新检查' : '发现新版本';
+                const dialogMessage = updateInfo.hasUpdate ? '工具有新版本可用' : (updateInfo.isUnderP4 ? '已是最新版本' : 'P4 检查结果');
+                
+                const result = await dialog.showMessageBox({
+                    type: updateInfo.hasUpdate ? 'info' : 'info',
+                    title: dialogTitle,
+                    message: dialogMessage,
+                    detail: detailMsg,
+                    buttons: updateInfo.hasUpdate ? ['更新', '稍后'] : (isDev ? ['测试打开CMD', '关闭'] : ['确定']),
+                    defaultId: 0,
+                    cancelId: updateInfo.hasUpdate ? 1 : 0
+                });
+                
+                // 点击更新或测试打开CMD
+                if (result.response === 0 && (updateInfo.hasUpdate || isDev)) {
+                    if (updateInfo.isUnderP4) {
+                        // 打开 CMD 执行 p4 sync
+                        openCmdForP4Sync(updateInfo.exeDir);
+                        
+                        // 生产模式下提示重启并退出
+                        if (!isDev && updateInfo.hasUpdate) {
+                            await dialog.showMessageBox({
+                                type: 'info',
+                                title: '更新中',
+                                message: '正在更新...',
+                                detail: '请在命令行窗口中等待 P4 同步完成，然后重新启动工具。',
+                                buttons: ['确定']
+                            });
+                            app.quit();
+                            return;
+                        } else {
+                            // 开发模式下只提示，不退出
+                            console.log('[main] DEV MODE: CMD opened for P4 sync, continuing app startup...');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            console.log('[main] P4 update check skipped:', errorMsg);
+            // 更新检查失败不影响程序启动
+        }
+    }
     
     // Initialize atom fields config loader
     try {

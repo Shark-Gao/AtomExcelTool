@@ -3318,31 +3318,6 @@ function handleP4DisablePrompt() {
       :current-atom="currentEditingAtomMeta"
       :all-atom-metadata="allAtomMetadata"
     />
-
-    <!-- P4 Checkout 提示对话框 -->
-    <div v-if="p4CheckoutDialogVisible" class="modal modal-open">
-      <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Perforce Checkout</h3>
-        <p class="mb-4">
-          当前文件位于 Perforce 工程下，是否要 Checkout 以便编辑？
-        </p>
-        <p class="text-sm text-base-content/60 mb-4 break-all">
-          {{ p4CheckoutFilePath }}
-        </p>
-        <div class="modal-action flex-wrap gap-2">
-          <button class="btn btn-sm" @click="handleP4DisablePrompt">
-            不再提醒
-          </button>
-          <button class="btn btn-sm btn-ghost" @click="handleP4CheckoutCancel">
-            取消
-          </button>
-          <button class="btn btn-sm btn-primary" @click="handleP4Checkout">
-            Checkout
-          </button>
-        </div>
-      </div>
-      <div class="modal-backdrop" @click="handleP4CheckoutCancel"></div>
-    </div>
   </div>
 </template>
 

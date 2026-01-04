@@ -181,9 +181,6 @@ const autoSaveInterval = ref(initialSettings.autoSaveInterval)
 // P4V 相关
 const p4Settings = ref(initialSettings.p4)
 const p4CheckoutPromptEnabled = ref(initialSettings.p4CheckoutPromptEnabled)
-const p4CheckoutDialogVisible = ref(false)
-const p4CheckoutFilePath = ref<string | null>(null)
-const p4FileStatus = ref<{ isUnderP4: boolean; isCheckedOut: boolean; action?: string } | null>(null)
 
 // 字段宽度控制
 const columnWidths = reactive<Record<string, number>>({})
@@ -953,9 +950,7 @@ watch(currentTheme, (newTheme) => {
     isDebugMode: isDebugMode.value,
     fieldLayoutDirection: fieldLayoutDirection.value,
     autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
+    autoSaveInterval: autoSaveInterval.value
   })
 })
 
@@ -966,9 +961,7 @@ watch(showOnlyAtomicFields, (newValue) => {
     isDebugMode: isDebugMode.value,
     fieldLayoutDirection: fieldLayoutDirection.value,
     autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
+    autoSaveInterval: autoSaveInterval.value
   })
 })
 
@@ -979,9 +972,7 @@ watch(isDebugMode, (newValue) => {
     isDebugMode: newValue,
     fieldLayoutDirection: fieldLayoutDirection.value,
     autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
+    autoSaveInterval: autoSaveInterval.value
   })
 })
 
@@ -992,9 +983,7 @@ watch(fieldLayoutDirection, (newValue) => {
     isDebugMode: isDebugMode.value,
     fieldLayoutDirection: newValue,
     autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
+    autoSaveInterval: autoSaveInterval.value
   })
 })
 
@@ -1005,9 +994,7 @@ watch(autoSaveEnabled, (newValue) => {
     isDebugMode: isDebugMode.value,
     fieldLayoutDirection: fieldLayoutDirection.value,
     autoSaveEnabled: newValue,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
+    autoSaveInterval: autoSaveInterval.value
   })
   // 根据开关状态启动或停止自动保存
   if (newValue) {
@@ -1024,44 +1011,12 @@ watch(autoSaveInterval, (newValue) => {
     isDebugMode: isDebugMode.value,
     fieldLayoutDirection: fieldLayoutDirection.value,
     autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: newValue,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
+    autoSaveInterval: newValue
   })
   // 如果自动保存已启用，重启定时器以应用新间隔
   if (autoSaveEnabled.value) {
     startAutoSave()
   }
-})
-
-watch(p4Settings, (newValue) => {
-  saveSettingsToStorage({
-    theme: currentTheme.value,
-    showOnlyAtomicFields: showOnlyAtomicFields.value,
-    isDebugMode: isDebugMode.value,
-    fieldLayoutDirection: fieldLayoutDirection.value,
-    autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: newValue,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
-  })
-  // 同步配置到主进程
-  if (newValue.port && newValue.user && newValue.client) {
-    (window as any).electronAPI?.invoke('p4:configure', newValue)
-  }
-}, { deep: true })
-
-watch(p4CheckoutPromptEnabled, (newValue) => {
-  saveSettingsToStorage({
-    theme: currentTheme.value,
-    showOnlyAtomicFields: showOnlyAtomicFields.value,
-    isDebugMode: isDebugMode.value,
-    fieldLayoutDirection: fieldLayoutDirection.value,
-    autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: newValue
-  })
 })
 
 applyTheme(currentTheme.value)
@@ -2021,11 +1976,6 @@ onMounted(() => {
   // 启动自动保存
   startAutoSave()
   
-  // 初始化 P4 配置
-  if (p4Settings.value.port && p4Settings.value.user && p4Settings.value.client) {
-    (window as any).electronAPI?.invoke('p4:configure', p4Settings.value)
-  }
-  
   setTimeout(async () => {
     // 初始化原子字段配置系统
     await initializeAtomicFields()
@@ -2117,11 +2067,6 @@ async function openWorkbookFromMainProcess(options?: { filePath?: string }) {
     hideProgress()
     const successText = isExternalOpen && result.filePath ? `已打开：${result.filePath}` : 'Excel 文件已成功加载！'
     showSuccessMessage(successText)
-    
-    // 检查 P4 状态并提示 checkout
-    if (result.filePath && p4CheckoutPromptEnabled.value) {
-      checkP4AndPromptCheckout(result.filePath)
-    }
   } catch (error) {
     hideProgress()
     errorMessage.value = error instanceof Error ? error.message : '打开 Excel 文件失败。'
@@ -2602,81 +2547,6 @@ function stopAutoSave() {
     autoSaveTimer = null
     console.log('[AutoSave] Stopped')
   }
-}
-
-// ============ P4V 相关函数 ============
-
-async function checkP4AndPromptCheckout(filePath: string) {
-  // 检查 P4 是否配置
-  if (!p4Settings.value.port || !p4Settings.value.user || !p4Settings.value.client) {
-    return
-  }
-  
-  try {
-    const p4Bridge = (window as any).p4Bridge
-    if (!p4Bridge) return
-    
-    // 获取文件状态
-    const status = await p4Bridge.getFileStatus(filePath)
-    
-    if (!status.success || !status.isUnderP4) {
-      // 文件不在 P4 工程下，不需要提示
-      return
-    }
-    
-    if (status.isCheckedOut) {
-      // 文件已经 checkout，不需要提示
-      console.log('[P4] File already checked out:', status.action)
-      return
-    }
-    
-    // 显示 checkout 提示对话框
-    p4CheckoutFilePath.value = filePath
-    p4FileStatus.value = status
-    p4CheckoutDialogVisible.value = true
-  } catch (error) {
-    console.error('[P4] Failed to check file status:', error)
-  }
-}
-
-async function handleP4Checkout() {
-  if (!p4CheckoutFilePath.value) return
-  
-  try {
-    const p4Bridge = (window as any).p4Bridge
-    if (!p4Bridge) {
-      errorMessage.value = 'P4 服务不可用'
-      return
-    }
-    
-    const result = await p4Bridge.checkout(p4CheckoutFilePath.value)
-    
-    if (result.success) {
-      showSuccessMessage('文件已 Checkout')
-    } else {
-      errorMessage.value = result.message || 'Checkout 失败'
-    }
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Checkout 失败'
-  } finally {
-    p4CheckoutDialogVisible.value = false
-    p4CheckoutFilePath.value = null
-    p4FileStatus.value = null
-  }
-}
-
-function handleP4CheckoutCancel() {
-  p4CheckoutDialogVisible.value = false
-  p4CheckoutFilePath.value = null
-  p4FileStatus.value = null
-}
-
-function handleP4DisablePrompt() {
-  p4CheckoutPromptEnabled.value = false
-  p4CheckoutDialogVisible.value = false
-  p4CheckoutFilePath.value = null
-  p4FileStatus.value = null
-  showSuccessMessage('已关闭 Checkout 提示，可在设置中重新开启')
 }
 </script>
 
@@ -3160,8 +3030,6 @@ function handleP4DisablePrompt() {
       :auto-save-enabled="autoSaveEnabled"
       :auto-save-interval="autoSaveInterval"
       :theme-options="themeOptions"
-      :p4-settings="p4Settings"
-      :p4-checkout-prompt-enabled="p4CheckoutPromptEnabled"
       @update:is-open="isSettingsModalOpen = $event"
       @update:current-theme="currentTheme = $event"
       @update:show-only-atomic-fields="showOnlyAtomicFields = $event"
@@ -3169,8 +3037,6 @@ function handleP4DisablePrompt() {
       @update:field-layout-direction="fieldLayoutDirection = $event"
       @update:auto-save-enabled="autoSaveEnabled = $event"
       @update:auto-save-interval="autoSaveInterval = $event"
-      @update:p4-settings="p4Settings = $event"
-      @update:p4-checkout-prompt-enabled="p4CheckoutPromptEnabled = $event"
     />
 
     <CheckValidationModal
@@ -3318,31 +3184,6 @@ function handleP4DisablePrompt() {
       :current-atom="currentEditingAtomMeta"
       :all-atom-metadata="allAtomMetadata"
     />
-
-    <!-- P4 Checkout 提示对话框 -->
-    <div v-if="p4CheckoutDialogVisible" class="modal modal-open">
-      <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Perforce Checkout</h3>
-        <p class="mb-4">
-          当前文件位于 Perforce 工程下，是否要 Checkout 以便编辑？
-        </p>
-        <p class="text-sm text-base-content/60 mb-4 break-all">
-          {{ p4CheckoutFilePath }}
-        </p>
-        <div class="modal-action flex-wrap gap-2">
-          <button class="btn btn-sm" @click="handleP4DisablePrompt">
-            不再提醒
-          </button>
-          <button class="btn btn-sm btn-ghost" @click="handleP4CheckoutCancel">
-            取消
-          </button>
-          <button class="btn btn-sm btn-primary" @click="handleP4Checkout">
-            Checkout
-          </button>
-        </div>
-      </div>
-      <div class="modal-backdrop" @click="handleP4CheckoutCancel"></div>
-    </div>
   </div>
 </template>
 

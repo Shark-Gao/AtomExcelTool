@@ -1109,66 +1109,6 @@ ipcMain.handle('shell:register-excel-context-menu', async () => {
     }
 });
 
-// ============ P4V 相关 IPC ============
-
-ipcMain.handle('p4:configure', async (_event, config: P4Config) => {
-    try {
-        console.log('[P4] Configuring P4 service');
-        initP4Service(config);
-        return { success: true };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to configure P4';
-        return { success: false, error: message };
-    }
-});
-
-ipcMain.handle('p4:get-config', async () => {
-    return {
-        configured: isP4Configured(),
-        config: getP4Config()
-    };
-});
-
-ipcMain.handle('p4:test-connection', async () => {
-    try {
-        const result = await testP4Connection();
-        return result;
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Connection test failed';
-        return { success: false, message };
-    }
-});
-
-ipcMain.handle('p4:check-file', async (_event, filePath: string) => {
-    try {
-        const info = await isFileUnderP4(filePath);
-        return { success: true, ...info };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to check file';
-        return { success: false, error: message, isUnderP4: false, isMapped: false };
-    }
-});
-
-ipcMain.handle('p4:checkout', async (_event, filePath: string) => {
-    try {
-        const result = await checkoutFile(filePath);
-        return result;
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Checkout failed';
-        return { success: false, message };
-    }
-});
-
-ipcMain.handle('p4:get-file-status', async (_event, filePath: string) => {
-    try {
-        const status = await getFileStatus(filePath);
-        return { success: true, ...status };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to get file status';
-        return { success: false, error: message };
-    }
-});
-
 function createWindow() {
     mainWindow = new BrowserWindow({
         title: 'Excel原子编辑工具',

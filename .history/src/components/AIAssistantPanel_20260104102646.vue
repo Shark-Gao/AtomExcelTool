@@ -64,11 +64,11 @@ const isResizing = ref(false);
 const resizeHandleRef = ref<HTMLElement | null>(null);
 
 // API 配置
-const currentModel = ref<'deepseek' | 'hunyuan'>('hunyuan');
-const availableModels = ref<string[]>(['hunyuan', 'deepseek']);
+const currentModel = ref<'deepseek' | 'hunyuan'>('deepseek');
+const availableModels = ref<string[]>(['deepseek', 'hunyuan']);
 const modelLabels: Record<string, string> = {
-  hunyuan: '腾讯混元 Thinking（免费）',
-  deepseek: 'DeepSeek（免费）'
+  deepseek: 'DeepSeek v3.2（免费）',
+  hunyuan: '腾讯混元 Thinking（免费）'
 };
 
 // 流式输出控制
@@ -605,6 +605,9 @@ watch(() => props.currentAtom, (newAtom) => {
             {{ modelLabels[model] || model }}
           </option>
         </select>
+        <label class="label">
+          <span class="label-text-alt text-base-content/60">DeepSeek 免费使用，混元需要消耗配额</span>
+        </label>
       </div>
 
       <div class="alert alert-info text-sm mb-4">

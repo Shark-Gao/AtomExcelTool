@@ -67,7 +67,7 @@ const resizeHandleRef = ref<HTMLElement | null>(null);
 const currentModel = ref<'deepseek' | 'hunyuan'>('hunyuan');
 const availableModels = ref<string[]>(['hunyuan', 'deepseek']);
 const modelLabels: Record<string, string> = {
-  hunyuan: '腾讯混元 Thinking（免费）',
+  hunyuan: '腾讯混元Thinking（免费）',
   deepseek: 'DeepSeek（免费）'
 };
 

@@ -52,9 +52,7 @@ export function loadSettingsFromStorage(): AppSettings {
         isDebugMode: settings.isDebugMode ?? DEFAULT_SETTINGS.isDebugMode,
         fieldLayoutDirection: settings.fieldLayoutDirection ?? DEFAULT_SETTINGS.fieldLayoutDirection,
         autoSaveEnabled: settings.autoSaveEnabled ?? DEFAULT_SETTINGS.autoSaveEnabled,
-        autoSaveInterval: settings.autoSaveInterval ?? DEFAULT_SETTINGS.autoSaveInterval,
-        p4: settings.p4 ?? DEFAULT_SETTINGS.p4,
-        p4CheckoutPromptEnabled: settings.p4CheckoutPromptEnabled ?? DEFAULT_SETTINGS.p4CheckoutPromptEnabled
+        autoSaveInterval: settings.autoSaveInterval ?? DEFAULT_SETTINGS.autoSaveInterval
       }
     }
   } catch (error) {

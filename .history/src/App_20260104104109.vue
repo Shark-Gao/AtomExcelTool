@@ -3160,8 +3160,6 @@ function handleP4DisablePrompt() {
       :auto-save-enabled="autoSaveEnabled"
       :auto-save-interval="autoSaveInterval"
       :theme-options="themeOptions"
-      :p4-settings="p4Settings"
-      :p4-checkout-prompt-enabled="p4CheckoutPromptEnabled"
       @update:is-open="isSettingsModalOpen = $event"
       @update:current-theme="currentTheme = $event"
       @update:show-only-atomic-fields="showOnlyAtomicFields = $event"
@@ -3169,8 +3167,6 @@ function handleP4DisablePrompt() {
       @update:field-layout-direction="fieldLayoutDirection = $event"
       @update:auto-save-enabled="autoSaveEnabled = $event"
       @update:auto-save-interval="autoSaveInterval = $event"
-      @update:p4-settings="p4Settings = $event"
-      @update:p4-checkout-prompt-enabled="p4CheckoutPromptEnabled = $event"
     />
 
     <CheckValidationModal
@@ -3318,31 +3314,6 @@ function handleP4DisablePrompt() {
       :current-atom="currentEditingAtomMeta"
       :all-atom-metadata="allAtomMetadata"
     />
-
-    <!-- P4 Checkout 提示对话框 -->
-    <div v-if="p4CheckoutDialogVisible" class="modal modal-open">
-      <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Perforce Checkout</h3>
-        <p class="mb-4">
-          当前文件位于 Perforce 工程下，是否要 Checkout 以便编辑？
-        </p>
-        <p class="text-sm text-base-content/60 mb-4 break-all">
-          {{ p4CheckoutFilePath }}
-        </p>
-        <div class="modal-action flex-wrap gap-2">
-          <button class="btn btn-sm" @click="handleP4DisablePrompt">
-            不再提醒
-          </button>
-          <button class="btn btn-sm btn-ghost" @click="handleP4CheckoutCancel">
-            取消
-          </button>
-          <button class="btn btn-sm btn-primary" @click="handleP4Checkout">
-            Checkout
-          </button>
-        </div>
-      </div>
-      <div class="modal-backdrop" @click="handleP4CheckoutCancel"></div>
-    </div>
   </div>
 </template>
 

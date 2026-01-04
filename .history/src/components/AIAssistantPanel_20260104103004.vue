@@ -68,7 +68,7 @@ const currentModel = ref<'deepseek' | 'hunyuan'>('hunyuan');
 const availableModels = ref<string[]>(['hunyuan', 'deepseek']);
 const modelLabels: Record<string, string> = {
   hunyuan: '腾讯混元 Thinking（免费）',
-  deepseek: 'DeepSeek（免费）'
+  deepseek: 'DeepSeek v3.2（免费）'
 };
 
 // 流式输出控制

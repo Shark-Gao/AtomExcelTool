@@ -104,7 +104,19 @@ function initEditor() {
     padding: {
       top: 12,
       bottom: 12
-    }
+    },
+    // 自动补全提示框配置
+    suggest: {
+      // 提示框不超出编辑器边界
+      snippetsPreventQuickSuggestions: false,
+      showIcons: true,
+      showStatusBar: true,
+      preview: true,
+      // 首行时提示框显示在下方
+      insertMode: 'replace'
+    },
+    // 固定提示框在编辑器内部
+    fixedOverflowWidgets: true
   })
 
   editor.onDidChangeModelContent(() => {

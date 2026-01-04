@@ -77,6 +77,7 @@ class MonacoTypeRegistry {
   private disposables: monaco.IDisposable[] = []
   private decoratorMetaData: Record<string, DecoratorMetaData> | null = null
   private scriptMetaData: Record<string, ScriptMetaData> | null = null
+  private completionProviderDisposable: monaco.IDisposable | null = null
 
   private constructor() {}
 
@@ -126,8 +127,109 @@ class MonacoTypeRegistry {
     )
     this.disposables.push(disposable)
 
+    // 注册自定义补全提供器（支持自动补全括号）
+    this.registerCompletionProvider()
+
     this.initialized = true
     console.log('[MonacoTypeRegistry] Initialized with', Object.keys(scriptMetaData).length, 'functions')
+  }
+
+  /**
+   * 注册自定义补全提供器，实现函数自动补全括号
+   */
+  private registerCompletionProvider(): void {
+    if (this.completionProviderDisposable) {
+      this.completionProviderDisposable.dispose()
+    }
+
+    this.completionProviderDisposable = monaco.languages.registerCompletionItemProvider('typescript', {
+      triggerCharacters: ['.', '('],
+      provideCompletionItems: (model, position) => {
+        if (!this.scriptMetaData) {
+          return { suggestions: [] }
+        }
+
+        // 获取当前行的文本
+        const lineContent = model.getLineContent(position.lineNumber)
+        const wordInfo = model.getWordUntilPosition(position)
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: wordInfo.startColumn,
+          endColumn: wordInfo.endColumn
+        }
+
+        const suggestions: monaco.languages.CompletionItem[] = []
+
+        // 遍历所有原子函数生成补全项
+        Object.entries(this.scriptMetaData).forEach(([atomClassName, meta]) => {
+          // 跳过测试函数
+          if (meta.FunctionName.startsWith('__')) return
+
+          // 获取描述信息
+          const decoratorInfo = this.decoratorMetaData?.[atomClassName]
+          const description = decoratorInfo?.description || decoratorInfo?.displayName || atomClassName
+
+          // 生成参数占位符
+          const params = meta.ParameterList
+          const hasParams = params.length > 0
+
+          // 构建插入文本（带括号和参数占位符）
+          let insertText: string
+          let insertTextRules: monaco.languages.CompletionItemInsertTextRule | undefined
+
+          if (hasParams) {
+            // 有参数：生成 snippet 格式，支持 Tab 跳转
+            const paramSnippets = params.map((param, index) => {
+              const paramName = param.ParameterName
+              const isOptional = param.bOptional
+              if (isOptional) {
+                return `\${${index + 1}:/* ${paramName}? */}`
+              }
+              return `\${${index + 1}:${paramName}}`
+            }).join(', ')
+            insertText = `${meta.FunctionName}(${paramSnippets})`
+            insertTextRules = monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+          } else {
+            // 无参数：直接插入函数名和空括号
+            insertText = `${meta.FunctionName}()`
+          }
+
+          // 生成参数签名用于显示
+          const paramSignature = params.map(param => {
+            const optional = param.bOptional ? '?' : ''
+            return `${param.ParameterName}${optional}: ${param.TypeString || 'unknown'}`
+          }).join(', ')
+
+          // 获取返回类型
+          const returnType = ATOM_TYPE_MAP[meta.AtomType] || 'unknown'
+
+          suggestions.push({
+            label: {
+              label: meta.FunctionName,
+              detail: `(${paramSignature})`,
+              description: `: ${returnType}`
+            },
+            kind: monaco.languages.CompletionItemKind.Function,
+            insertText: insertText,
+            insertTextRules: insertTextRules,
+            range: range,
+            detail: `${meta.FunctionName}(${paramSignature}): ${returnType}`,
+            documentation: {
+              value: `**${description}**\n\n${decoratorInfo?.richDescription || ''}`
+            },
+            sortText: `0_${meta.FunctionName}`, // 优先显示原子函数
+            filterText: meta.FunctionName
+          })
+        })
+
+        return { suggestions }
+      }
+    })
+
+    if (this.completionProviderDisposable) {
+      this.disposables.push(this.completionProviderDisposable)
+    }
   }
 
   /**
@@ -288,6 +390,10 @@ class MonacoTypeRegistry {
   dispose(): void {
     this.disposables.forEach(d => d.dispose())
     this.disposables = []
+    if (this.completionProviderDisposable) {
+      this.completionProviderDisposable.dispose()
+      this.completionProviderDisposable = null
+    }
     this.initialized = false
     this.scriptMetaData = null
     this.decoratorMetaData = null

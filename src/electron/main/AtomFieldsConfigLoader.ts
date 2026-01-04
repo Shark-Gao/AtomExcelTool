@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'fs';
-import { getConfigFilePath } from './ConfigManager';
+import { getConfigFilePath, ensureFileWritable } from './ConfigManager';
 import path from 'path';
 
 export interface AtomFieldRule {
@@ -411,9 +411,16 @@ export class AtomFieldsConfigLoader {
   /**
    * 保存配置到文件
    */
-  public save(): void {
+  public async save(): Promise<void> {
     try {
       const configPath = this.getConfigPath();
+      
+      // 确保文件可写
+      const writableResult = await ensureFileWritable(configPath);
+      if (!writableResult.success) {
+        throw new Error(`无法获取文件写权限: ${writableResult.message}`);
+      }
+      
       const configJson = JSON.stringify(this.fullConfig, null, 2);
       writeFileSync(configPath, configJson, 'utf-8');
       console.log('[AtomFieldsConfigLoader] 配置已保存到:', configPath);

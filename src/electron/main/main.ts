@@ -832,7 +832,7 @@ ipcMain.handle('config:save-atom-fields-config', async (_event, config: any) => 
     try {
         const configLoader = AtomFieldsConfigLoader.getInstance();
         configLoader.setConfig(config);
-        configLoader.save();
+        await configLoader.save();
         console.log('[config:save-atom-fields-config] 配置已保存');
         return { ok: true };
     } catch (error) {

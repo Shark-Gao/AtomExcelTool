@@ -4,8 +4,9 @@
  */
 
 import { join, dirname } from 'path'
-import { existsSync, mkdirSync, readFileSync, writeFileSync, watchFile, unwatchFile } from 'fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, watchFile, unwatchFile, statSync, chmodSync } from 'fs'
 import { app } from 'electron'
+import { checkoutFile, isP4Configured } from './P4Service'
 
 // ============ 配置路径管理 ============
 
@@ -44,6 +45,77 @@ export function getConfigDirectory(): string {
 export function getConfigFilePath(fileName: string): string {
   const configDir = getConfigDirectory()
   return join(configDir, fileName)
+}
+
+// ============ 文件写入工具 ============
+
+/**
+ * 检查文件是否只读
+ */
+export function isFileReadOnly(filePath: string): boolean {
+  if (!existsSync(filePath)) {
+    return false
+  }
+  try {
+    const stats = statSync(filePath)
+    // Windows: 检查文件是否只读 (mode & 0o200 === 0 表示没有写权限)
+    return (stats.mode & 0o200) === 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 设置文件为可写
+ */
+export function setFileWritable(filePath: string): boolean {
+  try {
+    const stats = statSync(filePath)
+    // 添加写权限
+    chmodSync(filePath, stats.mode | 0o200)
+    console.log(`[ConfigManager] 文件已设置为可写: ${filePath}`)
+    return true
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`[ConfigManager] 设置文件可写失败: ${message}`)
+    return false
+  }
+}
+
+/**
+ * 确保文件可写（先尝试 P4 checkout，失败则直接设置可写）
+ * @param filePath 文件路径
+ * @returns 是否成功确保文件可写
+ */
+export async function ensureFileWritable(filePath: string): Promise<{ success: boolean; message: string }> {
+  // 如果文件不存在或已经可写，直接返回成功
+  if (!existsSync(filePath) || !isFileReadOnly(filePath)) {
+    return { success: true, message: '文件可写' }
+  }
+
+  console.log(`[ConfigManager] 文件只读，尝试获取写权限: ${filePath}`)
+
+  // 尝试 P4 checkout
+  if (isP4Configured()) {
+    try {
+      const result = await checkoutFile(filePath)
+      if (result.success) {
+        console.log(`[ConfigManager] P4 checkout 成功: ${filePath}`)
+        return { success: true, message: `P4 checkout 成功: ${result.message}` }
+      }
+      console.log(`[ConfigManager] P4 checkout 失败: ${result.message}，尝试直接设置可写`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.log(`[ConfigManager] P4 checkout 异常: ${message}，尝试直接设置可写`)
+    }
+  }
+
+  // P4 未配置或 checkout 失败，直接设置文件为可写
+  if (setFileWritable(filePath)) {
+    return { success: true, message: '已直接设置文件为可写' }
+  }
+
+  return { success: false, message: '无法获取文件写权限' }
 }
 
 // ============ 元数据配置管理 ============
@@ -116,13 +188,19 @@ export function loadMetadataConfig(fileName: string = 'delegates.metadata.json')
 /**
  * 保存元数据配置文件
  */
-export function saveMetadataConfig(
+export async function saveMetadataConfig(
   config: MetadataConfig,
   fileName: string = 'delegates.metadata.json'
-): void {
+): Promise<void> {
   const filePath = getConfigFilePath(fileName)
 
   try {
+    // 确保文件可写
+    const writableResult = await ensureFileWritable(filePath)
+    if (!writableResult.success) {
+      throw new Error(`无法获取文件写权限: ${writableResult.message}`)
+    }
+
     // 更新时间戳
     config.generatedAt = new Date().toISOString()
 

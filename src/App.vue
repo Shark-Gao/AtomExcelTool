@@ -10,7 +10,7 @@ import CheckValidationModal, { type ValidationErrorItem, type ValidationResult }
 import CodeEditor from './components/CodeEditor.vue'
 import AtomFieldsConfigEditor from './components/AtomFieldsConfigEditor.vue'
 import AIAssistantPanel from './components/AIAssistantPanel.vue'
-import { loadSettingsFromStorage, saveSettingsToStorage } from './utils/settingsStorage'
+import { loadSettingsFromStorage, saveSettingsToStorage, addRecentFile, getRecentFiles, removeRecentFile, clearRecentFiles, type RecentFileItem } from './utils/settingsStorage'
 import type { ClassRegistry, ClassMetadata as DelegateClassMetadata } from './types/MetaDefine'
 import { normalizeClassInstance } from './utils/ClassNormalizer'
 
@@ -353,6 +353,15 @@ const rowListContainerRef = ref<HTMLDivElement | null>(null)
 const virtualScrollTop = ref(0)
 const ROW_ITEM_HEIGHT = 44 // 每个行项目的估计高度（包含 space-y-2 的间距）
 const VIRTUAL_BUFFER = 5 // 上下缓冲区的额外渲染数量
+
+// 配置详情区域虚拟滚动相关
+const fieldListContainerRef = ref<HTMLDivElement | null>(null)
+const fieldVirtualScrollLeft = ref(0)
+const fieldVirtualScrollTop = ref(0)
+const FIELD_VIRTUAL_BUFFER = 2 // 缓冲区的额外渲染数量
+const DEFAULT_FIELD_HEIGHT = 300 // 垂直布局默认字段高度（估算偏大以避免空白）
+const fieldHeights = reactive<Record<string, number>>({}) // 记录每个字段的实际高度
+
 const showOnlyAtomicFields = ref(initialSettings.showOnlyAtomicFields)
 const isDebugMode = ref(initialSettings.isDebugMode)
 const fieldLayoutDirection = ref<'horizontal' | 'vertical'>(initialSettings.fieldLayoutDirection)
@@ -369,6 +378,9 @@ const globalSearchTotalCount = computed(() => globalSearchMatches.value.length +
 
 // Remark 字段相关
 const remarkFieldName = ref<string | null>(null)
+
+// 最近打开文件历史相关
+const recentFiles = ref<RecentFileItem[]>(getRecentFiles())
 
 // RowName 右键菜单相关
 const rowContextMenu = reactive<{
@@ -1049,6 +1061,148 @@ function onRowListScroll(event: Event) {
   virtualScrollTop.value = target.scrollTop
 }
 
+// 配置详情区域水平虚拟滚动计算属性
+const fieldVirtualScrollInfo = computed(() => {
+  if (fieldLayoutDirection.value !== 'horizontal' || !currentRecord.value) {
+    return null
+  }
+  
+  const containerWidth = fieldListContainerRef.value?.clientWidth ?? 800
+  const scrollLeft = fieldVirtualScrollLeft.value
+  
+  // 获取要显示的字段列表（考虑过滤条件）
+  const allColumns = Object.keys(currentRecord.value)
+  const filteredColumns = showOnlyAtomicFields.value 
+    ? allColumns.filter(col => conditionFieldSet.value.has(col))
+    : allColumns
+  
+  // 计算每个字段的位置和总宽度
+  let totalWidth = 0
+  const columnPositions: { name: string; left: number; width: number }[] = []
+  
+  for (const columnName of filteredColumns) {
+    const width = columnWidths[columnName] || DEFAULT_COLUMN_WIDTH
+    columnPositions.push({
+      name: columnName,
+      left: totalWidth,
+      width: width + 4 // 加上分隔线宽度
+    })
+    totalWidth += width + 4
+  }
+  
+  // 添加右边空白区域
+  totalWidth += 128
+  
+  // 计算可见范围
+  const visibleStart = scrollLeft
+  const visibleEnd = scrollLeft + containerWidth
+  
+  // 找出可见的字段索引范围
+  let startIndex = 0
+  let endIndex = columnPositions.length
+  
+  for (let i = 0; i < columnPositions.length; i++) {
+    const pos = columnPositions[i]
+    if (pos.left + pos.width < visibleStart - (DEFAULT_COLUMN_WIDTH * FIELD_VIRTUAL_BUFFER)) {
+      startIndex = i + 1
+    }
+    if (pos.left > visibleEnd + (DEFAULT_COLUMN_WIDTH * FIELD_VIRTUAL_BUFFER)) {
+      endIndex = i
+      break
+    }
+  }
+  
+  // 应用缓冲区
+  startIndex = Math.max(0, startIndex - FIELD_VIRTUAL_BUFFER)
+  endIndex = Math.min(columnPositions.length, endIndex + FIELD_VIRTUAL_BUFFER)
+  
+  const offsetX = startIndex > 0 ? columnPositions[startIndex].left : 0
+  
+  return {
+    totalWidth,
+    startIndex,
+    endIndex,
+    offsetX,
+    columnPositions,
+    visibleColumns: filteredColumns.slice(startIndex, endIndex)
+  }
+})
+
+// 配置详情区域垂直虚拟滚动计算属性
+const fieldVerticalVirtualScrollInfo = computed(() => {
+  if (fieldLayoutDirection.value !== 'vertical' || !currentRecord.value) {
+    return null
+  }
+  
+  const containerHeight = fieldListContainerRef.value?.clientHeight ?? 600
+  const scrollTop = fieldVirtualScrollTop.value
+  
+  // 获取要显示的字段列表（考虑过滤条件）
+  const allColumns = Object.keys(currentRecord.value)
+  const filteredColumns = showOnlyAtomicFields.value 
+    ? allColumns.filter(col => conditionFieldSet.value.has(col))
+    : allColumns
+  
+  // 计算每个字段的位置和总高度（使用实际测量高度或默认值）
+  let totalHeight = 0
+  const columnPositions: { name: string; top: number; height: number }[] = []
+  const GAP = 12 // gap-3 的间距
+  
+  for (const columnName of filteredColumns) {
+    const height = fieldHeights[columnName] || DEFAULT_FIELD_HEIGHT
+    columnPositions.push({
+      name: columnName,
+      top: totalHeight,
+      height: height + GAP
+    })
+    totalHeight += height + GAP
+  }
+  
+  // 添加底部空白区域
+  totalHeight += 64
+  
+  // 计算可见范围（增加更大的缓冲区）
+  const bufferSize = DEFAULT_FIELD_HEIGHT * 3
+  const visibleStart = Math.max(0, scrollTop - bufferSize)
+  const visibleEnd = scrollTop + containerHeight + bufferSize
+  
+  // 找出可见的字段索引范围
+  let startIndex = 0
+  let endIndex = columnPositions.length
+  
+  for (let i = 0; i < columnPositions.length; i++) {
+    const pos = columnPositions[i]
+    if (pos.top + pos.height < visibleStart) {
+      startIndex = i + 1
+    }
+    if (pos.top > visibleEnd) {
+      endIndex = i
+      break
+    }
+  }
+  
+  // 确保至少渲染一些元素
+  startIndex = Math.max(0, startIndex)
+  endIndex = Math.min(columnPositions.length, Math.max(endIndex, startIndex + 5))
+  
+  const offsetY = startIndex > 0 && columnPositions[startIndex] ? columnPositions[startIndex].top : 0
+  
+  return {
+    totalHeight,
+    startIndex,
+    endIndex,
+    offsetY,
+    columnPositions,
+    visibleColumns: filteredColumns.slice(startIndex, endIndex)
+  }
+})
+
+function onFieldListScroll(event: Event) {
+  const target = event.target as HTMLDivElement
+  fieldVirtualScrollLeft.value = target.scrollLeft
+  fieldVirtualScrollTop.value = target.scrollTop
+}
+
 // 原始的当前选择的记录值
 const currentRecord = computed<RowRecord | null>(() => {
   if (!selectedRowName.value) {
@@ -1294,6 +1448,10 @@ watch(isDebugMode, (newValue) => {
 })
 
 watch(fieldLayoutDirection, (newValue) => {
+  // 切换布局时重置滚动位置
+  fieldVirtualScrollTop.value = 0
+  fieldVirtualScrollLeft.value = 0
+  
   saveSettingsToStorage({
     theme: currentTheme.value,
     showOnlyAtomicFields: showOnlyAtomicFields.value,
@@ -1428,6 +1586,15 @@ function setColumnInputRef(columnName: string, el: Element | ComponentPublicInst
     return
   }
   columnInputRefs[columnName] = el as HTMLDivElement
+  // 测量并记录字段高度（用于垂直虚拟滚动）
+  if (fieldLayoutDirection.value === 'vertical') {
+    nextTick(() => {
+      const height = el.offsetHeight
+      if (height > 0 && fieldHeights[columnName] !== height) {
+        fieldHeights[columnName] = height
+      }
+    })
+  }
 }
 
 function moveToNextColumnMatch() {
@@ -1724,6 +1891,13 @@ watch(selectedRowName, async (newSelection) => {
     }
     delete expressionEditState[key]
   }
+  
+  // 切换行时重置字段高度缓存和滚动位置
+  for (const key in fieldHeights) {
+    delete fieldHeights[key]
+  }
+  fieldVirtualScrollTop.value = 0
+  fieldVirtualScrollLeft.value = 0
   
   if (!newSelection) {
     selectedConditionField.value = null
@@ -2514,6 +2688,12 @@ async function openWorkbookFromMainProcess(options?: { filePath?: string }) {
     const successText = isExternalOpen && result.filePath ? `已打开：${result.filePath}` : 'Excel 文件已成功加载！'
     showSuccessMessage(successText)
     
+    // 记录到最近打开文件历史
+    if (result.filePath) {
+      addRecentFile(result.filePath)
+      recentFiles.value = getRecentFiles()
+    }
+    
     // 检查 P4 状态并提示 checkout
     if (result.filePath && p4CheckoutPromptEnabled.value) {
       checkP4AndPromptCheckout(result.filePath)
@@ -2525,6 +2705,40 @@ async function openWorkbookFromMainProcess(options?: { filePath?: string }) {
       clearWorkbookState()
     }
   }
+}
+
+// 打开最近文件
+function openRecentFile(filePath: string) {
+  // 点击后 DaisyUI dropdown 会自动关闭（失去焦点）
+  openWorkbookFromMainProcess({ filePath })
+}
+
+// 从历史记录中移除文件
+function handleRemoveRecentFile(filePath: string, event: Event) {
+  event.stopPropagation()
+  removeRecentFile(filePath)
+  recentFiles.value = getRecentFiles()
+}
+
+// 清空所有历史记录
+function handleClearRecentFiles() {
+  clearRecentFiles()
+  recentFiles.value = []
+}
+
+// 格式化最近打开时间
+function formatRecentTime(timestamp: number): string {
+  const now = Date.now()
+  const diff = now - timestamp
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes} 分钟前`
+  if (hours < 24) return `${hours} 小时前`
+  if (days < 7) return `${days} 天前`
+  return new Date(timestamp).toLocaleDateString()
 }
 
 async function resetEditableRecord() {
@@ -3195,10 +3409,69 @@ function handleP4DisablePrompt() {
       <div class="px-6 py-4 space-y-3">
         <!-- 第一行：打开、保存、另存为按钮 -->
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="join">
-            <button class="btn join-item btn-primary" @click="openWorkbookFromMainProcess">打开 Excel 配置</button>
+          <div class="flex items-center">
+            <div class="join">
+              <button class="btn join-item btn-primary" @click="openWorkbookFromMainProcess">打开 Excel 配置</button>
+              <!-- 最近打开文件下拉菜单 -->
+              <div class="dropdown dropdown-bottom">
+                <button 
+                  tabindex="0" 
+                  class="btn join-item btn-primary px-2"
+                  title="最近打开的文件"
+                >
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <ul 
+                  tabindex="0" 
+                  class="dropdown-content z-[100] menu p-2 shadow-lg bg-base-100 rounded-box w-80 max-h-96 overflow-y-auto border border-base-300 left-0"
+                >
+                <li class="menu-title flex flex-row items-center justify-between">
+                  <span>最近打开的文件</span>
+                  <button 
+                    v-if="recentFiles.length > 0"
+                    class="btn btn-ghost btn-xs text-base-content/60 hover:text-error"
+                    @click="handleClearRecentFiles"
+                    title="清空历史"
+                  >
+                    清空
+                  </button>
+                </li>
+                <template v-if="recentFiles.length > 0">
+                  <li v-for="file in recentFiles" :key="file.filePath">
+                    <a 
+                      class="flex items-center gap-2 group pr-1"
+                      @click="openRecentFile(file.filePath)"
+                      :title="file.filePath"
+                    >
+                      <svg class="w-4 h-4 shrink-0 text-base-content/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <div class="flex-1 min-w-0">
+                        <div class="font-medium truncate text-sm">{{ file.fileName }}</div>
+                        <div class="text-xs text-base-content/50 truncate">{{ formatRecentTime(file.lastOpenedAt) }}</div>
+                      </div>
+                      <button 
+                        class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-0 w-5 h-5 min-h-0"
+                        @click="handleRemoveRecentFile(file.filePath, $event)"
+                        title="从历史中移除"
+                      >
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </a>
+                  </li>
+                </template>
+                <li v-else>
+                  <span class="text-base-content/50 text-sm cursor-default hover:bg-transparent">暂无最近打开的文件</span>
+                </li>
+              </ul>
+            </div>
             <button class="btn join-item" :disabled="!Object.keys(rowNameToRecord).length" @click="saveWorkbookToDisk">保存</button>
             <button class="btn join-item" :disabled="!Object.keys(rowNameToRecord).length" @click="saveWorkbookAs">另存为</button>
+            </div>
           </div>
           <div class="flex flex-wrap items-center gap-3">
             <span v-if="isDelegateMetadataLoading" class="loading loading-spinner text-primary"></span>
@@ -3274,35 +3547,6 @@ function handleP4DisablePrompt() {
               </svg>
             </button>
           </div>
-        </div>
-
-        <!-- 分割线 -->
-        <div class="divider my-1"></div>
-
-        <!-- 第二行：工具按钮 -->
-        <div class="flex flex-wrap items-center gap-3">
-          <button 
-            class="btn btn-sm btn-ghost gap-2 border border-warning/30"
-            @click="checkAllAtomicFieldsValidation"
-          >
-            检查所有原子配置
-          </button>
-          <button
-            class="btn btn-sm btn-outline gap-2 border border-success/40"
-            @click="openAtomFieldsConfigEditor"
-            title="编辑原子字段配置"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-            </svg>
-            配置编辑器
-          </button>
-          <button
-            class="btn btn-sm btn-outline gap-2 border border-info/40"
-            @click="registerExcelContextMenu"
-          >
-            加入 Excel 右键菜单
-          </button>
         </div>
 
         <!-- 状态信息 -->
@@ -3570,10 +3814,274 @@ function handleP4DisablePrompt() {
             </div>
           </div>
 
-          <div v-else :class="fieldLayoutDirection === 'horizontal' ? 'flex-1 overflow-x-auto px-6 pb-4 min-h-0' : 'flex-1 overflow-y-auto px-6 pb-4 min-h-0'">
+          <div v-else :class="fieldLayoutDirection === 'horizontal' ? 'flex-1 overflow-x-auto px-6 pb-4 min-h-0' : 'flex-1 overflow-y-auto px-6 pb-4 min-h-0'" ref="fieldListContainerRef" @scroll="onFieldListScroll">
             <div v-if="selectedRowName" >
               <div class="divider my-0"></div>
-              <div :class="fieldLayoutDirection === 'horizontal' ? 'flex gap-0 min-w-min pb-4 min-h-[2000px]' : 'flex flex-col gap-3 pb-4'">
+              <!-- 水平布局使用虚拟滚动 -->
+              <template v-if="fieldLayoutDirection === 'horizontal' && fieldVirtualScrollInfo">
+                <div 
+                  class="relative pb-4 min-h-[2000px]"
+                  :style="{ width: fieldVirtualScrollInfo.totalWidth + 'px' }"
+                >
+                  <div 
+                    class="flex gap-0 absolute top-0"
+                    :style="{ left: fieldVirtualScrollInfo.offsetX + 'px' }"
+                  >
+                    <template v-for="columnName in fieldVirtualScrollInfo.visibleColumns" :key="columnName">
+                      <div
+                        :ref="(el) => setColumnInputRef(columnName, el)"
+                        class="column-field-container rounded-lg px-3 py-2 transition-all duration-150 cursor-pointer border relative flex-shrink-0"
+                        :class="{ 'bg-primary/10 border-primary/60': columnName === highlightColumnName, 'border-base-300 hover:border-base-400': columnName !== highlightColumnName }"
+                        :style="{ width: (columnWidths[columnName] || DEFAULT_COLUMN_WIDTH) + 'px' }"
+                      >
+                        <div class="text-sm font-semibold text-base-content/70 truncate mb-1" :title="columnName">
+                          {{ columnName }}
+                          <button
+                            v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
+                            type="button"
+                            class="btn btn-xs btn-outline btn-error ml-2"
+                            @click="clearAtomicFieldConfig(columnName)"
+                            title="清除原子配置"
+                          >
+                            清除配置
+                          </button>
+                        </div>
+                        <p class="text-xs text-base-content/50 mb-2 min-h-4" :title="columnDescriptions[columnName] || ''">
+                          {{ columnDescriptions[columnName] || '' }}
+                        </p>
+                        <template v-if="conditionFieldSet.has(columnName)">
+                          <div class="space-y-2">
+                            <SearchableAtomSelect
+                              v-if="!conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
+                              :model-value="selectedAtomClassByField[columnName] ?? ''"
+                              :options="flatAtomClassOptionsByField[columnName] ?? []"
+                              :registry="classRegistry"
+                              placeholder="搜索原子类型..."
+                              allow-empty
+                              empty-label=""
+                              @update:model-value="(value) => {
+                                selectedAtomClassByField[columnName] = value
+                                if (value) handleSelectAtomClass(columnName, value)
+                              }"
+                            />
+                          </div>
+                          <template v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed">
+                            <div class="space-y-2">
+                              <div>
+                                <label class="label">
+                                  <span class="label-text text-sm font-semibold">表达式</span>
+                                  <span v-if="getExpressionEditState(columnName).isParsing" class="loading loading-spinner loading-xs ml-2"></span>
+                                </label>
+                                <input
+                                  :value="getExpressionEditState(columnName).value || (editableRecord[columnName] as string)"
+                                  type="text"
+                                  class="input input-bordered input-sm font-mono text-xs w-full"
+                                  :class="{ 'input-error': getExpressionEditState(columnName).error }"
+                                  @input="handleExpressionInput(columnName, ($event.target as HTMLInputElement).value)"
+                                  @focus="getExpressionEditState(columnName).value = (editableRecord[columnName] as string) ?? ''"
+                                />
+                                <p v-if="getExpressionEditState(columnName).error" class="text-xs text-error mt-1">
+                                  {{ getExpressionEditState(columnName).error }}
+                                </p>
+                                <div v-else-if="conditionFieldsMap[selectedRowName]?.[columnName]?.expressionDesc || selectedRowName && getAIExplanationState(selectedRowName, columnName).content" class="mt-1">
+                                  <template v-if="selectedRowName && getAIExplanationState(selectedRowName, columnName).content">
+                                    <p class="text-xs text-primary/80 leading-relaxed flex items-start gap-1">
+                                      <svg class="w-3 h-3 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                      </svg>
+                                      <span><span class="font-semibold">AI 解释：</span>{{ getAIExplanationState(selectedRowName, columnName).content }}</span>
+                                    </p>
+                                  </template>
+                                  <template v-else-if="selectedRowName && getAIExplanationState(selectedRowName, columnName).error">
+                                    <p class="text-xs text-error/80 leading-relaxed">
+                                      <span class="font-semibold">AI 解释失败：</span>{{ getAIExplanationState(selectedRowName, columnName).error }}
+                                    </p>
+                                  </template>
+                                  <template v-else>
+                                    <p class="text-xs text-base-content/60 leading-relaxed flex items-center gap-2">
+                                      <button
+                                        v-if="isAIConfigured && selectedRowName"
+                                        type="button"
+                                        class="btn btn-ghost btn-xs h-5 min-h-0 px-1.5 gap-0.5 text-primary hover:text-primary-focus shrink-0"
+                                        :class="{ 'loading': getAIExplanationState(selectedRowName, columnName).isLoading }"
+                                        :disabled="getAIExplanationState(selectedRowName, columnName).isLoading"
+                                        @click="requestAIExplanation(columnName)"
+                                        title="使用 AI 解释功能"
+                                      >
+                                        <svg v-if="!getAIExplanationState(selectedRowName, columnName).isLoading" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                        </svg>
+                                        <span class="text-[10px]">AI</span>
+                                      </button>
+                                      <span><span class="font-semibold text-base-content/80">功能描述：</span>{{ conditionFieldsMap[selectedRowName][columnName].expressionDesc }}</span>
+                                    </p>
+                                  </template>
+                                </div>
+                              </div>
+                              <div v-if="isDebugMode">
+                                <label class="label">
+                                  <span class="label-text text-sm font-semibold">解析后 JSON</span>
+                                </label>
+                                <textarea
+                                  :value="formatJson(conditionFieldsMap[selectedRowName][columnName]?.parsed)"
+                                  readonly
+                                  class="textarea textarea-bordered textarea-sm h-32 font-mono text-xs resize"
+                                ></textarea>
+                              </div>
+                            </div>
+                            <DynamicObjectForm
+                              :class-name="((conditionFieldsMap[selectedRowName][columnName]?.parsed)?._ClassName as string) || 'UnknownCondition'"
+                              :registry="classRegistry"
+                              :subclass-options="subclassOptions"
+                              :model-value="(conditionFieldsMap[selectedRowName][columnName]?.parsed) as Record<string, unknown>"
+                              @update:model-value="(value) => applyNormalizedObjectByColumnName(value as ParsedClassObject, columnName)"
+                            />
+                          </template>
+                        </template>
+                        <template v-else>
+                          <input v-model="editableRecord[columnName]" type="text" class="input input-bordered" />
+                        </template>
+                      </div>
+                      <!-- Split 拖动控件 -->
+                      <div
+                        class="w-1 bg-base-300 hover:bg-primary cursor-col-resize flex-shrink-0 transition-colors"
+                        @mousedown="startResizeColumn(columnName, $event)"
+                        :style="{ backgroundColor: draggedColumnName === columnName ? 'var(--fallback-p,oklch(53.95% 0.1624 275.8))' : '' }"
+                      ></div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+              <!-- 垂直布局使用虚拟滚动 -->
+              <template v-else-if="fieldLayoutDirection === 'vertical' && fieldVerticalVirtualScrollInfo">
+                <div 
+                  class="relative pb-4"
+                  :style="{ height: fieldVerticalVirtualScrollInfo.totalHeight + 'px' }"
+                >
+                  <div 
+                    class="flex flex-col gap-3 absolute left-0 right-0"
+                    :style="{ top: fieldVerticalVirtualScrollInfo.offsetY + 'px' }"
+                  >
+                    <template v-for="columnName in fieldVerticalVirtualScrollInfo.visibleColumns" :key="columnName">
+                      <div
+                        :ref="(el) => setColumnInputRef(columnName, el)"
+                        class="column-field-container rounded-lg px-3 py-2 transition-all duration-150 cursor-pointer border relative"
+                        :class="{ 'bg-primary/10 border-primary/60': columnName === highlightColumnName, 'border-base-300 hover:border-base-400': columnName !== highlightColumnName }"
+                      >
+                        <div class="text-sm font-semibold text-base-content/70 truncate mb-1" :title="columnName">
+                          {{ columnName }}
+                          <button
+                            v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
+                            type="button"
+                            class="btn btn-xs btn-outline btn-error ml-2"
+                            @click="clearAtomicFieldConfig(columnName)"
+                            title="清除原子配置"
+                          >
+                            清除配置
+                          </button>
+                        </div>
+                        <p class="text-xs text-base-content/50 mb-2 min-h-4" :title="columnDescriptions[columnName] || ''">
+                          {{ columnDescriptions[columnName] || '' }}
+                        </p>
+                        <template v-if="conditionFieldSet.has(columnName)">
+                          <div class="space-y-2">
+                            <SearchableAtomSelect
+                              v-if="!conditionFieldsMap[selectedRowName]?.[columnName]?.parsed"
+                              :model-value="selectedAtomClassByField[columnName] ?? ''"
+                              :options="flatAtomClassOptionsByField[columnName] ?? []"
+                              :registry="classRegistry"
+                              placeholder="搜索原子类型..."
+                              allow-empty
+                              empty-label=""
+                              @update:model-value="(value) => {
+                                selectedAtomClassByField[columnName] = value
+                                if (value) handleSelectAtomClass(columnName, value)
+                              }"
+                            />
+                          </div>
+                          <template v-if="conditionFieldsMap[selectedRowName]?.[columnName]?.parsed">
+                            <div class="space-y-2">
+                              <div>
+                                <label class="label">
+                                  <span class="label-text text-sm font-semibold">表达式</span>
+                                  <span v-if="getExpressionEditState(columnName).isParsing" class="loading loading-spinner loading-xs ml-2"></span>
+                                </label>
+                                <input
+                                  :value="getExpressionEditState(columnName).value || (editableRecord[columnName] as string)"
+                                  type="text"
+                                  class="input input-bordered input-sm font-mono text-xs w-full"
+                                  :class="{ 'input-error': getExpressionEditState(columnName).error }"
+                                  @input="handleExpressionInput(columnName, ($event.target as HTMLInputElement).value)"
+                                  @focus="getExpressionEditState(columnName).value = (editableRecord[columnName] as string) ?? ''"
+                                />
+                                <p v-if="getExpressionEditState(columnName).error" class="text-xs text-error mt-1">
+                                  {{ getExpressionEditState(columnName).error }}
+                                </p>
+                                <div v-else-if="conditionFieldsMap[selectedRowName]?.[columnName]?.expressionDesc || selectedRowName && getAIExplanationState(selectedRowName, columnName).content" class="mt-1">
+                                  <template v-if="selectedRowName && getAIExplanationState(selectedRowName, columnName).content">
+                                    <p class="text-xs text-primary/80 leading-relaxed flex items-start gap-1">
+                                      <svg class="w-3 h-3 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                      </svg>
+                                      <span><span class="font-semibold">AI 解释：</span>{{ getAIExplanationState(selectedRowName, columnName).content }}</span>
+                                    </p>
+                                  </template>
+                                  <template v-else-if="selectedRowName && getAIExplanationState(selectedRowName, columnName).error">
+                                    <p class="text-xs text-error/80 leading-relaxed">
+                                      <span class="font-semibold">AI 解释失败：</span>{{ getAIExplanationState(selectedRowName, columnName).error }}
+                                    </p>
+                                  </template>
+                                  <template v-else>
+                                    <p class="text-xs text-base-content/60 leading-relaxed flex items-center gap-2">
+                                      <button
+                                        v-if="isAIConfigured && selectedRowName"
+                                        type="button"
+                                        class="btn btn-ghost btn-xs h-5 min-h-0 px-1.5 gap-0.5 text-primary hover:text-primary-focus shrink-0"
+                                        :class="{ 'loading': getAIExplanationState(selectedRowName, columnName).isLoading }"
+                                        :disabled="getAIExplanationState(selectedRowName, columnName).isLoading"
+                                        @click="requestAIExplanation(columnName)"
+                                        title="使用 AI 解释功能"
+                                      >
+                                        <svg v-if="!getAIExplanationState(selectedRowName, columnName).isLoading" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                        </svg>
+                                        <span class="text-[10px]">AI</span>
+                                      </button>
+                                      <span><span class="font-semibold text-base-content/80">功能描述：</span>{{ conditionFieldsMap[selectedRowName][columnName].expressionDesc }}</span>
+                                    </p>
+                                  </template>
+                                </div>
+                              </div>
+                              <div v-if="isDebugMode">
+                                <label class="label">
+                                  <span class="label-text text-sm font-semibold">解析后 JSON</span>
+                                </label>
+                                <textarea
+                                  :value="formatJson(conditionFieldsMap[selectedRowName][columnName]?.parsed)"
+                                  readonly
+                                  class="textarea textarea-bordered textarea-sm h-32 font-mono text-xs resize"
+                                ></textarea>
+                              </div>
+                            </div>
+                            <DynamicObjectForm
+                              :class-name="((conditionFieldsMap[selectedRowName][columnName]?.parsed)?._ClassName as string) || 'UnknownCondition'"
+                              :registry="classRegistry"
+                              :subclass-options="subclassOptions"
+                              :model-value="(conditionFieldsMap[selectedRowName][columnName]?.parsed) as Record<string, unknown>"
+                              @update:model-value="(value) => applyNormalizedObjectByColumnName(value as ParsedClassObject, columnName)"
+                            />
+                          </template>
+                        </template>
+                        <template v-else>
+                          <input v-model="editableRecord[columnName]" type="text" class="input input-bordered" />
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+              <!-- 无虚拟滚动的回退布局 -->
+              <div v-else :class="fieldLayoutDirection === 'horizontal' ? 'flex gap-0 min-w-min pb-4 min-h-[2000px]' : 'flex flex-col gap-3 pb-4'">
                 <template v-for="(value, columnName, index) in currentRecord" :key="columnName">
                   <div
                     v-show="!showOnlyAtomicFields || conditionFieldSet.has(columnName)"
@@ -3705,14 +4213,14 @@ function handleP4DisablePrompt() {
                   </div>
                   <!-- Split 拖动控件 -->
                   <div
-                  v-if="visibleColumnNames.indexOf(columnName) < visibleColumnNames.length && (!showOnlyAtomicFields || conditionFieldSet.has(columnName))"
+                  v-if="fieldLayoutDirection === 'horizontal' && visibleColumnNames.indexOf(columnName) < visibleColumnNames.length && (!showOnlyAtomicFields || conditionFieldSet.has(columnName))"
                   class="w-1 bg-base-300 hover:bg-primary cursor-col-resize flex-shrink-0 transition-colors"
                   @mousedown="startResizeColumn(columnName, $event)"
                   :style="{ backgroundColor: draggedColumnName === columnName ? 'var(--fallback-p,oklch(53.95% 0.1624 275.8))' : '' }"
                   ></div>
                 </template>
                 <!-- 最后一个字段右边的空白区域 -->
-                <div class="w-32 flex-shrink-0"></div>
+                <div v-if="fieldLayoutDirection === 'horizontal'" class="w-32 flex-shrink-0"></div>
               </div>
             </div>
             <div v-else class="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-base-300 bg-base-200/60 p-16 text-base-content/60">
@@ -3725,15 +4233,81 @@ function handleP4DisablePrompt() {
 
     <!-- 右下角 AI 原子助手悬浮按钮 -->
     <button
-      class="fixed bottom-16 right-6 z-40 btn btn-primary btn-circle shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
-      :class="{ 'bottom-24': sheetList.length > 0 && openedFilePath }"
+      class="fab-ai-btn fixed right-6 z-40 btn btn-primary btn-circle shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 flex items-center justify-center"
+      :class="sheetList.length > 0 && openedFilePath ? 'bottom-[7.5rem]' : 'bottom-[4.5rem]'"
       @click="isAIAssistantOpen = true"
       title="AI 原子助手"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-      </svg>
+      <div class="flex flex-col items-center leading-none">
+        <span class="text-xs font-bold">AI</span>
+        <svg class="w-4 h-4 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      </div>
     </button>
+
+    <!-- 右下角工具 FAB Flower -->
+    <div 
+      class="fab fab-flower fixed right-6 z-40"
+      :class="sheetList.length > 0 && openedFilePath ? 'bottom-10' : 'bottom-4'"
+    >
+      <!-- 主触发按钮 -->
+      <div tabindex="0" role="button" class="btn btn-circle btn-secondary shadow-lg">
+        <!-- 扳手图标 -->
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+        </svg>
+      </div>
+
+      <!-- 展开后替换的主按钮（关闭按钮） -->
+      <button class="fab-main-action btn btn-circle btn-secondary shadow-lg">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      <!-- 检查所有原子配置 -->
+      <div class="fab-action-item">
+        <span class="fab-action-label">检查原子配置</span>
+        <button 
+          class="btn btn-circle btn-warning shadow-md"
+          @click="checkAllAtomicFieldsValidation()"
+          title="检查所有原子配置"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- 配置编辑器 -->
+      <div class="fab-action-item">
+        <span class="fab-action-label">配置编辑器</span>
+        <button 
+          class="btn btn-circle btn-success shadow-md"
+          @click="openAtomFieldsConfigEditor()"
+          title="配置编辑器"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- 加入 Excel 右键菜单 -->
+      <div class="fab-action-item">
+        <span class="fab-action-label">加入右键菜单</span>
+        <button 
+          class="btn btn-circle btn-info shadow-md"
+          @click="registerExcelContextMenu()"
+          title="加入 Excel 右键菜单"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+          </svg>
+        </button>
+      </div>
+    </div>
 
     <!-- 底部 Sheet 标签栏（类似 Excel） -->
     <footer v-if="sheetList.length > 0 && openedFilePath" class="flex items-center bg-base-100 border-t border-base-300 px-3 h-8 shrink-0">
@@ -4018,6 +4592,133 @@ function handleP4DisablePrompt() {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* FAB Flower 样式 */
+.fab-flower {
+  --fab-size: 3rem;
+  --fab-action-size: 2.5rem;
+  --fab-gap: 0.75rem;
+}
+
+/* 操作项容器 - 使用 right: 0 让按钮右对齐 */
+.fab-flower > .fab-action-item {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 文本标签样式 */
+.fab-action-label {
+  background: oklch(var(--b1));
+  color: oklch(var(--bc));
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transform: translateX(0.5rem);
+  transition: all 0.2s ease;
+}
+
+.fab-flower > .fab-main-action {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+/* 展开时的状态 */
+.fab-flower:focus-within > .fab-action-item,
+.fab-flower:has(:focus) > .fab-action-item {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.fab-flower:focus-within > .fab-action-item .fab-action-label,
+.fab-flower:has(:focus) > .fab-action-item .fab-action-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.fab-flower:focus-within > .fab-main-action,
+.fab-flower:has(:focus) > .fab-main-action {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.fab-flower:focus-within > [role="button"]:first-child,
+.fab-flower:has(:focus) > [role="button"]:first-child {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 展开时隐藏 AI 按钮 */
+.fab-flower:focus-within ~ .fab-ai-btn,
+.fab-flower:has(:focus) ~ .fab-ai-btn,
+body:has(.fab-flower:focus-within) .fab-ai-btn,
+body:has(.fab-flower :focus) .fab-ai-btn {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.fab-ai-btn {
+  transition: opacity 0.2s ease;
+}
+
+/* 垂直向上展开位置 - 初始位置都在底部，向上弹出，按钮右对齐 */
+.fab-flower > .fab-action-item:nth-child(3) {
+  /* 第一个操作按钮 - 最上 */
+  transform: translateY(0);
+}
+.fab-flower:focus-within > .fab-action-item:nth-child(3),
+.fab-flower:has(:focus) > .fab-action-item:nth-child(3) {
+  transform: translateY(-10.5rem);
+}
+
+.fab-flower > .fab-action-item:nth-child(4) {
+  /* 第二个操作按钮 - 中间 */
+  transform: translateY(0);
+}
+.fab-flower:focus-within > .fab-action-item:nth-child(4),
+.fab-flower:has(:focus) > .fab-action-item:nth-child(4) {
+  transform: translateY(-6.75rem);
+}
+
+.fab-flower > .fab-action-item:nth-child(5) {
+  /* 第三个操作按钮 - 最下 */
+  transform: translateY(0);
+}
+.fab-flower:focus-within > .fab-action-item:nth-child(5),
+.fab-flower:has(:focus) > .fab-action-item:nth-child(5) {
+  transform: translateY(-3rem);
+}
+
+/* 悬停效果 */
+.fab-flower > .fab-action-item .btn:hover {
+  transform: scale(1.1);
+}
+
+.fab-flower:focus-within > .fab-action-item:nth-child(3):hover,
+.fab-flower:has(:focus) > .fab-action-item:nth-child(3):hover {
+  transform: translateY(-10.5rem) scale(1.05);
+}
+
+.fab-flower:focus-within > .fab-action-item:nth-child(4):hover,
+.fab-flower:has(:focus) > .fab-action-item:nth-child(4):hover {
+  transform: translateY(-6.75rem) scale(1.05);
+}
+
+.fab-flower:focus-within > .fab-action-item:nth-child(5):hover,
+.fab-flower:has(:focus) > .fab-action-item:nth-child(5):hover {
+  transform: translateY(-3rem) scale(1.05);
 }
 
 /* 右键菜单样式 */

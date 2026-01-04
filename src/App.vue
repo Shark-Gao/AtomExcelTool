@@ -101,6 +101,221 @@ const columnInputRefs = reactive<Record<string, HTMLDivElement>>({})
 const matchingColumnNames = ref<string[]>([])
 const activeColumnMatchIndex = ref(0)
 const highlightColumnName = ref<string | null>(null)
+
+// 条件字段信息类型（提前定义供 TabState 使用）
+type ConditionFieldInfo = {
+  raw: string
+  parsed: any
+  json: string
+  expressionDesc?: string
+}
+
+// ============ 多标签页相关 ============
+interface TabState {
+  id: string // 唯一标识，使用文件路径
+  filePath: string
+  fileName: string // 显示用的文件名
+  sheetName: string
+  sheetList: string[]
+  rowNameToRecord: Record<string, Record<string, string>>
+  rowNames: string[]
+  columnNames: string[]
+  columnDescriptions: Record<string, string>
+  rowNameColumnLabel: string
+  selectedRowName: string | null
+  editableRecord: Record<string, unknown>
+  workbookMeta: WorkbookMeta | null
+  conditionFieldsMap: Record<string, Record<string, ConditionFieldInfo>>
+  searchKeyword: string
+  virtualScrollTop: number
+  columnWidths: Record<string, number>
+  remarkFieldName: string | null
+  isDirty: boolean // 是否有未保存的修改
+}
+
+const openTabs = ref<TabState[]>([])
+const activeTabId = ref<string | null>(null)
+
+// 从文件路径提取文件名
+function getFileNameFromPath(filePath: string): string {
+  const parts = filePath.replace(/\\/g, '/').split('/')
+  return parts[parts.length - 1] || filePath
+}
+
+// 获取当前激活的标签页
+const activeTab = computed(() => {
+  if (!activeTabId.value) return null
+  return openTabs.value.find(tab => tab.id === activeTabId.value) || null
+})
+
+// 保存当前标签页状态
+function saveCurrentTabState() {
+  if (!activeTabId.value || !openedFilePath.value) return
+  
+  const tabIndex = openTabs.value.findIndex(tab => tab.id === activeTabId.value)
+  if (tabIndex === -1) return
+  
+  // 先保存当前编辑的记录
+  saveEditableRecord()
+  
+  openTabs.value[tabIndex] = {
+    ...openTabs.value[tabIndex],
+    sheetName: sheetName.value,
+    sheetList: [...sheetList.value],
+    rowNameToRecord: JSON.parse(JSON.stringify(rowNameToRecord)),
+    rowNames: [...rowNames.value],
+    columnNames: [...columnNames.value],
+    columnDescriptions: { ...columnDescriptions },
+    rowNameColumnLabel: rowNameColumnLabel.value,
+    selectedRowName: selectedRowName.value,
+    editableRecord: JSON.parse(JSON.stringify(editableRecord)),
+    workbookMeta: workbookMeta.value ? { ...workbookMeta.value } : null,
+    conditionFieldsMap: JSON.parse(JSON.stringify(conditionFieldsMap)),
+    searchKeyword: searchKeyword.value,
+    virtualScrollTop: virtualScrollTop.value,
+    columnWidths: { ...columnWidths },
+    remarkFieldName: remarkFieldName.value
+  }
+}
+
+// 恢复标签页状态
+function restoreTabState(tab: TabState) {
+  openedFilePath.value = tab.filePath
+  sheetName.value = tab.sheetName
+  sheetList.value = [...tab.sheetList]
+  
+  // 清空并恢复 rowNameToRecord
+  Object.keys(rowNameToRecord).forEach(key => delete rowNameToRecord[key])
+  Object.entries(tab.rowNameToRecord).forEach(([key, value]) => {
+    rowNameToRecord[key] = { ...value }
+  })
+  
+  rowNames.value = [...tab.rowNames]
+  columnNames.value = [...tab.columnNames]
+  
+  // 清空并恢复 columnDescriptions
+  Object.keys(columnDescriptions).forEach(key => delete columnDescriptions[key])
+  Object.entries(tab.columnDescriptions).forEach(([key, value]) => {
+    columnDescriptions[key] = value
+  })
+  
+  rowNameColumnLabel.value = tab.rowNameColumnLabel
+  selectedRowName.value = tab.selectedRowName
+  
+  // 清空并恢复 editableRecord
+  Object.keys(editableRecord).forEach(key => delete editableRecord[key])
+  Object.entries(tab.editableRecord).forEach(([key, value]) => {
+    editableRecord[key] = value
+  })
+  
+  workbookMeta.value = tab.workbookMeta ? { ...tab.workbookMeta } : null
+  
+  // 清空并恢复 conditionFieldsMap
+  Object.keys(conditionFieldsMap).forEach(key => delete conditionFieldsMap[key])
+  Object.entries(tab.conditionFieldsMap).forEach(([key, value]) => {
+    conditionFieldsMap[key] = JSON.parse(JSON.stringify(value))
+  })
+  
+  searchKeyword.value = tab.searchKeyword
+  virtualScrollTop.value = tab.virtualScrollTop
+  
+  // 清空并恢复 columnWidths
+  Object.keys(columnWidths).forEach(key => delete columnWidths[key])
+  Object.entries(tab.columnWidths).forEach(([key, value]) => {
+    columnWidths[key] = value
+  })
+  
+  remarkFieldName.value = tab.remarkFieldName
+  
+  // 清除表达式编辑状态
+  for (const key in expressionEditState) {
+    if (expressionEditState[key].debounceTimer) {
+      clearTimeout(expressionEditState[key].debounceTimer)
+    }
+    delete expressionEditState[key]
+  }
+  
+  // 恢复滚动位置
+  nextTick(() => {
+    if (rowListContainerRef.value) {
+      rowListContainerRef.value.scrollTop = tab.virtualScrollTop
+    }
+  })
+}
+
+// 切换到指定标签页
+function switchToTab(tabId: string) {
+  if (tabId === activeTabId.value) return
+  
+  // 保存当前标签页状态
+  saveCurrentTabState()
+  
+  // 切换到新标签页
+  const tab = openTabs.value.find(t => t.id === tabId)
+  if (tab) {
+    activeTabId.value = tabId
+    restoreTabState(tab)
+  }
+}
+
+// 关闭标签页
+async function closeTab(tabId: string, event?: MouseEvent) {
+  event?.stopPropagation()
+  
+  const tabIndex = openTabs.value.findIndex(tab => tab.id === tabId)
+  if (tabIndex === -1) return
+  
+  const tab = openTabs.value[tabIndex]
+  
+  // 如果有未保存的修改，提示用户
+  if (tab.isDirty) {
+    const confirmed = await confirmCloseUnsavedTab(tab.fileName)
+    if (!confirmed) return
+  }
+  
+  // 移除标签页
+  openTabs.value.splice(tabIndex, 1)
+  
+  // 如果关闭的是当前激活的标签页
+  if (tabId === activeTabId.value) {
+    if (openTabs.value.length > 0) {
+      // 切换到相邻的标签页
+      const newIndex = Math.min(tabIndex, openTabs.value.length - 1)
+      const newTab = openTabs.value[newIndex]
+      activeTabId.value = newTab.id
+      restoreTabState(newTab)
+    } else {
+      // 没有其他标签页了，清空状态
+      activeTabId.value = null
+      clearWorkbookState()
+    }
+  }
+}
+
+// 确认关闭未保存的标签页
+async function confirmCloseUnsavedTab(fileName: string): Promise<boolean> {
+  // 简单实现：使用 confirm 对话框
+  return window.confirm(`文件 "${fileName}" 有未保存的修改，确定要关闭吗？`)
+}
+
+// 标记当前标签页为已修改
+function markCurrentTabDirty() {
+  if (!activeTabId.value) return
+  const tab = openTabs.value.find(t => t.id === activeTabId.value)
+  if (tab) {
+    tab.isDirty = true
+  }
+}
+
+// 标记当前标签页为已保存
+function markCurrentTabSaved() {
+  if (!activeTabId.value) return
+  const tab = openTabs.value.find(t => t.id === activeTabId.value)
+  if (tab) {
+    tab.isDirty = false
+  }
+}
+
 const themeOptions = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
@@ -122,6 +337,15 @@ const atomFieldsConfig = ref<AtomFieldsConfig | null>(null)
 // AI 助手相关
 const isAIAssistantOpen = ref(false)
 const allAtomMetadata = ref<DelegateClassMetadata[]>([])
+const isAIConfigured = ref(false) // AI 是否已配置
+
+// AI 字段解释相关
+type AIExplanationState = {
+  isLoading: boolean
+  content: string | null
+  error: string | null
+}
+const aiExplanationMap = reactive<Record<string, Record<string, AIExplanationState>>>({})
 
 // 虚拟滚动相关
 const rowListContainerRef = ref<HTMLDivElement | null>(null)
@@ -285,12 +509,6 @@ const codeEditorParseError = ref<string | null>(null)
 const codeEditorRef = ref<InstanceType<typeof CodeEditor> | null>(null)
 
 // 条件字段相关
-type ConditionFieldInfo = {
-  raw: string
-  parsed: any
-  json: string
-  expressionDesc?:string
-}
 const conditionFieldsMap = reactive<Record<string, Record<string, ConditionFieldInfo>>>({})
 const selectedConditionField = ref<string | null>(null)
 const selectedConditionFieldData = ref<ConditionFieldInfo | null>(null)
@@ -702,6 +920,77 @@ async function parseExpressionForField(columnName: string, expression: string) {
   }
 }
 
+// ============ AI 字段解释相关 ============
+
+/** 获取指定字段的 AI 解释状态 */
+function getAIExplanationState(rowName: string, columnName: string): AIExplanationState {
+  if (!aiExplanationMap[rowName]) {
+    aiExplanationMap[rowName] = {}
+  }
+  if (!aiExplanationMap[rowName][columnName]) {
+    aiExplanationMap[rowName][columnName] = {
+      isLoading: false,
+      content: null,
+      error: null
+    }
+  }
+  return aiExplanationMap[rowName][columnName]
+}
+
+/** 请求 AI 解释原子字段功能 */
+async function requestAIExplanation(columnName: string) {
+  if (!selectedRowName.value) return
+  
+  const rowName = selectedRowName.value
+  const state = getAIExplanationState(rowName, columnName)
+  const fieldInfo = conditionFieldsMap[rowName]?.[columnName]
+  
+  if (!fieldInfo?.parsed) return
+  
+  state.isLoading = true
+  state.error = null
+  
+  try {
+    // 构建请求消息
+    const expression = editableRecord[columnName] as string || ''
+    
+    const prompt = `请用一句简洁的中文解释这个原子配置的功能：
+表达式: ${expression}
+
+要求：
+1. 只用一句话总结这个配置的实际功能，但是每个函数的功能要说明清楚，还有参数和各种数字的意义也要体现
+2. 不要解释技术细节，只说明业务含义
+3. 直接给出答案，不要有前缀`
+
+    const result = await window.aiBridge?.chat({
+      message: prompt,
+      stream: false
+    })
+    
+    if (result?.success && result.content) {
+      state.content = result.content.trim()
+    } else {
+      state.error = result?.error || 'AI 解释失败'
+    }
+  } catch (error) {
+    state.error = error instanceof Error ? error.message : 'AI 请求出错'
+    console.error(`Failed to get AI explanation for ${columnName}:`, error)
+  } finally {
+    state.isLoading = false
+  }
+}
+
+/** 检查 AI 服务状态 */
+async function checkAIStatus() {
+  try {
+    const status = await window.aiBridge?.getStatus()
+    isAIConfigured.value = status?.configured || false
+  } catch (error) {
+    console.error('Failed to check AI status:', error)
+    isAIConfigured.value = false
+  }
+}
+
 function syncMockObjectValueFromJson() {
   const parsed = JSON.parse(rawConfigText.value) as ParsedClassObject
   parseErrorMessage.value = null
@@ -1086,6 +1375,14 @@ watch(p4CheckoutPromptEnabled, (newValue) => {
   })
 })
 
+// 当 AI 助手面板关闭时，重新检查 AI 状态（用户可能在面板中配置了 AI）
+watch(isAIAssistantOpen, (newValue, oldValue) => {
+  if (oldValue && !newValue) {
+    // 面板从打开变为关闭，重新检查 AI 状态
+    checkAIStatus()
+  }
+})
+
 applyTheme(currentTheme.value)
 
 function focusColumnSearchInput(options: { select?: boolean } = {}) {
@@ -1419,6 +1716,14 @@ async function parseConditionFieldsFromRecord(record: Record<string, string>): P
 }
 
 watch(selectedRowName, async (newSelection) => {
+  // 切换行时清除表达式编辑状态，避免显示上一行的内容
+  for (const key in expressionEditState) {
+    if (expressionEditState[key].debounceTimer) {
+      clearTimeout(expressionEditState[key].debounceTimer)
+    }
+    delete expressionEditState[key]
+  }
+  
   if (!newSelection) {
     selectedConditionField.value = null
     selectedConditionFieldData.value = null
@@ -2053,6 +2358,8 @@ onMounted(() => {
     // 初始化原子字段配置系统
     await initializeAtomicFields()
     loadDelegateMetadata()
+    // 检查 AI 服务状态
+    checkAIStatus()
   }, 0)
   // loadDelegateMetadata()
 })
@@ -2074,6 +2381,20 @@ async function openWorkbookFromMainProcess(options?: { filePath?: string }) {
 
   const targetFilePath = options?.filePath
   const isExternalOpen = typeof targetFilePath === 'string' && targetFilePath.length > 0
+
+  // 检查文件是否已经打开
+  if (isExternalOpen) {
+    const existingTab = openTabs.value.find(tab => tab.filePath === targetFilePath)
+    if (existingTab) {
+      // 文件已打开，直接切换到该标签页
+      switchToTab(existingTab.id)
+      showSuccessMessage(`已切换到：${existingTab.fileName}`)
+      return
+    }
+  }
+
+  // 保存当前标签页状态
+  saveCurrentTabState()
 
   errorMessage.value = null
   showProgress(isExternalOpen ? '正在打开指定的 Excel 文件...' : '正在打开 Excel 文件...', 'loading', 10)
@@ -2098,6 +2419,17 @@ async function openWorkbookFromMainProcess(options?: { filePath?: string }) {
       throw new Error('工作表没有有效的 RowName 数据行。')
     }
 
+    // 检查通过对话框选择的文件是否已打开
+    if (!isExternalOpen && result.filePath) {
+      const existingTab = openTabs.value.find(tab => tab.filePath === result.filePath)
+      if (existingTab) {
+        hideProgress()
+        switchToTab(existingTab.id)
+        showSuccessMessage(`已切换到：${existingTab.fileName}`)
+        return
+      }
+    }
+
     updateProgress(40)
     openedFilePath.value = result.filePath ?? null
     sheetName.value = result.sheetName ?? 'Sheet1'
@@ -2119,6 +2451,17 @@ async function openWorkbookFromMainProcess(options?: { filePath?: string }) {
     Object.keys(rowNameToRecord).forEach((key) => delete rowNameToRecord[key])
     Object.keys(conditionFieldsMap).forEach((key) => delete conditionFieldsMap[key])
     
+    // 清除表达式编辑状态
+    for (const key in expressionEditState) {
+      if (expressionEditState[key].debounceTimer) {
+        clearTimeout(expressionEditState[key].debounceTimer)
+      }
+      delete expressionEditState[key]
+    }
+    
+    // 清除列宽缓存
+    Object.keys(columnWidths).forEach(key => delete columnWidths[key])
+    
     updateProgress(75)
     const normalizedRows = result.rows.map((row) => ({ ...row }))
     rowNames.value = normalizedRows
@@ -2133,8 +2476,37 @@ async function openWorkbookFromMainProcess(options?: { filePath?: string }) {
       }
     })
     
-    updateProgress(95)
+    updateProgress(90)
     selectedRowName.value = rowNames.value[0] ?? null
+    searchKeyword.value = ''
+    virtualScrollTop.value = 0
+    
+    // 创建新标签页
+    if (result.filePath) {
+      const newTab: TabState = {
+        id: result.filePath,
+        filePath: result.filePath,
+        fileName: getFileNameFromPath(result.filePath),
+        sheetName: sheetName.value,
+        sheetList: [...sheetList.value],
+        rowNameToRecord: JSON.parse(JSON.stringify(rowNameToRecord)),
+        rowNames: [...rowNames.value],
+        columnNames: [...columnNames.value],
+        columnDescriptions: { ...columnDescriptions },
+        rowNameColumnLabel: rowNameColumnLabel.value,
+        selectedRowName: selectedRowName.value,
+        editableRecord: {},
+        workbookMeta: workbookMeta.value ? { ...workbookMeta.value } : null,
+        conditionFieldsMap: {},
+        searchKeyword: '',
+        virtualScrollTop: 0,
+        columnWidths: {},
+        remarkFieldName: remarkFieldName.value,
+        isDirty: false
+      }
+      openTabs.value.push(newTab)
+      activeTabId.value = newTab.id
+    }
     
     updateProgress(100)
     hideProgress()
@@ -2193,7 +2565,16 @@ function saveEditableRecord() {
     return accumulator
   }, {})
 
+  // 检查是否有修改
+  const oldRecord = rowNameToRecord[selectedRowName.value]
+  const hasChanges = Object.keys(serializedRecord).some(key => serializedRecord[key] !== oldRecord[key])
+  
   rowNameToRecord[selectedRowName.value] = serializedRecord
+  
+  // 如果有修改，标记标签页为已修改
+  if (hasChanges) {
+    markCurrentTabDirty()
+  }
 }
 
 function buildRowsForSaving(): RowRecord[] {
@@ -2518,6 +2899,9 @@ async function saveWorkbookToDisk() {
     updateProgress(100)
     hideProgress()
     showSuccessMessage('保存成功！')
+    
+    // 标记当前标签页为已保存
+    markCurrentTabSaved()
   } catch (error) {
     hideProgress()
     errorMessage.value = error instanceof Error ? error.message : '保存 Excel 时失败。'
@@ -2758,6 +3142,55 @@ function handleP4DisablePrompt() {
 <template>
   <div class="flex h-full flex-col bg-base-200 text-base-content" style="zoom: 85fr;">
     <header class="sticky top-0 z-10 border-b border-base-300 bg-base-100 shadow-sm">
+      <!-- 标签栏 -->
+      <div v-if="openTabs.length > 0" class="flex items-center bg-base-200 border-b border-base-300 px-2 pt-1 overflow-x-auto scrollbar" style="scrollbar-width: thin;">
+        <div class="flex items-center gap-0.5 min-w-0">
+          <div
+            v-for="tab in openTabs"
+            :key="tab.id"
+            class="group flex items-center gap-1 px-3 py-1.5 rounded-t-lg cursor-pointer transition-colors min-w-0 max-w-[200px] border border-b-0"
+            :class="[
+              tab.id === activeTabId 
+                ? 'bg-base-100 border-base-300 text-base-content' 
+                : 'bg-base-200 border-transparent text-base-content/60 hover:bg-base-300 hover:text-base-content'
+            ]"
+            @click="switchToTab(tab.id)"
+            :title="tab.filePath"
+          >
+            <!-- 文件图标 -->
+            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <!-- 文件名 -->
+            <span class="truncate text-sm">{{ tab.fileName }}</span>
+            <!-- 修改标记 -->
+            <span v-if="tab.isDirty" class="text-warning shrink-0" title="有未保存的修改">●</span>
+            <!-- 关闭按钮 -->
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs p-0 w-4 h-4 min-h-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              @click="closeTab(tab.id, $event)"
+              title="关闭"
+            >
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <!-- 新建标签按钮 -->
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs ml-1 shrink-0"
+          @click="openWorkbookFromMainProcess"
+          title="打开新文件"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+      
       <div class="px-6 py-4 space-y-3">
         <!-- 第一行：打开、保存、另存为按钮 -->
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -2894,35 +3327,27 @@ function handleP4DisablePrompt() {
     <main class="flex flex-1 min-h-0 gap-0 px-3 py-3 overflow-hidden">
       <aside class="card flex min-h-0 flex-col overflow-hidden bg-base-100 shadow-md" :style="{ width: leftPanelWidth + 'px' }">
         <div class="px-4 pt-3 pb-2 space-y-4">
-          <div v-if="sheetList.length > 1" class="form-control">
-            <label class="label py-1">
-              <span class="label-text text-xs">选择 Sheet</span>
-            </label>
-            <div class="dropdown w-full">
-              <button tabindex="0" class="btn btn-sm btn-outline w-full justify-between">
-                {{ sheetName }} <span class="badge badge-sm">{{ sheetList.length }}</span>
-              </button>
-              <ul tabindex="0" class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-52">
-                <li v-for="sheet in sheetList" :key="sheet">
-                  <a 
-                    :class="{ 'active': sheet === sheetName }"
-                    @click="switchSheet(sheet)"
-                  >
-                    {{ sheet }}
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-
           <div class="form-control">
             <label class="label py-1">
               <span class="label-text text-xs">搜索 RowName</span>
             </label>
             <label class="input input-bordered flex items-center gap-2">
               <input ref="searchInputRef" v-model="searchKeyword" type="text" class="grow" placeholder="输入关键字过滤" />
-              <kbd class="kbd kbd-sm">Ctrl</kbd>
-              <kbd class="kbd kbd-sm">F</kbd>
+              <button
+                v-if="searchKeyword"
+                type="button"
+                class="btn btn-ghost btn-xs btn-circle h-5 w-5 min-h-0 p-0"
+                @click="searchKeyword = ''"
+                title="清除搜索"
+              >
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <template v-else>
+                <kbd class="kbd kbd-sm">Ctrl</kbd>
+                <kbd class="kbd kbd-sm">F</kbd>
+              </template>
             </label>
           </div>
 
@@ -3221,9 +3646,45 @@ function handleP4DisablePrompt() {
                             <p v-if="getExpressionEditState(columnName).error" class="text-xs text-error mt-1">
                               {{ getExpressionEditState(columnName).error }}
                             </p>
-                            <p v-else-if="conditionFieldsMap[selectedRowName]?.[columnName]?.expressionDesc" class="text-xs text-base-content/60 mt-1 leading-relaxed">
-                              <span class="font-semibold text-base-content/80">功能描述：</span>{{ conditionFieldsMap[selectedRowName][columnName].expressionDesc }}
-                            </p>
+                            <!-- 功能描述区域：支持 AI 解释 -->
+                            <div v-else-if="conditionFieldsMap[selectedRowName]?.[columnName]?.expressionDesc || selectedRowName && getAIExplanationState(selectedRowName, columnName).content" class="mt-1">
+                              <!-- AI 解释结果 -->
+                              <template v-if="selectedRowName && getAIExplanationState(selectedRowName, columnName).content">
+                                <p class="text-xs text-primary/80 leading-relaxed flex items-start gap-1">
+                                  <svg class="w-3 h-3 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                  </svg>
+                                  <span><span class="font-semibold">AI 解释：</span>{{ getAIExplanationState(selectedRowName, columnName).content }}</span>
+                                </p>
+                              </template>
+                              <!-- AI 解释错误 -->
+                              <template v-else-if="selectedRowName && getAIExplanationState(selectedRowName, columnName).error">
+                                <p class="text-xs text-error/80 leading-relaxed">
+                                  <span class="font-semibold">AI 解释失败：</span>{{ getAIExplanationState(selectedRowName, columnName).error }}
+                                </p>
+                              </template>
+                              <!-- 原始功能描述 + AI 按钮 -->
+                              <template v-else>
+                                <p class="text-xs text-base-content/60 leading-relaxed flex items-center gap-2">
+                                  <!-- AI 解释按钮：放在最左边，仅当 AI 已配置时显示 -->
+                                  <button
+                                    v-if="isAIConfigured && selectedRowName"
+                                    type="button"
+                                    class="btn btn-ghost btn-xs h-5 min-h-0 px-1.5 gap-0.5 text-primary hover:text-primary-focus shrink-0"
+                                    :class="{ 'loading': getAIExplanationState(selectedRowName, columnName).isLoading }"
+                                    :disabled="getAIExplanationState(selectedRowName, columnName).isLoading"
+                                    @click="requestAIExplanation(columnName)"
+                                    title="使用 AI 解释功能"
+                                  >
+                                    <svg v-if="!getAIExplanationState(selectedRowName, columnName).isLoading" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                    </svg>
+                                    <span class="text-[10px]">AI</span>
+                                  </button>
+                                  <span><span class="font-semibold text-base-content/80">功能描述：</span>{{ conditionFieldsMap[selectedRowName][columnName].expressionDesc }}</span>
+                                </p>
+                              </template>
+                            </div>
                           </div>
                         
                           <div v-if="isDebugMode">
@@ -3270,6 +3731,28 @@ function handleP4DisablePrompt() {
         </div>
       </section>
     </main>
+
+    <!-- 底部 Sheet 标签栏（类似 Excel） -->
+    <footer v-if="sheetList.length > 0 && openedFilePath" class="flex items-center bg-base-100 border-t border-base-300 px-3 h-8 shrink-0">
+      <div class="flex items-center gap-0.5 overflow-x-auto scrollbar" style="scrollbar-width: thin;">
+        <button
+          v-for="sheet in sheetList"
+          :key="sheet"
+          type="button"
+          class="px-3 py-1 text-sm border-t-2 transition-colors whitespace-nowrap"
+          :class="[
+            sheet === sheetName
+              ? 'bg-base-100 border-primary text-primary font-medium'
+              : 'bg-base-200 border-transparent text-base-content/70 hover:bg-base-300 hover:text-base-content'
+          ]"
+          @click="switchSheet(sheet)"
+        >
+          {{ sheet }}
+        </button>
+      </div>
+      <div class="flex-1"></div>
+      <span class="text-xs text-base-content/50">{{ sheetList.length }} 个工作表</span>
+    </footer>
 
     <SettingsModal
       :is-open="isSettingsModalOpen"

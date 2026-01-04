@@ -26,6 +26,7 @@ const props = defineProps<{
   themeOptions: FieldOption[]
   p4Settings: P4Settings
   p4CheckoutPromptEnabled: boolean
+  initialTab?: 'settings' | 'p4' | 'changelog'
 }>()
 
 const emit = defineEmits<{
@@ -40,9 +41,16 @@ const emit = defineEmits<{
   'update:p4CheckoutPromptEnabled': [value: boolean]
 }>()
 
-const activeTab = ref<'settings' | 'p4' | 'changelog'>('settings')
+const activeTab = ref<'settings' | 'p4' | 'changelog'>(props.initialTab || 'settings')
 const changelog = ref<ChangelogEntry[]>(changelogData.changelog || [])
 const changelogError = ref<string | null>(null)
+
+// 监听 initialTab 变化
+watch(() => props.initialTab, (newVal) => {
+  if (newVal) {
+    activeTab.value = newVal
+  }
+})
 
 // P4 设置本地状态
 const p4Port = ref(props.p4Settings.port)

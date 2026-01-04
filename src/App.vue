@@ -113,6 +113,7 @@ const initialSettings = loadSettingsFromStorage()
 const currentTheme = ref<string>(initialSettings.theme)
 const rowButtonRefs = reactive<Record<string, HTMLButtonElement>>({})
 const isSettingsModalOpen = ref(false)
+const settingsInitialTab = ref<'settings' | 'p4' | 'changelog'>('settings')
 
 // 原子字段配置编辑器相关
 const isAtomFieldsConfigEditorOpen = ref(false)
@@ -2628,6 +2629,25 @@ function stopAutoSave() {
 
 // ============ P4V 相关函数 ============
 
+function handleP4StatusClick() {
+  // 如果未配置 P4，打开设置并跳转到 P4 页签
+  if (!p4Settings.value.port || !p4Settings.value.user || !p4Settings.value.client) {
+    settingsInitialTab.value = 'p4'
+    isSettingsModalOpen.value = true
+    return
+  }
+  // 已配置则刷新连接状态
+  checkP4ConnectionStatus()
+}
+
+function handleSettingsModalClose(value: boolean) {
+  isSettingsModalOpen.value = value
+  // 关闭时重置 initialTab
+  if (!value) {
+    settingsInitialTab.value = 'settings'
+  }
+}
+
 async function checkP4ConnectionStatus() {
   // 检查 P4 是否配置
   if (!p4Settings.value.port || !p4Settings.value.user || !p4Settings.value.client) {
@@ -2767,7 +2787,7 @@ function handleP4DisablePrompt() {
             <div 
               class="tooltip tooltip-left cursor-pointer"
               :data-tip="p4StatusTooltip"
-              @click="checkP4ConnectionStatus"
+              @click="handleP4StatusClick"
             >
               <!-- 已连接 - 绿色 -->
               <svg 
@@ -3262,7 +3282,8 @@ function handleP4DisablePrompt() {
       :theme-options="themeOptions"
       :p4-settings="p4Settings"
       :p4-checkout-prompt-enabled="p4CheckoutPromptEnabled"
-      @update:is-open="isSettingsModalOpen = $event"
+      :initial-tab="settingsInitialTab"
+      @update:is-open="handleSettingsModalClose"
       @update:current-theme="currentTheme = $event"
       @update:show-only-atomic-fields="showOnlyAtomicFields = $event"
       @update:is-debug-mode="isDebugMode = $event"

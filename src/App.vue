@@ -4268,7 +4268,7 @@ function handleP4DisablePrompt() {
 
       <!-- 检查所有原子配置 -->
       <div class="fab-action-item">
-        <span class="fab-action-label">检查原子配置</span>
+        <span class="fab-action-label" @mousedown.prevent @click="checkAllAtomicFieldsValidation()">检查原子配置</span>
         <button 
           class="btn btn-circle btn-warning shadow-md"
           @click="checkAllAtomicFieldsValidation()"
@@ -4282,7 +4282,7 @@ function handleP4DisablePrompt() {
 
       <!-- 配置编辑器 -->
       <div class="fab-action-item">
-        <span class="fab-action-label">配置编辑器</span>
+        <span class="fab-action-label" @mousedown.prevent @click="openAtomFieldsConfigEditor()">配置编辑器</span>
         <button 
           class="btn btn-circle btn-success shadow-md"
           @click="openAtomFieldsConfigEditor()"
@@ -4296,7 +4296,7 @@ function handleP4DisablePrompt() {
 
       <!-- 加入 Excel 右键菜单 -->
       <div class="fab-action-item">
-        <span class="fab-action-label">加入右键菜单</span>
+        <span class="fab-action-label" @mousedown.prevent @click="registerExcelContextMenu()">加入右键菜单</span>
         <button 
           class="btn btn-circle btn-info shadow-md"
           @click="registerExcelContextMenu()"
@@ -4625,6 +4625,7 @@ function handleP4DisablePrompt() {
   opacity: 0;
   transform: translateX(0.5rem);
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .fab-flower > .fab-main-action {

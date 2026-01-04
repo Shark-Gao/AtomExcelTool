@@ -326,9 +326,9 @@ const currentSpecificRule = computed(() => {
                     </div>
                     <div class="flex-1">
                       <label class="label">
-                        <span class="label-text">工作表名</span>
+                        <span class="label-text">工作表名 <span class="text-xs opacity-60">(可不配，不配则适用于该文件所有sheet)</span></span>
                       </label>
-                      <input v-model="file.sheetName" type="text" class="input input-bordered input-sm w-full" />
+                      <input v-model="file.sheetName" type="text" class="input input-bordered input-sm w-full" placeholder="留空则适用所有sheet" />
                     </div>
                   </div>
                   <div class="flex gap-2">

@@ -238,8 +238,11 @@ function extractHeaderMetadata(worksheet: ExcelJS.Worksheet, xlsxFileName?: stri
         const config = configLoader.getConfig();
         
         // 查找匹配的配置
+        // 优先精确匹配（文件名+工作表名），其次匹配文件级配置（sheetName为空表示适用于该文件所有sheet）
         const headerConfig = config.headerRowConfig?.files?.find(file => 
             file.xlsxFile === xlsxFileName && file.sheetName === sheetName
+        ) || config.headerRowConfig?.files?.find(file => 
+            file.xlsxFile === xlsxFileName && (!file.sheetName || file.sheetName === '')
         );
         
         if (headerConfig && headerConfig.headerRowNumber) {

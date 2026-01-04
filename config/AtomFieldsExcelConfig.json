@@ -13,28 +13,7 @@
     "files": [
       {
         "xlsxFile": "PilotMode",
-        "sheetName": "Sheet1",
-        "headerRowNumber": 2,
-        "dataStartRow": 4,
-        "descriptionRow": 3
-      },
-      {
-        "xlsxFile": "PilotMode",
-        "sheetName": "Sheet2",
-        "headerRowNumber": 2,
-        "dataStartRow": 4,
-        "descriptionRow": 3
-      },
-      {
-        "xlsxFile": "PilotMode",
-        "sheetName": "Sheet3",
-        "headerRowNumber": 2,
-        "dataStartRow": 4,
-        "descriptionRow": 3
-      },
-      {
-        "xlsxFile": "PilotMode",
-        "sheetName": "Sheet4",
+        "sheetName": "",
         "headerRowNumber": 2,
         "dataStartRow": 4,
         "descriptionRow": 3

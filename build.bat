@@ -45,64 +45,47 @@ if exist release\0.0.2 (
   echo.
   
   REM 复制文件到目标目录
-  echo [5/5] 正在复制文件到目标目录...
+  echo [5/6] 正在复制文件到目标目录...
   set SOURCE_DIR=g:\workspace\MHAtomExcelTool\release\0.0.2\win-unpacked
   set TARGET_DIR=K:\MHA_Client_main\MHAGame\Tools\MHAtomExcelTool
   
   REM 清理目标目录（保留 config 目录）
+  echo.
   echo   正在清理目标目录（保留 config 目录）...
   for /d %%i in (!TARGET_DIR!\*) do (
     if /i not "%%~nxi"=="config" (
+      attrib -r "%%i\*" /s >nul 2>&1
       rmdir /s /q "%%i" 2>nul
-      echo   ✓ 已删除 %%~nxi
     )
   )
   
   for %%i in (!TARGET_DIR!\*) do (
     if not "%%i"=="!TARGET_DIR!\config" (
-      del /q "%%i" 2>nul
+      attrib -r "%%i" >nul 2>&1
+      del /f /q "%%i" 2>nul
     )
   )
-  
-  REM 比较并只 checkout 有变化的文件
-  echo.
-  echo [5/6] 正在检测变化的文件并 P4 checkout...
-  set CHANGED_COUNT=0
-  
-  REM 遍历源目录所有文件，比较与目标文件的差异
-  for /r "!SOURCE_DIR!" %%F in (*) do (
-    set "SRC_FILE=%%F"
-    set "REL_PATH=%%F"
-    set "REL_PATH=!REL_PATH:%SOURCE_DIR%\=!"
-    set "DST_FILE=!TARGET_DIR!\!REL_PATH!"
-    
-    REM 检查目标文件是否存在
-    if exist "!DST_FILE!" (
-      REM 使用 fc 比较文件内容
-      fc /b "!SRC_FILE!" "!DST_FILE!" >nul 2>&1
-      if !errorlevel! neq 0 (
-        REM 文件有变化，执行 p4 edit
-        p4 edit "!DST_FILE!" >nul 2>&1
-        set /a CHANGED_COUNT+=1
-      )
-    ) else (
-      REM 新文件，需要 p4 add（复制后再 add）
-      set /a CHANGED_COUNT+=1
-    )
-  )
-  echo   ✓ 检测到 !CHANGED_COUNT! 个文件有变化
+  echo   ✓ 目标目录已清理
   
   REM 复制新文件
   echo.
-  echo [6/6] 正在复制新文件...
+  echo   正在复制新文件...
   xcopy "!SOURCE_DIR!\*" "!TARGET_DIR!\" /E /Y /I >nul
   
   if !errorlevel! equ 0 (
+    echo   ✓ 文件复制成功
+    
+    REM 使用 p4 reconcile 自动检测变化并标记文件
+    echo.
+    echo [6/6] 正在执行 P4 reconcile...
+    p4 reconcile "!TARGET_DIR!\..."
+    
     echo.
     echo ========================================
-    echo     ✓ 文件复制成功！
+    echo     ✓ 打包完成！
     echo ========================================
     echo 目标位置: !TARGET_DIR!
+    echo 请检查 P4 pending changelist 并提交
   ) else (
     echo.
     echo ========================================

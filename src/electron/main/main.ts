@@ -1112,6 +1112,11 @@ ipcMain.handle('shell:register-excel-context-menu', async () => {
     }
 });
 
+ipcMain.handle('shell:open-external', async (_event, url: string) => {
+    const { shell } = await import('electron');
+    await shell.openExternal(url);
+});
+
 // ============ P4V 相关 IPC ============
 
 ipcMain.handle('p4:configure', async (_event, config: P4Config) => {

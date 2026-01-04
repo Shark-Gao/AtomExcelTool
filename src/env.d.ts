@@ -139,6 +139,7 @@ declare global {
     invoke: (channel: string, payload?: any) => Promise<any>
     registerExcelContextMenu: () => Promise<{ ok: boolean; error?: string }>
     onOpenExternalExcel: (callback: (filePath: string) => void) => () => void
+    openExternal: (url: string) => Promise<void>
     getLogInfo: () => Promise<{ ok: boolean; logDir?: string; logFilePath?: string; error?: string }>
   }
 

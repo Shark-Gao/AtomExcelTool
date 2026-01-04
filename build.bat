@@ -64,15 +64,33 @@ if exist release\0.0.2 (
     )
   )
   
-  REM 先 P4 checkout 目标目录下的所有文件（解除只读）
+  REM 比较并只 checkout 有变化的文件
   echo.
-  echo [5/6] 正在 P4 checkout 目标目录...
-  p4 edit "!TARGET_DIR!/..."
-  if !errorlevel! equ 0 (
-    echo   ✓ P4 checkout 成功
-  ) else (
-    echo   ⚠ P4 checkout 可能部分失败，继续复制...
+  echo [5/6] 正在检测变化的文件并 P4 checkout...
+  set CHANGED_COUNT=0
+  
+  REM 遍历源目录所有文件，比较与目标文件的差异
+  for /r "!SOURCE_DIR!" %%F in (*) do (
+    set "SRC_FILE=%%F"
+    set "REL_PATH=%%F"
+    set "REL_PATH=!REL_PATH:%SOURCE_DIR%\=!"
+    set "DST_FILE=!TARGET_DIR!\!REL_PATH!"
+    
+    REM 检查目标文件是否存在
+    if exist "!DST_FILE!" (
+      REM 使用 fc 比较文件内容
+      fc /b "!SRC_FILE!" "!DST_FILE!" >nul 2>&1
+      if !errorlevel! neq 0 (
+        REM 文件有变化，执行 p4 edit
+        p4 edit "!DST_FILE!" >nul 2>&1
+        set /a CHANGED_COUNT+=1
+      )
+    ) else (
+      REM 新文件，需要 p4 add（复制后再 add）
+      set /a CHANGED_COUNT+=1
+    )
   )
+  echo   ✓ 检测到 !CHANGED_COUNT! 个文件有变化
   
   REM 复制新文件
   echo.

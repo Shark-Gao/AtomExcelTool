@@ -121,6 +121,12 @@ export function getConstructorRawParamName(target: any, paramIndex: number): str
    */
   export function getConstructorRawParamNames(delegateClass: any): string[] {
     try {
+      // 空值检查
+      if (!delegateClass || typeof delegateClass.toString !== 'function') {
+        console.warn('[DelegateDecorators] delegateClass is null or invalid');
+        return [];
+      }
+
       const paramNames: string[] = [];
 
       const constructorStr = delegateClass.toString();

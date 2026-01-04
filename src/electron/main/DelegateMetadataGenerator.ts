@@ -186,6 +186,12 @@ export class DelegateMetadataGenerator {
     delegateClass: any
   ): ClassMetadata | null {
     try {
+      // 空值检查
+      if (!delegateClass) {
+        console.warn(`[DelegateMetadataGenerator] delegateClass is null for key: ${delegateConfigKey}`);
+        return null;
+      }
+
       // 获取类名（TypeScript 类名）
       const className = delegateClass.name;
       
@@ -558,6 +564,12 @@ export class DelegateMetadataGenerator {
     const processedClasses = new Set<string>();
 
     for (const [delegateConfigKey, delegateClass] of functionNameToDelegate) {
+      // 空值检查
+      if (!delegateClass) {
+        console.warn(`[DelegateMetadataGenerator] delegateClass is null for key: ${delegateConfigKey}`);
+        continue;
+      }
+
       const className = delegateClass.name;
 
       // 避免重复处理同一个类

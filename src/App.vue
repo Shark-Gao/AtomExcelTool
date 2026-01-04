@@ -184,6 +184,23 @@ const p4CheckoutPromptEnabled = ref(initialSettings.p4CheckoutPromptEnabled)
 const p4CheckoutDialogVisible = ref(false)
 const p4CheckoutFilePath = ref<string | null>(null)
 const p4FileStatus = ref<{ isUnderP4: boolean; isCheckedOut: boolean; action?: string } | null>(null)
+const p4ConnectionStatus = ref<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected')
+const p4ConnectionError = ref<string | null>(null)
+
+// P4 状态提示文本
+const p4StatusTooltip = computed(() => {
+  if (p4ConnectionStatus.value === 'connected') {
+    return `P4 已连接 | ${p4Settings.value.user}@${p4Settings.value.client}`
+  } else if (p4ConnectionStatus.value === 'connecting') {
+    return 'P4 连接中...'
+  } else if (p4ConnectionStatus.value === 'error') {
+    return `P4 连接失败: ${p4ConnectionError.value || '未知错误'}`
+  } else if (p4Settings.value.port && p4Settings.value.user && p4Settings.value.client) {
+    return 'P4 未连接，点击测试'
+  } else {
+    return 'P4 未配置'
+  }
+})
 
 // 字段宽度控制
 const columnWidths = reactive<Record<string, number>>({})
@@ -1045,9 +1062,13 @@ watch(p4Settings, (newValue) => {
     p4: newValue,
     p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
   })
-  // 同步配置到主进程
+  // 同步配置到主进程并检测连接状态
   if (newValue.port && newValue.user && newValue.client) {
-    (window as any).electronAPI?.invoke('p4:configure', newValue)
+    (window as any).electronAPI?.invoke('p4:configure', { ...newValue })
+    checkP4ConnectionStatus()
+  } else {
+    p4ConnectionStatus.value = 'disconnected'
+    p4ConnectionError.value = null
   }
 }, { deep: true })
 
@@ -2021,9 +2042,10 @@ onMounted(() => {
   // 启动自动保存
   startAutoSave()
   
-  // 初始化 P4 配置
+  // 初始化 P4 配置并检测连接状态
   if (p4Settings.value.port && p4Settings.value.user && p4Settings.value.client) {
-    (window as any).electronAPI?.invoke('p4:configure', p4Settings.value)
+    (window as any).electronAPI?.invoke('p4:configure', { ...p4Settings.value })
+    checkP4ConnectionStatus()
   }
   
   setTimeout(async () => {
@@ -2606,6 +2628,39 @@ function stopAutoSave() {
 
 // ============ P4V 相关函数 ============
 
+async function checkP4ConnectionStatus() {
+  // 检查 P4 是否配置
+  if (!p4Settings.value.port || !p4Settings.value.user || !p4Settings.value.client) {
+    p4ConnectionStatus.value = 'disconnected'
+    p4ConnectionError.value = null
+    return
+  }
+  
+  try {
+    p4ConnectionStatus.value = 'connecting'
+    p4ConnectionError.value = null
+    
+    const p4Bridge = (window as any).p4Bridge
+    if (!p4Bridge) {
+      p4ConnectionStatus.value = 'disconnected'
+      return
+    }
+    
+    const result = await p4Bridge.testConnection()
+    
+    if (result.success) {
+      p4ConnectionStatus.value = 'connected'
+      p4ConnectionError.value = null
+    } else {
+      p4ConnectionStatus.value = 'error'
+      p4ConnectionError.value = result.message || '连接失败'
+    }
+  } catch (error) {
+    p4ConnectionStatus.value = 'error'
+    p4ConnectionError.value = error instanceof Error ? error.message : '连接失败'
+  }
+}
+
 async function checkP4AndPromptCheckout(filePath: string) {
   // 检查 P4 是否配置
   if (!p4Settings.value.port || !p4Settings.value.user || !p4Settings.value.client) {
@@ -2706,8 +2761,53 @@ function handleP4DisablePrompt() {
               {{ lastAutoSaveTime.toLocaleTimeString() }}
             </span>
           </div>
-          <!-- 右侧按钮组：AI助手 + 设置 -->
+          <!-- 右侧按钮组：P4状态 + AI助手 + 设置 -->
           <div class="flex items-center gap-1">
+            <!-- P4 连接状态图标 -->
+            <div 
+              class="tooltip tooltip-left cursor-pointer"
+              :data-tip="p4StatusTooltip"
+              @click="checkP4ConnectionStatus"
+            >
+              <!-- 已连接 - 绿色 -->
+              <svg 
+                v-if="p4ConnectionStatus === 'connected'" 
+                xmlns="http://www.w3.org/2000/svg" 
+                class="h-5 w-5 text-success" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <!-- 连接中 - 黄色 loading -->
+              <span 
+                v-else-if="p4ConnectionStatus === 'connecting'" 
+                class="loading loading-spinner loading-sm text-warning"
+              ></span>
+              <!-- 连接失败 - 红色 -->
+              <svg 
+                v-else-if="p4ConnectionStatus === 'error'" 
+                xmlns="http://www.w3.org/2000/svg" 
+                class="h-5 w-5 text-error" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016zM12 9v2m0 4h.01" />
+              </svg>
+              <!-- 未连接/未配置 - 灰色 -->
+              <svg 
+                v-else 
+                xmlns="http://www.w3.org/2000/svg" 
+                class="h-5 w-5 text-base-content/30" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
             <!-- AI 助手按钮 -->
             <button
               class="btn btn-ghost btn-circle"

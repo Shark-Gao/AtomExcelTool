@@ -141,6 +141,10 @@ declare global {
     onOpenExternalExcel: (callback: (filePath: string) => void) => () => void
     openExternal: (url: string) => Promise<void>
     getLogInfo: () => Promise<{ ok: boolean; logDir?: string; logFilePath?: string; error?: string }>
+    // 快捷键监听
+    onOpen: (callback: () => void) => () => void
+    onSave: (callback: () => void) => () => void
+    onSaveAs: (callback: () => void) => () => void
   }
 
   // ============ AI 助手相关类型 ============

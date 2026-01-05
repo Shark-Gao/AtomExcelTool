@@ -1220,6 +1220,21 @@ function createWindow() {
             windowRef.webContents.toggleDevTools();
             event.preventDefault();
         }
+        // Ctrl+O 打开
+        if ((input.control || input.meta) && !input.shift && input.key.toLowerCase() === 'o') {
+            windowRef.webContents.send('shortcut:open');
+            event.preventDefault();
+        }
+        // Ctrl+S 保存
+        if ((input.control || input.meta) && !input.shift && input.key.toLowerCase() === 's') {
+            windowRef.webContents.send('shortcut:save');
+            event.preventDefault();
+        }
+        // Ctrl+Shift+S 另存为
+        if ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 's') {
+            windowRef.webContents.send('shortcut:save-as');
+            event.preventDefault();
+        }
     });
     
     // 初始 HTML 解析完成即显示（可看到 index.html 中的 Skeleton）

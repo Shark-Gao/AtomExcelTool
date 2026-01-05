@@ -175,7 +175,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveAtomFieldsConfig: (config: any) => ipcRenderer.invoke('config:save-atom-fields-config', config) as Promise<{
         ok: boolean;
         error?: string;
-    }>
+    }>,
+    // 快捷键监听
+    onOpen: (callback: () => void) => {
+        const handler = () => callback();
+        ipcRenderer.on('shortcut:open', handler);
+        return () => ipcRenderer.removeListener('shortcut:open', handler);
+    },
+    onSave: (callback: () => void) => {
+        const handler = () => callback();
+        ipcRenderer.on('shortcut:save', handler);
+        return () => ipcRenderer.removeListener('shortcut:save', handler);
+    },
+    onSaveAs: (callback: () => void) => {
+        const handler = () => callback();
+        ipcRenderer.on('shortcut:save-as', handler);
+        return () => ipcRenderer.removeListener('shortcut:save-as', handler);
+    }
 });
 
 // ============ P4V Bridge ============

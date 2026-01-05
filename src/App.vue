@@ -2520,6 +2520,21 @@ onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
   document.addEventListener('click', handleClickOutsideContextMenu)
   
+  // 注册快捷键监听
+  window.electronAPI?.onOpen?.(() => {
+    openWorkbookFromMainProcess()
+  })
+  window.electronAPI?.onSave?.(() => {
+    if (Object.keys(rowNameToRecord).length) {
+      saveWorkbookToDisk()
+    }
+  })
+  window.electronAPI?.onSaveAs?.(() => {
+    if (Object.keys(rowNameToRecord).length) {
+      saveWorkbookAs()
+    }
+  })
+  
   // 启动自动保存
   startAutoSave()
   
@@ -3416,7 +3431,7 @@ function handleP4DisablePrompt() {
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center">
             <div class="join">
-              <button class="btn join-item btn-primary" @click="openWorkbookFromMainProcess">打开 Excel 配置</button>
+              <button class="btn join-item btn-primary" @click="openWorkbookFromMainProcess" title="打开 Excel 配置 (Ctrl+O)">打开 Excel 配置</button>
               <!-- 最近打开文件下拉菜单 -->
               <div class="dropdown dropdown-bottom">
                 <button 
@@ -3474,8 +3489,8 @@ function handleP4DisablePrompt() {
                 </li>
               </ul>
             </div>
-            <button class="btn join-item" :disabled="!Object.keys(rowNameToRecord).length" @click="saveWorkbookToDisk">保存</button>
-            <button class="btn join-item" :disabled="!Object.keys(rowNameToRecord).length" @click="saveWorkbookAs">另存为</button>
+            <button class="btn join-item" :disabled="!Object.keys(rowNameToRecord).length" @click="saveWorkbookToDisk" title="保存 (Ctrl+S)">保存</button>
+            <button class="btn join-item" :disabled="!Object.keys(rowNameToRecord).length" @click="saveWorkbookAs" title="另存为 (Ctrl+Shift+S)">另存为</button>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-3">

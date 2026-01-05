@@ -1244,7 +1244,7 @@ app.whenReady().then(async () => {
     
     // ============ P4 自动更新检查 ============
     // 开发模式下的测试：设置为 true 可测试更新流程
-    const TEST_P4_UPDATE_IN_DEV = true;
+    const TEST_P4_UPDATE_IN_DEV = false;
     
     if (!isDev || TEST_P4_UPDATE_IN_DEV) {
         try {
@@ -1333,15 +1333,6 @@ app.whenReady().then(async () => {
         }
     }
     
-    // 初始化配置加载器
-    try {
-        const configLoader = AtomFieldsConfigLoader.getInstance();
-        await configLoader.load();
-        console.log('[main] Config loaded successfully');
-    } catch (error) {
-        const message = error instanceof Error ? error.message : '配置加载失败';
-        console.warn('[main] Config loading failed:', message);
-    }
     
     console.log('[main] Creating app window...');
     createWindow();

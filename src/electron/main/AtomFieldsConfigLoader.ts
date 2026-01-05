@@ -376,8 +376,9 @@ export class AtomFieldsConfigLoader {
   }
 
   private buildFieldRuleInfoFromMatches(matches: AtomFieldRule[]): FieldRuleInfo {
+    const baseClasses = matches.map(rule => rule.baseClass);
     return {
-      baseClasses: matches.map(rule => rule.baseClass),
+      baseClasses: baseClasses.length > 0 ? [baseClasses[0]] : [],// 兜底处理，如果有多个，说明出问题了，只拿第一个
       allowCombination: matches.some(rule => Boolean(rule.allowCombination))
     };
   }

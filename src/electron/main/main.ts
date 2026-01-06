@@ -5,6 +5,8 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import ExcelJS from 'exceljs';
+// @ts-ignore - xlsx-populate 没有类型定义
+import XlsxPopulate from 'xlsx-populate';
 import { FAtomExpressionParser } from './MHTsAtomSystemUtils';
 import {DelegateMetadataGenerator} from './DelegateMetadataGenerator';
 import { deParseJsonToExpression } from './DeParseJsonToExpression';
@@ -412,6 +414,11 @@ async function handleOpenWorkbook() {
     };
 }
 
+/**
+ * 使用 xlsx-populate 写入 Excel 文件
+ * xlsx-populate 直接操作 Excel 的 XML 结构，能完整保留原始格式
+ * 包括：条件格式、数据验证、合并单元格、图表、样式、批注等
+ */
 async function writeWorkbookToDisk(filePath: string, rows: RowRecord[], sheetName: string) {
     // Check if file is read-only, if so, set it to writable first
     if (existsSync(filePath)) {
@@ -427,51 +434,63 @@ async function writeWorkbookToDisk(filePath: string, rows: RowRecord[], sheetNam
         }
     }
 
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(filePath);
-
-    const targetWorksheet = sheetName ? workbook.getWorksheet(sheetName) : workbook.worksheets[0];
-    if (!targetWorksheet) {
+    // 使用 xlsx-populate 打开文件（完整保留所有格式）
+    const workbook = await XlsxPopulate.fromFileAsync(filePath);
+    
+    // 获取目标工作表
+    const targetSheet = sheetName ? workbook.sheet(sheetName) : workbook.sheet(0);
+    if (!targetSheet) {
         throw new Error('目标 Excel 工作簿中没有可用工作表。');
     }
 
-    const xlsxFileName = getExcelFileName(filePath);
-    const { headerRowNumber, headerLabels, rowNameColumnNumber, dataStartRow } = extractHeaderMetadata(targetWorksheet, xlsxFileName);
-
-    const headerStyleByColumn: Record<number, ExcelJS.Style> = {};
-    for (let c = 1; c <= targetWorksheet.columnCount; c += 1) {
-        headerStyleByColumn[c] = JSON.parse(JSON.stringify(targetWorksheet.getRow(headerRowNumber).getCell(c).style || {}));
+    // 使用 ExcelJS 读取元数据（表头信息等），但不用它来写入
+    const excelJsWorkbook = new ExcelJS.Workbook();
+    await excelJsWorkbook.xlsx.readFile(filePath);
+    const excelJsSheet = sheetName ? excelJsWorkbook.getWorksheet(sheetName) : excelJsWorkbook.worksheets[0];
+    if (!excelJsSheet) {
+        throw new Error('无法读取工作表元数据。');
     }
 
+    const xlsxFileName = getExcelFileName(filePath);
+    const { headerRowNumber, headerLabels, rowNameColumnNumber, dataStartRow } = extractHeaderMetadata(excelJsSheet, xlsxFileName);
+
+    // 构建列名到列号的映射
+    const columnNameToNumber = new Map<string, number>();
+    headerLabels.forEach((label, index) => {
+        columnNameToNumber.set(label, index + 1);
+    });
+
+    // 获取已使用的行数（xlsx-populate 方式）
+    const usedRange = targetSheet.usedRange();
+    let maxRowNumber = usedRange ? usedRange.endCell().rowNumber() : dataStartRow;
+
+    // 构建 rowName 到行号的映射
+    const rowNameToRowNumber = new Map<string, number>();
+    for (let r = dataStartRow; r <= maxRowNumber; r += 1) {
+        const cell = targetSheet.cell(r, rowNameColumnNumber);
+        const value = cell.value();
+        const text = value !== undefined && value !== null ? String(value).trim() : '';
+        if (text.length > 0 && !rowNameToRowNumber.has(text)) {
+            rowNameToRowNumber.set(text, r);
+        }
+    }
+
+    // 确保列存在的函数
     const ensureColumnNumber = (columnName: string): number => {
-        const existingIndex = headerLabels.findIndex((label) => label === columnName);
-        if (existingIndex !== -1) {
-            return existingIndex + 1;
+        const existing = columnNameToNumber.get(columnName);
+        if (existing !== undefined) {
+            return existing;
         }
 
-        const newColumnNumber = targetWorksheet.columnCount + 1;
-        const headerRow = targetWorksheet.getRow(headerRowNumber);
-        const headerCell = headerRow.getCell(newColumnNumber);
-        headerCell.value = columnName;
-
-        const neighborStyle = headerStyleByColumn[newColumnNumber - 1] || {};
-        headerCell.style = JSON.parse(JSON.stringify(neighborStyle));
+        // 添加新列
+        const newColumnNumber = columnNameToNumber.size + 1;
+        targetSheet.cell(headerRowNumber, newColumnNumber).value(columnName);
+        columnNameToNumber.set(columnName, newColumnNumber);
         headerLabels.push(columnName);
-        headerStyleByColumn[newColumnNumber] = JSON.parse(JSON.stringify(headerCell.style || {}));
         return newColumnNumber;
     };
 
-    const rowNameToRowNumber = new Map<string, number>();
-    for (let r = dataStartRow; r <= targetWorksheet.rowCount; r += 1) {
-        const row = targetWorksheet.getRow(r);
-        const value = (row.getCell(rowNameColumnNumber).text || '').trim();
-        if (value.length > 0 && !rowNameToRowNumber.has(value)) {
-            rowNameToRowNumber.set(value, r);
-        }
-    }
-
-    let maxRowNumber = targetWorksheet.rowCount;
-
+    // 写入数据
     rows.forEach((incomingRow) => {
         const rowName = ensureRowName(incomingRow);
         if (rowName.length === 0) {
@@ -485,21 +504,21 @@ async function writeWorkbookToDisk(filePath: string, rows: RowRecord[], sheetNam
             rowNameToRowNumber.set(rowName, targetRowNumber);
         }
 
-        const worksheetRow = targetWorksheet.getRow(targetRowNumber);
-        const rowNameCell = worksheetRow.getCell(rowNameColumnNumber);
-        rowNameCell.value = rowName;
+        // 写入 rowName
+        targetSheet.cell(targetRowNumber, rowNameColumnNumber).value(rowName);
 
+        // 写入其他列
         Object.entries(incomingRow).forEach(([columnName, value]) => {
             if (value === undefined) {
                 return;
             }
             const columnNumber = ensureColumnNumber(columnName);
-            const cell = worksheetRow.getCell(columnNumber);
-            cell.value = value;
+            targetSheet.cell(targetRowNumber!, columnNumber).value(value);
         });
     });
 
-    await workbook.xlsx.writeFile(filePath);
+    // 保存文件（xlsx-populate 会保留所有原始格式）
+    await workbook.toFileAsync(filePath);
 }
 
 async function registerExcelContextMenu() {

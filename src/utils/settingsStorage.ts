@@ -29,7 +29,7 @@ export interface AppSettings {
 }
 
 const SETTINGS_STORAGE_KEY = 'mhatomexceltool_settings'
-const MAX_RECENT_FILES = 10  // 最多保存10个最近文件
+const MAX_RECENT_FILES = 20  // 最多保存20个最近文件
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dracula_custom',

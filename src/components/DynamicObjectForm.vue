@@ -203,6 +203,26 @@ async function updateRootClassWithNumber(newClassName: string, numberValue: numb
   isHydrating.value = false
 }
 
+/** 处理布尔快捷输入选择 BoolValueConstDelegate 的情况 */
+async function updateRootClassWithBoolean(newClassName: string, boolValue: boolean) {
+  if (newClassName !== 'BoolValueConstDelegate') {
+    return updateRootClass(newClassName)
+  }
+  
+  const normalized = normalizeClassInstance(newClassName, { BoolConst: boolValue })
+
+  isHydrating.value = true
+  setLocalValue(normalized)
+  
+  emit(
+    'update:modelValue',
+    JSON.parse(JSON.stringify(localValue)) as Record<string, unknown>
+  )
+
+  await nextTick()
+  isHydrating.value = false
+}
+
 function getArrayItems(fieldKey: string): any[] {
   const value = localValue[fieldKey]
   if (!Array.isArray(value)) {
@@ -723,6 +743,7 @@ function revertAllFieldsToDefault() {
           class="flex-1 text-xs"
           @update:model-value="(value) => updateRootClass(value)"
           @select-with-number="(className, numberValue) => updateRootClassWithNumber(className, numberValue)"
+          @select-with-boolean="(className, boolValue) => updateRootClassWithBoolean(className, boolValue)"
         />
         <span v-else class="text-xs font-medium text-base-content/80 flex-1">{{ classInfo.displayName }}</span>
         <!-- 撤销/重做按钮（仅根节点显示） -->
@@ -785,6 +806,7 @@ function revertAllFieldsToDefault() {
                 <div class="w-[120px] shrink-0 flex items-center gap-1">
                   <span class="w-5 shrink-0"></span>
                   <span class="text-xs text-base-content/70 truncate" :title="fieldMeta.label">{{ fieldMeta.label }}</span>
+                  <span v-if="fieldMeta.isOptional" class="badge badge-xs badge-outline badge-info shrink-0" title="可选参数">可选</span>
                 </div>
                 <div class="flex-1 min-w-0 flex items-center gap-1">
                   <!-- 选择 - 使用 daisyUI dropdown -->
@@ -852,6 +874,7 @@ function revertAllFieldsToDefault() {
                   </button>
                   <span v-else class="w-5 shrink-0"></span>
                   <span class="text-xs text-base-content/70 truncate" :title="fieldMeta.label">{{ fieldMeta.label }}</span>
+                  <span v-if="fieldMeta.isOptional" class="badge badge-xs badge-outline badge-info shrink-0" title="可选参数">可选</span>
                 </div>
                 <div class="flex-1 min-w-0 flex items-center gap-1">
                   <SearchableAtomSelect
@@ -875,6 +898,12 @@ function revertAllFieldsToDefault() {
                     @select-with-number="(className, numberValue) => {
                       if (className === 'NumberValueConstDelegate') {
                         const normalized = normalizeClassInstance(className, { Constant: numberValue })
+                        localValue[fieldKey] = normalized
+                      }
+                    }"
+                    @select-with-boolean="(className, boolValue) => {
+                      if (className === 'BoolValueConstDelegate') {
+                        const normalized = normalizeClassInstance(className, { BoolConst: boolValue })
                         localValue[fieldKey] = normalized
                       }
                     }"
@@ -931,6 +960,7 @@ function revertAllFieldsToDefault() {
                     <span class="text-[10px] transition-transform" :class="{ 'rotate-90': isSectionExpanded(fieldKey) }">▶</span>
                   </button>
                   <span class="text-xs text-base-content/70 truncate" :title="fieldMeta.label">{{ fieldMeta.label }}</span>
+                  <span v-if="fieldMeta.isOptional" class="badge badge-xs badge-outline badge-info shrink-0" title="可选参数">可选</span>
                 </div>
                 <div class="flex-1 min-w-0 flex items-center gap-8">
                   <span class="text-xs text-base-content/50">{{ getArrayItems(fieldKey).length }} Array Elements</span>
@@ -1018,6 +1048,12 @@ function revertAllFieldsToDefault() {
                               @select-with-number="(className, numberValue) => {
                                 if (className === 'NumberValueConstDelegate') {
                                   const normalized = normalizeClassInstance(className, { Constant: numberValue })
+                                  updateArrayItemValue(fieldKey as string, index, normalized)
+                                }
+                              }"
+                              @select-with-boolean="(className, boolValue) => {
+                                if (className === 'BoolValueConstDelegate') {
+                                  const normalized = normalizeClassInstance(className, { BoolConst: boolValue })
                                   updateArrayItemValue(fieldKey as string, index, normalized)
                                 }
                               }"

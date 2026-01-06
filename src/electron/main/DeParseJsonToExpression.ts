@@ -125,8 +125,25 @@ function buildFunctionCall(functionName: string, className: string, jsonObject: 
   const fields = ClassMetadata.fields;//getConstructorParamNames(delegateClass);
   const params: DeParseExpressonType[] = [];
 
+  // 从后往前检查，找出末尾连续的可选且为空/默认值的参数数量
+  let trailingOptionalCount = 0;
+  for (let i = fields.length - 1; i >= 0; i--) {
+    const field = fields[i];
+    const paramValue = jsonObject[field.key];
+    
+    if (field.isOptional && isEmptyOrDefaultValue(paramValue, field)) {
+      trailingOptionalCount++;
+    } else {
+      break;
+    }
+  }
+
+  // 实际需要处理的字段数量
+  const effectiveFieldCount = fields.length - trailingOptionalCount;
+
   // 为每个参数生成表达式
-  for (const field of fields) {
+  for (let i = 0; i < effectiveFieldCount; i++) {
+    const field = fields[i];
     const paramValue = jsonObject[field.key];
 
     if (paramValue === undefined || paramValue === null) {
@@ -171,6 +188,44 @@ function buildFunctionCall(functionName: string, className: string, jsonObject: 
   }
   
   return {expression:`${functionName}(${paramExpressions.join(', ')})`, expressionDesc:expressionDesc};
+}
+
+/**
+ * 判断参数值是否为空或默认值
+ */
+function isEmptyOrDefaultValue(value: any, field: any): boolean {
+  // undefined 或 null 视为空
+  if (value === undefined || value === null) {
+    return true;
+  }
+
+  // 数组：空数组视为默认值
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+
+  // 对象：检查 _ClassName 是否为空
+  if (typeof value === 'object') {
+    const className = value._ClassName;
+    return !className || className === '';
+  }
+
+  // 字符串：空字符串视为默认值
+  if (typeof value === 'string') {
+    return value === '';
+  }
+
+  // 数字：0 视为默认值
+  if (typeof value === 'number') {
+    return value === 0;
+  }
+
+  // 布尔值：false 视为默认值
+  if (typeof value === 'boolean') {
+    return value === false;
+  }
+
+  return false;
 }
 
 function isCombineActionsFunction(functionName: string, className: string): boolean {

@@ -12,6 +12,7 @@ export type SearchableSelectOption = {
 type GroupedOption = SearchableSelectOption & { 
   highlightedLabel: string
   isNumberShortcut?: boolean
+  isBooleanShortcut?: boolean
   category?: string
   author?: string
 }
@@ -43,6 +44,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
   /** 当用户输入数字并选择 NumberValueConstDelegate 时，传递输入的数字值 */
   'select-with-number': [className: string, numberValue: number]
+  /** 当用户输入布尔值并选择 BoolValueConstDelegate 时，传递输入的布尔值 */
+  'select-with-boolean': [className: string, boolValue: boolean]
 }>()
 
 const rootRef = ref<HTMLElement | null>(null)
@@ -125,6 +128,23 @@ const shouldShowNumberConstShortcut = computed(() => {
   )
 })
 
+/** 检测搜索词是否为布尔值 */
+const parsedBooleanValue = computed<boolean | null>(() => {
+  const trimmed = searchTerm.value.trim().toLowerCase()
+  if (trimmed === 'true' || trimmed === '1') return true
+  if (trimmed === 'false' || trimmed === '0') return false
+  return null
+})
+
+/** 是否应该显示 BoolValueConstDelegate 快捷选项 */
+const shouldShowBoolConstShortcut = computed(() => {
+  return (
+    parsedBooleanValue.value !== null &&
+    props.baseClass === 'BoolValueDelegate' &&
+    props.options.some(opt => opt.value === 'BoolValueConstDelegate')
+  )
+})
+
 /** 获取选项的分类和作者信息 */
 function getOptionMeta(optionValue: string): { category?: string; author?: string } {
   const info = props.registry[optionValue]
@@ -148,6 +168,24 @@ const filteredOptions = computed<GroupedOption[]>(() => {
         ...numberConstOption,
         highlightedLabel,
         isNumberShortcut: true,
+        category: meta.category,
+        author: meta.author
+      }]
+    }
+  }
+  
+  // 如果应该显示布尔常量快捷选项
+  if (shouldShowBoolConstShortcut.value) {
+    const boolConstOption = props.options.find(opt => opt.value === 'BoolValueConstDelegate')
+    if (boolConstOption) {
+      const displayLabel = `${boolConstOption.label}_${boolConstOption.funcName ?? 'BoolValueConst'}`
+      const boolDisplayValue = parsedBooleanValue.value ? 'true' : 'false'
+      const highlightedLabel = `<span class="text-primary font-semibold">${boolDisplayValue}</span> → ${displayLabel}`
+      const meta = getOptionMeta(boolConstOption.value)
+      return [{
+        ...boolConstOption,
+        highlightedLabel,
+        isBooleanShortcut: true,
         category: meta.category,
         author: meta.author
       }]
@@ -321,7 +359,7 @@ function resetKeyboardNavigation() {
   )
 }
 
-function selectOption(value: string, isNumberShortcut?: boolean) {
+function selectOption(value: string, isNumberShortcut?: boolean, isBooleanShortcut?: boolean) {
   if (props.disabled) {
     return
   }
@@ -329,6 +367,11 @@ function selectOption(value: string, isNumberShortcut?: boolean) {
   // 如果是数字快捷方式选择 NumberValueConstDelegate，额外 emit 数字值
   if (isNumberShortcut && value === 'NumberValueConstDelegate' && parsedNumberValue.value !== null) {
     emit('select-with-number', value, parsedNumberValue.value)
+  }
+  
+  // 如果是布尔快捷方式选择 BoolValueConstDelegate，额外 emit 布尔值
+  if (isBooleanShortcut && value === 'BoolValueConstDelegate' && parsedBooleanValue.value !== null) {
+    emit('select-with-boolean', value, parsedBooleanValue.value)
   }
   
   emit('update:modelValue', value)
@@ -383,7 +426,7 @@ function handleKeydown(event: KeyboardEvent) {
       // const targetIndex = keyboardState.activeIndex >= 0 ? keyboardState.activeIndex : 0
       // if (targetIndex < total) {
         const option = flatVisibleOptions.value[0]
-        selectOption(option.value, option.isNumberShortcut)
+        selectOption(option.value, option.isNumberShortcut, option.isBooleanShortcut)
       // }
       break
     }
@@ -534,7 +577,7 @@ onBeforeUnmount(() => {
                   }"
                   @mousemove="updateTooltipPosition"
                   @mouseleave="clearHoveredValue"
-                  @mousedown.prevent="selectOption(option.value, option.isNumberShortcut)"
+                  @mousedown.prevent="selectOption(option.value, option.isNumberShortcut, option.isBooleanShortcut)"
                 >
                   <span v-html="option.highlightedLabel"></span>
                 </li>
@@ -559,7 +602,7 @@ onBeforeUnmount(() => {
               }"
               @mousemove="updateTooltipPosition"
               @mouseleave="clearHoveredValue"
-              @mousedown.prevent="selectOption(option.value, option.isNumberShortcut)"
+              @mousedown.prevent="selectOption(option.value, option.isNumberShortcut, option.isBooleanShortcut)"
             >
               <span v-html="option.highlightedLabel"></span>
             </li>

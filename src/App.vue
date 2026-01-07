@@ -769,31 +769,90 @@ function applyNormalizedObject(normalized: ParsedClassObject) {
   syncMockObjectValueFromJson()
 }
 
-async function applyNormalizedObjectByColumnName(normalized: ParsedClassObject, updateColumnName: string) {
-  if (selectedRowName.value && window.delegateBridge) {
-    try {
-      const result = await window.delegateBridge.deParseJsonToExpression({ json: normalized });
-      if (result.ok && result.expression) {
-        if (!conditionFieldsMap[selectedRowName.value]) {
-          conditionFieldsMap[selectedRowName.value] = {}
-        }
-        conditionFieldsMap[selectedRowName.value][updateColumnName] = {
-          raw: result.expression.expression,
-          parsed: normalized,
-          json: JSON.stringify(normalized, null, 2),
-          expressionDesc: result.expression.expressionDesc
-        }
-        editableRecord[updateColumnName] = result.expression.expression
-        
-      } else {
-        expressionParseError.value = '反向解析失败:' + result.error
-        console.error('Reverse parse failed:', result.error);
+// ============ 表达式刷新防抖管理 ============
+const EXPRESSION_REFRESH_DEBOUNCE_MS = 300
+const expressionRefreshTimers = reactive<Record<string, ReturnType<typeof setTimeout>>>({})
+const expressionRefreshPending = reactive<Record<string, { normalized: ParsedClassObject; rowName: string }>>({})
+
+/**
+ * 立即执行表达式刷新（内部方法）
+ */
+async function executeExpressionRefresh(updateColumnName: string, normalized: ParsedClassObject, rowName: string) {
+  if (!window.delegateBridge) return
+  
+  try {
+    // 将响应式对象转换为纯 JSON，避免 IPC 序列化错误
+    const plainJson = JSON.parse(JSON.stringify(normalized))
+    const result = await window.delegateBridge.deParseJsonToExpression({ json: plainJson });
+    if (result.ok && result.expression) {
+      if (!conditionFieldsMap[rowName]) {
+        conditionFieldsMap[rowName] = {}
       }
-    } catch (error) {
-      expressionParseError.value = '调用反向解析接口失败:' + error
-      console.error('Reverse parse API call failed:', error);
+      conditionFieldsMap[rowName][updateColumnName] = {
+        raw: result.expression.expression,
+        parsed: normalized,
+        json: JSON.stringify(normalized, null, 2),
+        expressionDesc: result.expression.expressionDesc
+      }
+      editableRecord[updateColumnName] = result.expression.expression
+      
+      // 同步更新 expressionEditState，确保 UI 立即刷新
+      if (expressionEditState[updateColumnName]) {
+        expressionEditState[updateColumnName].value = result.expression.expression
+      }
+      
+    } else {
+      expressionParseError.value = '反向解析失败:' + result.error
+      console.error('Reverse parse failed:', result.error);
     }
+  } catch (error) {
+    expressionParseError.value = '调用反向解析接口失败:' + error
+    console.error('Reverse parse API call failed:', error);
   }
+}
+
+/**
+ * 带防抖的表达式刷新
+ * 修改原子控件后延迟刷新表达式，防止频繁触发
+ */
+async function applyNormalizedObjectByColumnName(normalized: ParsedClassObject, updateColumnName: string) {
+  if (!selectedRowName.value || !window.delegateBridge) return
+  
+  const rowName = selectedRowName.value
+  
+  // 先立即更新 parsed 对象（UI 响应）
+  if (!conditionFieldsMap[rowName]) {
+    conditionFieldsMap[rowName] = {}
+  }
+  if (!conditionFieldsMap[rowName][updateColumnName]) {
+    conditionFieldsMap[rowName][updateColumnName] = {
+      raw: '',
+      parsed: normalized,
+      json: JSON.stringify(normalized, null, 2),
+      expressionDesc: ''
+    }
+  } else {
+    conditionFieldsMap[rowName][updateColumnName].parsed = normalized
+    conditionFieldsMap[rowName][updateColumnName].json = JSON.stringify(normalized, null, 2)
+  }
+  
+  // 清除之前的定时器
+  if (expressionRefreshTimers[updateColumnName]) {
+    clearTimeout(expressionRefreshTimers[updateColumnName])
+  }
+  
+  // 存储待刷新的数据
+  expressionRefreshPending[updateColumnName] = { normalized, rowName }
+  
+  // 设置新的防抖定时器
+  expressionRefreshTimers[updateColumnName] = setTimeout(async () => {
+    const pending = expressionRefreshPending[updateColumnName]
+    if (pending) {
+      await executeExpressionRefresh(updateColumnName, pending.normalized, pending.rowName)
+      delete expressionRefreshPending[updateColumnName]
+    }
+    delete expressionRefreshTimers[updateColumnName]
+  }, EXPRESSION_REFRESH_DEBOUNCE_MS)
 }
 
 /**

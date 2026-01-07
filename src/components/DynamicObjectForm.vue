@@ -1,11 +1,71 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch, inject, provide } from 'vue'
 import { normalizeClassInstance as normalizeClassInstanceUtil } from '../utils/ClassNormalizer'
 import { ClassRegistry, FieldMeta, isBaseClassNative, BaseClassType, resolveFieldMetaTypeByValue, fieldMetaSupportsType, ElementTypeInfo } from '../types/MetaDefine'
 import SearchableAtomSelect from './SearchableAtomSelect.vue'
 import PrimitiveInput, { type PrimitiveType } from './PrimitiveInput.vue'
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object' | 'array'
+
+// ============ 属性名/编辑控件比例布局（类似 UE5 Detail 面板） ============
+const DEFAULT_LABEL_RATIO = 0.35 // 默认属性名占比 35%
+const MIN_LABEL_RATIO = 0.15
+const MAX_LABEL_RATIO = 0.6
+
+// 从父组件注入或使用本地状态
+const injectedLabelRatio = inject<{ value: number }>('labelRatio', null)
+const localLabelRatio = ref(DEFAULT_LABEL_RATIO)
+
+// 实际使用的比例（优先使用注入的值）
+const labelRatio = computed({
+  get: () => injectedLabelRatio?.value ?? localLabelRatio.value,
+  set: (val) => {
+    if (injectedLabelRatio) {
+      injectedLabelRatio.value = val
+    } else {
+      localLabelRatio.value = val
+    }
+  }
+})
+
+// 为子组件提供比例值
+provide('labelRatio', injectedLabelRatio ?? localLabelRatio)
+
+// 拖拽分隔条状态
+const isDraggingSplitter = ref(false)
+const splitterContainerRef = ref<HTMLElement | null>(null)
+
+function startSplitterDrag(event: MouseEvent) {
+  if (props.readonly) return
+  event.preventDefault()
+  isDraggingSplitter.value = true
+  document.addEventListener('mousemove', handleSplitterDrag)
+  document.addEventListener('mouseup', stopSplitterDrag)
+}
+
+function handleSplitterDrag(event: MouseEvent) {
+  if (!isDraggingSplitter.value || !splitterContainerRef.value) return
+  
+  const container = splitterContainerRef.value
+  const rect = container.getBoundingClientRect()
+  const relativeX = event.clientX - rect.left
+  const containerWidth = rect.width
+  
+  if (containerWidth > 0) {
+    let newRatio = relativeX / containerWidth
+    newRatio = Math.max(MIN_LABEL_RATIO, Math.min(MAX_LABEL_RATIO, newRatio))
+    labelRatio.value = newRatio
+  }
+}
+
+function stopSplitterDrag() {
+  isDraggingSplitter.value = false
+  document.removeEventListener('mousemove', handleSplitterDrag)
+  document.removeEventListener('mouseup', stopSplitterDrag)
+}
+
+// 计算属性名宽度样式
+const labelWidthStyle = computed(() => `${labelRatio.value * 100}%`)
 
 // ============ 撤销/重做历史记录管理 ============
 const MAX_HISTORY_SIZE = 50
@@ -616,6 +676,10 @@ onUnmounted(() => {
   if (props.isRoot) {
     document.removeEventListener('keydown', handleKeyboardShortcut)
   }
+  // 清理拖拽事件监听
+  if (isDraggingSplitter.value) {
+    stopSplitterDrag()
+  }
 })
 
 /**
@@ -784,6 +848,7 @@ function revertAllFieldsToDefault() {
       <!-- 属性列表 -->
       <Transition name="fade" mode="out-in">
         <div 
+          ref="splitterContainerRef"
           v-show="!(props.isRoot || props.isArrayElement) || !isHeaderCollapsed()" 
           class="divide-y divide-base-200"
           :class="{ 'ml-4 border-l border-base-300': props.isRoot || props.isArrayElement }"
@@ -800,15 +865,21 @@ function revertAllFieldsToDefault() {
                           isFieldTypeActive(fieldKey, fieldMeta, 'boolean') || 
                           isFieldTypeActive(fieldKey, fieldMeta, 'select')">
               <div 
-                class="flex items-center gap-2 px-2 py-1 min-h-[28px]"
+                class="flex items-center px-2 py-1 min-h-[28px]"
                 @contextmenu="showContextMenu($event, 'field', { fieldKey: fieldKey as string, hasExpandButton: false })"
               >
-                <div class="w-[120px] shrink-0 flex items-center gap-1">
+                <div class="shrink-0 flex items-center gap-1 pr-1 overflow-hidden" :style="{ width: labelWidthStyle }">
                   <span class="w-5 shrink-0"></span>
                   <span class="text-xs text-base-content/70 truncate" :title="fieldMeta.label">{{ fieldMeta.label }}</span>
                   <span v-if="fieldMeta.isOptional" class="badge badge-xs badge-outline badge-info shrink-0" title="可选参数">可选</span>
                 </div>
-                <div class="flex-1 min-w-0 flex items-center gap-1">
+                <!-- 可拖拽分隔条 -->
+                <div 
+                  class="w-[3px] h-full min-h-[20px] cursor-col-resize bg-base-300 hover:bg-primary transition-colors shrink-0 rounded-sm"
+                  :class="{ 'bg-primary': isDraggingSplitter }"
+                  @mousedown="startSplitterDrag"
+                ></div>
+                <div class="flex-1 min-w-0 flex items-center gap-1 pl-1">
                   <!-- 选择 - 使用 daisyUI dropdown -->
                   <details 
                     v-if="isFieldTypeActive(fieldKey, fieldMeta, 'select')"
@@ -856,14 +927,14 @@ function revertAllFieldsToDefault() {
             <!-- 对象类型 -->
             <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'object')">
               <div 
-                class="flex items-center gap-2 px-2 py-1 min-h-[28px]"
+                class="flex items-center px-2 py-1 min-h-[28px]"
                 @contextmenu="showContextMenu($event, 'field', { 
                   fieldKey: fieldKey as string, 
                   hasExpandButton: hasFieldsForClass((localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName as string), 
                   className: ((localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName as string) 
                 })"
               >
-                <div class="w-[120px] shrink-0 flex items-center gap-1">
+                <div class="shrink-0 flex items-center gap-1 pr-1 overflow-hidden" :style="{ width: labelWidthStyle }">
                   <button
                     v-if="hasFieldsForClass((localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName as string)"
                     type="button"
@@ -876,7 +947,13 @@ function revertAllFieldsToDefault() {
                   <span class="text-xs text-base-content/70 truncate" :title="fieldMeta.label">{{ fieldMeta.label }}</span>
                   <span v-if="fieldMeta.isOptional" class="badge badge-xs badge-outline badge-info shrink-0" title="可选参数">可选</span>
                 </div>
-                <div class="flex-1 min-w-0 flex items-center gap-1">
+                <!-- 可拖拽分隔条 -->
+                <div 
+                  class="w-[3px] h-full min-h-[20px] cursor-col-resize bg-base-300 hover:bg-primary transition-colors shrink-0 rounded-sm"
+                  :class="{ 'bg-primary': isDraggingSplitter }"
+                  @mousedown="startSplitterDrag"
+                ></div>
+                <div class="flex-1 min-w-0 flex items-center gap-1 pl-1">
                   <SearchableAtomSelect
                     v-if="getSubclassOptions(fieldMeta.baseClass).length && !readonly"
                     :model-value="((localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName as string) ?? ''"
@@ -948,10 +1025,10 @@ function revertAllFieldsToDefault() {
             <!-- 数组类型 -->
             <template v-else-if="isFieldTypeActive(fieldKey, fieldMeta, 'array')">
               <div 
-                class="flex items-center gap-2 px-2 py-1 min-h-7"
+                class="flex items-center px-2 py-1 min-h-7"
                 @contextmenu="showContextMenu($event, 'field', { fieldKey: fieldKey as string, hasExpandButton: true })"
               >
-                <div class="w-[120px] shrink-0 flex items-center gap-1">
+                <div class="shrink-0 flex items-center gap-1 pr-1 overflow-hidden" :style="{ width: labelWidthStyle }">
                   <button
                     type="button"
                     class="btn btn-ghost btn-xs p-0 min-h-0 h-5 w-5"
@@ -962,7 +1039,13 @@ function revertAllFieldsToDefault() {
                   <span class="text-xs text-base-content/70 truncate" :title="fieldMeta.label">{{ fieldMeta.label }}</span>
                   <span v-if="fieldMeta.isOptional" class="badge badge-xs badge-outline badge-info shrink-0" title="可选参数">可选</span>
                 </div>
-                <div class="flex-1 min-w-0 flex items-center gap-8">
+                <!-- 可拖拽分隔条 -->
+                <div 
+                  class="w-[3px] h-full min-h-[20px] cursor-col-resize bg-base-300 hover:bg-primary transition-colors shrink-0 rounded-sm"
+                  :class="{ 'bg-primary': isDraggingSplitter }"
+                  @mousedown="startSplitterDrag"
+                ></div>
+                <div class="flex-1 min-w-0 flex items-center gap-8 pl-1">
                   <span class="text-xs text-base-content/50">{{ getArrayItems(fieldKey).length }} Array Elements</span>
                   <div v-if="!readonly" class="flex items-center gap-3">
                     <button

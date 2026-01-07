@@ -465,12 +465,21 @@ export async function checkExeUpdateWithoutConfig(exePath: string): Promise<{
 /**
  * 打开 CMD 窗口执行 P4 sync 命令
  * 使用 start 命令启动独立的 CMD 窗口，确保父进程退出后子进程仍能运行
+ * 同步完成后提示用户按 Enter 重启工具
  */
-export function openCmdForP4Sync(dirPath: string): void {
+export function openCmdForP4Sync(dirPath: string, exePath?: string): void {
     const { exec } = require('child_process');
     
-    // 构建 p4 sync 命令，先显示更新提示，再执行同步
-    const syncCommand = `echo 正在更新 MHAtomExcelTool，请稍候... && echo. && p4 sync "${dirPath}/..." && echo. && echo 更新完成，请重新启动工具。`;
+    // 构建 p4 sync 命令，同步后提示重启
+    // chcp 65001 设置 UTF-8 编码以正确显示中文
+    let syncCommand: string;
+    if (exePath) {
+        // 有 exe 路径时，提示重启并自动打开
+        syncCommand = `chcp 65001 >nul && echo 正在更新 MHAtomExcelTool，请稍候... && echo. && p4 sync "${dirPath}/..." && echo. && echo 更新完成！ && echo. && set /p confirm=按 Enter 键重启工具... && start "" "${exePath}"`;
+    } else {
+        // 没有 exe 路径时，只提示完成
+        syncCommand = `chcp 65001 >nul && echo 正在更新 MHAtomExcelTool，请稍候... && echo. && p4 sync "${dirPath}/..." && echo. && echo 更新完成，请重新启动工具。`;
+    }
     
     // 使用 start 命令在新窗口中运行，完全独立于父进程
     // start "" 启动新窗口，/D 设置工作目录，cmd /K 保持窗口打开
@@ -486,4 +495,89 @@ export function openCmdForP4Sync(dirPath: string): void {
     });
     
     console.log('[P4Service] Opened independent CMD for sync:', syncCommand);
+}
+
+/**
+ * 获取文件的 P4 提交历史描述
+ * 返回从 haveRev+1 到 headRev 之间的所有提交描述
+ */
+export async function getFileChangeDescriptions(
+    filePath: string, 
+    fromRev?: string, 
+    toRev?: string
+): Promise<{ success: boolean; descriptions: string[]; message: string }> {
+    try {
+        // 构建版本范围，如果没有指定则获取最新的几条
+        let fileSpec = `"${filePath}"`;
+        if (fromRev && toRev) {
+            // 获取 fromRev+1 到 toRev 的变更
+            const fromRevNum = parseInt(fromRev, 10) + 1;
+            const toRevNum = parseInt(toRev, 10);
+            if (fromRevNum <= toRevNum) {
+                fileSpec = `"${filePath}#${fromRevNum},#${toRevNum}"`;
+            }
+        }
+        
+        // 使用 p4 filelog 获取文件历史
+        // chcp 65001 设置控制台为 UTF-8 编码，确保中文正确显示
+        // 不限制条数，获取指定版本范围内的所有提交记录
+        const command = `chcp 65001 >nul && p4 filelog -l ${fileSpec}`;
+        console.log('[P4Service] Getting file change descriptions:', command);
+        
+        const { stdout } = await execAsync(command, {
+            cwd: dirname(filePath),
+            timeout: 15000,
+            encoding: 'utf8'
+        });
+
+        const descriptions: string[] = [];
+        const lines = stdout.split('\n');
+        
+        let currentDesc = '';
+        let inDescription = false;
+        
+        for (const line of lines) {
+            const trimmedLine = line.replace(/\r$/, '');
+            
+            // 匹配变更行: "... #rev change xxx on date by user@client (type) 'description'"
+            // 或多行描述
+            if (trimmedLine.startsWith('... #')) {
+                // 保存之前的描述
+                if (currentDesc) {
+                    descriptions.push(currentDesc.trim());
+                }
+                
+                // 提取单行描述（如果有）
+                const descMatch = trimmedLine.match(/'(.+)'$/);
+                if (descMatch) {
+                    currentDesc = descMatch[1];
+                    inDescription = false;
+                } else {
+                    currentDesc = '';
+                    inDescription = true;
+                }
+            } else if (inDescription && trimmedLine.startsWith('\t')) {
+                // 多行描述以 tab 开头
+                currentDesc += (currentDesc ? '\n' : '') + trimmedLine.trim();
+            }
+        }
+        
+        // 保存最后一条描述
+        if (currentDesc) {
+            descriptions.push(currentDesc.trim());
+        }
+
+        return {
+            success: true,
+            descriptions,
+            message: descriptions.length > 0 ? `获取到 ${descriptions.length} 条提交记录` : '没有找到提交记录'
+        };
+    } catch (error: any) {
+        console.error('[P4Service] getFileChangeDescriptions error:', error.message);
+        return {
+            success: false,
+            descriptions: [],
+            message: `获取提交记录失败: ${error.message}`
+        };
+    }
 }

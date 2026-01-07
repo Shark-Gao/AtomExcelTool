@@ -14,7 +14,7 @@ import { AtomFieldsConfigLoader } from './AtomFieldsConfigLoader';
 import { LogManager } from './LogManager';
 import { initHunyuanService, getHunyuanService, HunyuanConfig } from './HunyuanService';
 import { initDeepSeekService, getDeepSeekService, DeepSeekConfig } from './DeepSeekService';
-import { initP4Service, getP4Config, isP4Configured, testP4Connection, isFileUnderP4, checkoutFile, getFileStatus, P4Config, checkExeUpdateWithoutConfig, openCmdForP4Sync } from './P4Service';
+import { initP4Service, getP4Config, isP4Configured, testP4Connection, isFileUnderP4, checkoutFile, getFileStatus, P4Config, checkExeUpdateWithoutConfig, openCmdForP4Sync, getFileChangeDescriptions } from './P4Service';
 // import { runAllTests } from './DeParseJsonToExpression.test';
 
 
@@ -71,6 +71,307 @@ type WorkbookScanPayload = {
 const ROW_NAME_IDENTIFIER = 'rowname';
 
 const isDev = !app.isPackaged;
+
+/**
+ * P4 更新对话框的配置参数
+ */
+interface P4UpdateDialogOptions {
+    hasUpdate: boolean;
+    isUnderP4: boolean;
+    message: string;
+    haveRev?: string;
+    headRev?: string;
+    exeDir: string;
+    filePath: string;
+    changeDescriptions: string[];
+    isDevMode: boolean;
+}
+
+/**
+ * 显示 P4 更新对话框（带滚动条的自定义窗口）
+ * @returns 用户选择的操作: 'update' | 'later'
+ */
+async function showP4UpdateDialog(options: P4UpdateDialogOptions): Promise<'update' | 'later'> {
+    const {
+        hasUpdate,
+        isUnderP4,
+        message,
+        haveRev,
+        headRev,
+        exeDir,
+        filePath,
+        changeDescriptions,
+        isDevMode
+    } = options;
+
+    const updateWindow = new BrowserWindow({
+        width: 500,
+        height: 450,
+        minWidth: 400,
+        minHeight: 350,
+        resizable: true,
+        minimizable: false,
+        maximizable: false,
+        alwaysOnTop: true,
+        title: isDevMode ? '[DEV TEST] P4 更新检查' : '发现新版本',
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+        }
+    });
+    
+    updateWindow.setMenu(null);
+    
+    // 构建 HTML 内容
+    const titleText = hasUpdate ? '工具有新版本可用' : (isUnderP4 ? '已是最新版本' : 'P4 检查结果');
+    const versionInfo = hasUpdate 
+        ? message 
+        : `当前已是最新版本<br>本地版本: #${haveRev}<br>服务器版本: #${headRev}`;
+    const dirInfo = isUnderP4 ? `工具目录: ${exeDir}` : `检查路径: ${filePath}`;
+    
+    const changelogHtml = changeDescriptions.length > 0 
+        ? `<div class="changelog-section">
+            <div class="changelog-title">📋 更新内容 (${changeDescriptions.length} 条提交):</div>
+            <div class="changelog-list">
+                ${changeDescriptions.map((d, i) => `<div class="changelog-item">${i + 1}. ${d.replace(/\n/g, '<br>&nbsp;&nbsp;&nbsp;')}</div>`).join('')}
+            </div>
+           </div>`
+        : '';
+    
+    const showUpdateButton = hasUpdate || isDevMode;
+    const primaryBtnText = hasUpdate ? '更新' : '测试打开CMD';
+    const secondaryBtnText = hasUpdate ? '稍后' : '关闭';
+    
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+                padding: 20px;
+                background: #f5f5f5;
+                color: #333;
+                display: flex;
+                flex-direction: column;
+                height: 100vh;
+            }
+            .header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 15px;
+            }
+            .icon {
+                width: 48px;
+                height: 48px;
+                margin-right: 15px;
+                background: #0078d4;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 24px;
+            }
+            .title {
+                font-size: 18px;
+                font-weight: 600;
+            }
+            .info-section {
+                background: white;
+                border-radius: 8px;
+                padding: 12px 15px;
+                margin-bottom: 15px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .version-info {
+                font-size: 14px;
+                line-height: 1.6;
+                color: #444;
+            }
+            .dir-info {
+                font-size: 12px;
+                color: #666;
+                margin-top: 8px;
+                word-break: break-all;
+            }
+            .changelog-section {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+                background: white;
+                border-radius: 8px;
+                padding: 12px 15px;
+                margin-bottom: 15px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .changelog-title {
+                font-size: 14px;
+                font-weight: 600;
+                margin-bottom: 10px;
+                color: #0078d4;
+            }
+            .changelog-list {
+                flex: 1;
+                overflow-y: auto;
+                font-size: 13px;
+                line-height: 1.6;
+                padding-right: 5px;
+            }
+            .changelog-list::-webkit-scrollbar {
+                width: 6px;
+            }
+            .changelog-list::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 3px;
+            }
+            .changelog-list::-webkit-scrollbar-thumb {
+                background: #c1c1c1;
+                border-radius: 3px;
+            }
+            .changelog-list::-webkit-scrollbar-thumb:hover {
+                background: #a1a1a1;
+            }
+            .changelog-item {
+                padding: 6px 0;
+                border-bottom: 1px solid #eee;
+            }
+            .changelog-item:last-child {
+                border-bottom: none;
+            }
+            .footer {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                padding-top: 5px;
+            }
+            .footer-hint {
+                flex: 1;
+                font-size: 12px;
+                color: #666;
+                align-self: center;
+            }
+            .btn {
+                padding: 8px 20px;
+                border: none;
+                border-radius: 4px;
+                font-size: 14px;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            .btn-primary {
+                background: #0078d4;
+                color: white;
+            }
+            .btn-primary:hover {
+                background: #006cbd;
+            }
+            .btn-secondary {
+                background: #e1e1e1;
+                color: #333;
+            }
+            .btn-secondary:hover {
+                background: #d1d1d1;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="icon">↑</div>
+            <div class="title">${titleText}</div>
+        </div>
+        <div class="info-section">
+            <div class="version-info">${versionInfo}</div>
+            <div class="dir-info">${dirInfo}</div>
+        </div>
+        ${changelogHtml}
+        <div class="footer">
+            ${hasUpdate ? '<div class="footer-hint">点击"更新"将打开命令行窗口执行 P4 同步</div>' : ''}
+            <div id="buttons"></div>
+        </div>
+        <script>
+            // 使用全局变量存储用户操作（data: URL 无法使用 localStorage）
+            window.p4UpdateAction = null;
+            
+            document.getElementById('buttons').innerHTML = \`
+                ${showUpdateButton 
+                    ? `<button class="btn btn-primary" id="btnUpdate">${primaryBtnText}</button>
+                       <button class="btn btn-secondary" id="btnLater">${secondaryBtnText}</button>`
+                    : `<button class="btn btn-primary" id="btnLater">确定</button>`
+                }
+            \`;
+            
+            const btnUpdate = document.getElementById('btnUpdate');
+            const btnLater = document.getElementById('btnLater');
+            
+            if (btnUpdate) {
+                btnUpdate.addEventListener('click', () => {
+                    window.p4UpdateAction = 'update';
+                });
+            }
+            if (btnLater) {
+                btnLater.addEventListener('click', () => {
+                    window.p4UpdateAction = 'later';
+                });
+            }
+        </script>
+    </body>
+    </html>
+    `;
+    
+    updateWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+    
+    // 等待窗口关闭并获取用户选择
+    return new Promise<'update' | 'later'>((resolve) => {
+        let resolved = false;
+        let checkAction: NodeJS.Timeout | null = null;
+        
+        const doResolve = (action: 'update' | 'later') => {
+            if (resolved) return;
+            resolved = true;
+            if (checkAction) {
+                clearInterval(checkAction);
+                checkAction = null;
+            }
+            resolve(action);
+        };
+        
+        updateWindow.on('closed', () => {
+            // 窗口关闭时，如果还没有解析，则默认为 'later'
+            doResolve('later');
+        });
+        
+        // 通过轮询全局变量获取用户操作
+        checkAction = setInterval(async () => {
+            if (resolved || updateWindow.isDestroyed()) {
+                if (checkAction) {
+                    clearInterval(checkAction);
+                    checkAction = null;
+                }
+                return;
+            }
+            try {
+                const action = await updateWindow.webContents.executeJavaScript('window.p4UpdateAction');
+                if (action && !resolved) {
+                    await updateWindow.webContents.executeJavaScript('window.p4UpdateAction = null');
+                    const userAction = action as 'update' | 'later';
+                    doResolve(userAction);
+                    // 延迟关闭窗口，确保 resolve 先执行
+                    setTimeout(() => {
+                        if (!updateWindow.isDestroyed()) {
+                            updateWindow.close();
+                        }
+                    }, 50);
+                }
+            } catch {
+                // 窗口可能已关闭，不做处理
+            }
+        }, 100);
+    });
+}
 
 let mainWindow: BrowserWindow | null = null;
 const pendingExternalExcelPaths: string[] = [];
@@ -1279,6 +1580,8 @@ app.whenReady().then(async () => {
     // ============ P4 自动更新检查 ============
     // 开发模式下的测试：设置为 true 可测试更新流程
     const TEST_P4_UPDATE_IN_DEV = false;
+    // 开发模式下模拟的本地版本号（比实际版本低几个版本来测试更新日志显示）
+    const DEV_MOCK_HAVE_REV = 3;  // 模拟本地版本为 #3，会显示 #4 到 headRev 的更新内容
     
     if (!isDev || TEST_P4_UPDATE_IN_DEV) {
         try {
@@ -1298,40 +1601,54 @@ app.whenReady().then(async () => {
             const updateInfo = await checkExeUpdateWithoutConfig(testPath);
             console.log('[main] P4 update check result:', updateInfo);
             
+            // 开发模式下模拟有更新的场景
+            if (isDev && TEST_P4_UPDATE_IN_DEV && updateInfo.isUnderP4) {
+                // 强制模拟有更新：将 haveRev 设为较低版本
+                updateInfo.haveRev = String(DEV_MOCK_HAVE_REV);
+                updateInfo.hasUpdate = parseInt(updateInfo.headRev || '0', 10) > DEV_MOCK_HAVE_REV;
+                updateInfo.message = `[DEV MOCK] 发现新版本 (模拟本地: #${DEV_MOCK_HAVE_REV}, 服务器: #${updateInfo.headRev})`;
+                console.log('[main] DEV MODE: Mocked update info:', updateInfo);
+            }
+            
             // 开发模式下总是显示对话框（用于测试），生产模式只在有更新时显示
             const shouldShowDialog = isDev || (updateInfo.isUnderP4 && updateInfo.hasUpdate);
             
             if (shouldShowDialog) {
-                // 构建对话框消息
-                let detailMsg = '';
-                if (updateInfo.isUnderP4) {
-                    if (updateInfo.hasUpdate) {
-                        detailMsg = `${updateInfo.message}\n\n工具目录: ${updateInfo.exeDir}\n\n点击"更新"将打开命令行窗口执行 P4 同步。`;
-                    } else {
-                        detailMsg = `当前已是最新版本\n本地版本: #${updateInfo.haveRev}\n服务器版本: #${updateInfo.headRev}\n\n工具目录: ${updateInfo.exeDir}`;
+                // 从 P4 获取提交记录
+                let changeDescriptions: string[] = [];
+                if (updateInfo.hasUpdate && updateInfo.haveRev && updateInfo.headRev) {
+                    try {
+                        const changeResult = await getFileChangeDescriptions(
+                            testPath, 
+                            updateInfo.haveRev, 
+                            updateInfo.headRev
+                        );
+                        if (changeResult.success && changeResult.descriptions.length > 0) {
+                            changeDescriptions = changeResult.descriptions;
+                        }
+                    } catch (e) {
+                        console.log('[main] Failed to get P4 change descriptions:', e);
                     }
-                } else {
-                    detailMsg = `${updateInfo.message}\n\n检查路径: ${testPath}`;
                 }
                 
-                const dialogTitle = isDev ? '[DEV TEST] P4 更新检查' : '发现新版本';
-                const dialogMessage = updateInfo.hasUpdate ? '工具有新版本可用' : (updateInfo.isUnderP4 ? '已是最新版本' : 'P4 检查结果');
-                
-                const result = await dialog.showMessageBox({
-                    type: updateInfo.hasUpdate ? 'info' : 'info',
-                    title: dialogTitle,
-                    message: dialogMessage,
-                    detail: detailMsg,
-                    buttons: updateInfo.hasUpdate ? ['更新', '稍后'] : (isDev ? ['测试打开CMD', '关闭'] : ['确定']),
-                    defaultId: 0,
-                    cancelId: updateInfo.hasUpdate ? 1 : 0
+                // 显示更新对话框
+                const userAction = await showP4UpdateDialog({
+                    hasUpdate: updateInfo.hasUpdate,
+                    isUnderP4: updateInfo.isUnderP4,
+                    message: updateInfo.message,
+                    haveRev: updateInfo.haveRev,
+                    headRev: updateInfo.headRev,
+                    exeDir: updateInfo.exeDir,
+                    filePath: testPath,
+                    changeDescriptions,
+                    isDevMode: isDev
                 });
                 
                 // 点击更新或测试打开CMD
-                if (result.response === 0 && (updateInfo.hasUpdate || isDev)) {
+                if (userAction === 'update' && (updateInfo.hasUpdate || isDev)) {
                     if (updateInfo.isUnderP4) {
-                        // 打开 CMD 执行 p4 sync
-                        openCmdForP4Sync(updateInfo.exeDir);
+                        // 打开 CMD 执行 p4 sync，传入 exe 路径以便同步后重启
+                        openCmdForP4Sync(updateInfo.exeDir, testPath);
                         
                         // 生产模式下延迟退出，确保 CMD 窗口启动
                         if (!isDev && updateInfo.hasUpdate) {

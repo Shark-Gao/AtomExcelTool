@@ -1,5 +1,7 @@
 // import { FunctionNameToDelegate } from './MHTsAtomSystemUtils';
 import { DelegateFactory } from './DelegateFactory';
+import { getOperatorString } from './MHTsAtomSystemUtils';
+import { ue } from './UETypes';
 
 export interface DeParseExpressonType {
   expression: string;
@@ -237,37 +239,9 @@ function isCombineActionsFunction(functionName: string, className: string): bool
 }
 
 /**
- * 获取操作符字符串
- */
-function getOperatorString(operatorEnum: number, type: 'number' | 'bool' | 'compare'): string {
-  const operatorMap: Record<string, Record<number, string>> = {
-    number: {
-      0: '+',
-      1: '-',
-      2: '*',
-      3: '/',
-      4: '%',
-    },
-    bool: {
-      0: '&&',
-      1: '||',
-    },
-    compare: {
-      0: '>=',
-      1: '>',
-      2: '<=',
-      3: '<',
-      4: '==',
-      5: '!=',
-    },
-  };
-
-  return operatorMap[type]?.[operatorEnum] ?? '+';
-}
-
-/**
  * 优化版本的反向解析函数，使用缓存的反向映射
  */
 export function deParseJsonToExpressionOptimized(jsonObject: any): DeParseExpressonType {
   return deParseJsonToExpression(jsonObject);
 }
+

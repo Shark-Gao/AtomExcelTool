@@ -4845,6 +4845,36 @@ function HasHigherOrEqualPrecedenceThan(lhs: string, rhs: string): boolean {
     OperatorStringToPrecedenceInAtomSystem.get(rhs)
   );
 }
+
+/**
+ * 获取操作符字符串
+ */
+export function getOperatorString(operatorEnum: number, type: 'number' | 'bool' | 'compare'): string {
+  const operatorMap: Record<string, Record<number, string>> = {
+    number: {
+      [ue.EMHNumberTriggerValueBinaryOperator.Plus]: '+',
+      [ue.EMHNumberTriggerValueBinaryOperator.Minus]: '-',
+      [ue.EMHNumberTriggerValueBinaryOperator.Multiplies]: '*',
+      [ue.EMHNumberTriggerValueBinaryOperator.Divides]: '/',
+      [ue.EMHNumberTriggerValueBinaryOperator.Modulus]: '%',
+    },
+    bool: {
+      [ue.EMHBoolTriggerValueBinaryOperatorOnBool.LogicalAnd]: '&&',
+      [ue.EMHBoolTriggerValueBinaryOperatorOnBool.LogicalOr]: '||',
+    },
+    compare: {
+      [ue.EMHBoolTriggerValueBinaryOperatorOnNumber.GreaterEqual]: '>=',
+      [ue.EMHBoolTriggerValueBinaryOperatorOnNumber.Greater]: '>',
+      [ue.EMHBoolTriggerValueBinaryOperatorOnNumber.LessEqual]: '<=',
+      [ue.EMHBoolTriggerValueBinaryOperatorOnNumber.Less]: '<',
+      [ue.EMHBoolTriggerValueBinaryOperatorOnNumber.EqualTo]: '==',
+      [ue.EMHBoolTriggerValueBinaryOperatorOnNumber.NotEqualTo]: '!=',
+    },
+  };
+
+  return operatorMap[type]?.[operatorEnum] ?? '+';
+}
+
  
 const OperatorStringToOperatorEnumInAtomSystem: ReadonlyMap<string, number> =
   new Map<string, number>([

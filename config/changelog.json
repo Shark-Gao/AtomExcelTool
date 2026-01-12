@@ -1,6 +1,13 @@
 {
   "changelog": [
     {
+      "version": "1.9.3",
+      "date": "2026-01-12",
+      "changes": [
+        "🔧 重构操作符映射，getOperatorString 函数移至 MHTsAtomSystemUtils 统一管理，使用枚举值替代硬编码"
+      ]
+    },
+    {
       "version": "1.9.2",
       "date": "2026-01-07",
       "changes": [

@@ -4,7 +4,10 @@
       "version": "1.9.3",
       "date": "2026-01-12",
       "changes": [
-        "🔧 重构操作符映射，getOperatorString 函数移至 MHTsAtomSystemUtils 统一管理，使用枚举值替代硬编码"
+        "🔧 重构操作符映射，getOperatorString 函数移至 MHTsAtomSystemUtils 统一管理，使用枚举值替代硬编码",
+        "✨ keyof typeof 枚举类型参数支持可编辑下拉框控件，类似 UE5 风格",
+        "✨ 新增 EditableSelect 组件，支持输入搜索过滤、空格分隔多片段匹配、高亮显示匹配内容",
+        "✨ 可编辑下拉框支持一键清空、点击外部自动关闭"
       ]
     },
     {

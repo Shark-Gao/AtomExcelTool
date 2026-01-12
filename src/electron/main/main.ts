@@ -1095,6 +1095,7 @@ ipcMain.handle('delegate:deparse-json-to-expression', async (_event, payload: { 
 
         return { ok: true, expression };
     } catch (error) {
+        const message = error instanceof Error ? error.message : '反向解析 JSON 时发生未知错误。';
         console.error('[delegate:deparse-json-to-expression]:', message);
         return { ok: false, error: message };
     }

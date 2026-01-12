@@ -354,14 +354,22 @@ export class DelegateMetadataGenerator {
     unionType: FAtomTypeUnion
   ): Array<{ label: string; value: any }> {
     const options: Array<{ label: string; value: any }> = [];
+    const unionTypes = unionType.UnionTypes;
+    const lastIndex = unionTypes.length - 1;
     
-    for (const type of unionType.UnionTypes) {
+    for (let i = 0; i < unionTypes.length; i++) {
+      const type = unionTypes[i];
       if (type.AtomType === EAtomType.SpecificString) {
         const specificType = type as any; // SpecificString 有 SpecificString 属性
         if (specificType.SpecificString) {
+          const value = specificType.SpecificString;
+          // 过滤掉 __typeKeyDoNoAccess 和最后一个元素且以 _MAX 结尾的选项
+          if (value === '__typeKeyDoNoAccess') {
+            continue;
+          }
           options.push({
-            label: specificType.SpecificString,
-            value: specificType.SpecificString
+            label: value,
+            value: value
           });
         }
       } else if (type.AtomType === EAtomType.LiteralString) {
@@ -373,7 +381,8 @@ export class DelegateMetadataGenerator {
     return options;
   }
 
-  private static collectFieldTypeInfo(atomType: FAtomTypeBase): { infos: FieldTypeInfo[]; options?: Array<{ label: string; value: any }> } {
+
+  private static collectFieldTypeInfo(atomType: FAtomTypeBase, typeNodeText?: string): { infos: FieldTypeInfo[]; options?: Array<{ label: string; value: any }>; selectEditable?: boolean } {
     if (!atomType) {
       return { infos: [] };
     }
@@ -381,12 +390,14 @@ export class DelegateMetadataGenerator {
     if (atomType.AtomType === EAtomType.Union) {
       const unionType = atomType as FAtomTypeUnion;
 
-      // if (this.isStringEnumUnion(unionType)) {
-      //   return {
-      //     infos: [{ type: 'select' }],
-      //     options: this.extractStringEnumOptions(unionType)
-      //   };
-      // }
+      // 当 TypeNodeText 是 keyof typeof EnumName 形式时（支持命名空间如 ue.EMHPhysicType），解析为下拉选项控件
+      if (typeNodeText && /^keyof\s+typeof\s+[\w.]+$/.test(typeNodeText) && this.isStringEnumUnion(unionType)) {
+        return {
+          infos: [{ type: 'select' }],
+          options: this.extractStringEnumOptions(unionType),
+          selectEditable: true // keyof typeof 类型支持可编辑模式
+        };
+      }
 
       const aggregatedInfos: FieldTypeInfo[] = [];
       let aggregatedOptions: Array<{ label: string; value: any }> | undefined;
@@ -505,7 +516,7 @@ export class DelegateMetadataGenerator {
       return fieldMeta;
     }
 
-    const typeResult = this.collectFieldTypeInfo(param.AtomType);
+    const typeResult = this.collectFieldTypeInfo(param.AtomType, param.TypeNodeText);
     if (!typeResult.infos.length) {
       return null;
     }
@@ -535,6 +546,10 @@ export class DelegateMetadataGenerator {
 
     if (typeResult.options && typeResult.options.length > 0) {
       fieldMeta.options = typeResult.options;
+    }
+
+    if (typeResult.selectEditable) {
+      fieldMeta.selectEditable = true;
     }
 
     fieldMeta.isRest = param.bRest;

@@ -47,6 +47,7 @@ export interface FieldMeta {
   options?: Array<{ label: string; value: any }>;
   isOptional?: boolean;
   isRest?: boolean;
+  selectEditable?: boolean; // select类型是否支持手动编辑输入（类似UE5的可编辑下拉框）
 }
 
 export function getFieldMetaTypeList(fieldMeta: FieldMeta): FieldType[] {
@@ -121,6 +122,7 @@ export interface ScriptFunctionParameterMetaData {
   readonly ParameterName: string;
   readonly AtomType: FAtomTypeBase;
   readonly TypeString: string;
+  readonly TypeNodeText?: string;
 }
 
 export interface ScriptFunctionMetaData {

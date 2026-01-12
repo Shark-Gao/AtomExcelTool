@@ -4,6 +4,7 @@ import { normalizeClassInstance as normalizeClassInstanceUtil } from '../utils/C
 import { ClassRegistry, FieldMeta, isBaseClassNative, BaseClassType, resolveFieldMetaTypeByValue, fieldMetaSupportsType, ElementTypeInfo } from '../types/MetaDefine'
 import SearchableAtomSelect from './SearchableAtomSelect.vue'
 import PrimitiveInput, { type PrimitiveType } from './PrimitiveInput.vue'
+import EditableSelect from './EditableSelect.vue'
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object' | 'array'
 
@@ -880,26 +881,37 @@ function revertAllFieldsToDefault() {
                   @mousedown="startSplitterDrag"
                 ></div>
                 <div class="flex-1 min-w-0 flex items-center gap-1 pl-1">
-                  <!-- 选择 - 使用 daisyUI dropdown -->
-                  <details 
-                    v-if="isFieldTypeActive(fieldKey, fieldMeta, 'select')"
-                    class="dropdown flex-1"
-                    :class="{ 'pointer-events-none opacity-50': readonly }"
-                  >
-                    <summary class="btn btn-xs btn-ghost w-full justify-between h-6 min-h-0 px-2 border border-base-300 font-normal">
-                      <span class="truncate text-left">{{ fieldMeta.options?.find(o => o.value === localValue[fieldKey])?.label ?? '请选择' }}</span>
-                      <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                    </summary>
-                    <ul class="dropdown-content menu bg-base-100 rounded-box z-50 w-full p-1 shadow-lg border border-base-300 max-h-60 overflow-y-auto">
-                      <li v-for="option in fieldMeta.options" :key="option.value">
-                        <a 
-                          class="text-xs py-1"
-                          :class="{ 'active': localValue[fieldKey] === option.value }"
-                          @click="localValue[fieldKey] = option.value; ($event.target as HTMLElement).closest('details')?.removeAttribute('open')"
-                        >{{ option.label }}</a>
-                      </li>
-                    </ul>
-                  </details>
+                  <!-- 选择 - 使用 daisyUI dropdown（支持可编辑模式） -->
+                  <template v-if="isFieldTypeActive(fieldKey, fieldMeta, 'select')">
+                    <!-- 可编辑下拉框 -->
+                    <EditableSelect
+                      v-if="fieldMeta.selectEditable"
+                      :model-value="(localValue[fieldKey] as string) ?? ''"
+                      :options="fieldMeta.options ?? []"
+                      :disabled="readonly"
+                      @update:model-value="localValue[fieldKey] = $event"
+                    />
+                    <!-- 普通下拉框 -->
+                    <details 
+                      v-else
+                      class="dropdown flex-1"
+                      :class="{ 'pointer-events-none opacity-50': readonly }"
+                    >
+                      <summary class="btn btn-xs btn-ghost w-full justify-between h-6 min-h-0 px-2 border border-base-300 font-normal">
+                        <span class="truncate text-left">{{ fieldMeta.options?.find(o => o.value === localValue[fieldKey])?.label ?? '请选择' }}</span>
+                        <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                      </summary>
+                      <ul class="dropdown-content menu bg-base-100 rounded-box z-50 w-full p-1 shadow-lg border border-base-300 max-h-60 overflow-y-auto">
+                        <li v-for="option in fieldMeta.options" :key="option.value">
+                          <a 
+                            class="text-xs py-1"
+                            :class="{ 'active': localValue[fieldKey] === option.value }"
+                            @click="localValue[fieldKey] = option.value; ($event.target as HTMLElement).closest('details')?.removeAttribute('open')"
+                          >{{ option.label }}</a>
+                        </li>
+                      </ul>
+                    </details>
+                  </template>
                   <!-- 基础类型：string/number/boolean -->
                   <PrimitiveInput
                     v-else

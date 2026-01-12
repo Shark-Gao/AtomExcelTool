@@ -131,6 +131,17 @@
 		"author": "unknown",
 		"baseClass": "EventDelegateEx"
 	},
+	"EventStatusEffectBlightInflictionOnMonsterDelegate": {
+		"className": "EventStatusEffectBlightInflictionOnMonsterDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "向怪物施加了异常积蓄值",
+		"description": "向怪物施加了异常积蓄值",
+		"category": "战斗事件",
+		"richDescription": "向怪物施加了异常[{0}]的积蓄值时",
+		"author": "jiannanchao",
+		"baseClass": "EventDelegateEx"
+	},
 	"EventCommonForwarderDelegate": {
 		"className": "EventCommonForwarderDelegate",
 		"isDelegate": true,
@@ -371,6 +382,17 @@
 		"category": "战斗事件",
 		"richDescription": "攻击动作执行前触发的PreAttack事件",
 		"author": "unknown",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCombineSkillConditionalRecharge": {
+		"className": "EventCombineSkillConditionalRecharge",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "1带3AI特殊充能",
+		"description": "角色在满足特定条件时，会给自己以及1带3时的AI产生一次充能，CombineSkillCfg中的Energe功能",
+		"category": "战斗事件",
+		"richDescription": "1带3AI特殊充能",
+		"author": "sharkgao",
 		"baseClass": "EventDelegateEx"
 	},
 	"EventBeginToSatisfyTheConditionDelegate": {
@@ -3023,9 +3045,9 @@
 		"isDelegate": true,
 		"fields": {},
 		"displayName": "检查Buff存在",
-		"description": "判断当前对象是否有指定ID的Buff",
+		"description": "判断当前对象或者指定是否有指定ID的Buff",
 		"category": "Buff相关",
-		"richDescription": "判断当前对象是否有ID为{0}的Buff",
+		"richDescription": "判断对象是否有ID为{0}的Buff",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -3420,6 +3442,17 @@
 		"category": "怪物相关",
 		"richDescription": "获取最近的战斗相关怪物",
 		"author": "sylarqchen",
+		"baseClass": "ActorValueDelegate"
+	},
+	"ActorValueEventTriggerMonster": {
+		"className": "ActorValueEventTriggerMonster",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取Buff上下文中触发Event的Monster",
+		"description": "获取Buff上下文中触发Event的Monster",
+		"category": "怪物相关",
+		"richDescription": "获取Buff上下文中触发Event的Monster。目前支持的事件：OnAggroMonsterTumble",
+		"author": "emiljqchen",
 		"baseClass": "ActorValueDelegate"
 	},
 	"BoolValueAnyAggroMonsterInTumble": {
@@ -3983,8 +4016,8 @@
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
-	"StatusEffectInflictionOnMonsterAction": {
-		"className": "StatusEffectInflictionOnMonsterAction",
+	"StatusEffectInflictionOnMonsterActionDelegate": {
+		"className": "StatusEffectInflictionOnMonsterActionDelegate",
 		"isDelegate": true,
 		"fields": {},
 		"displayName": "怪物异常施加（基类）",
@@ -4092,6 +4125,94 @@
 		"richDescription": "修改怪物{0}硬直/BuffState时间: +总时长*{1}% + {2}秒",
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
+	},
+	"GetAtkDamageValue_NumberValueDelegate": {
+		"className": "GetAtkDamageValue_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取此次攻击伤害值",
+		"description": "获取此次攻击伤害值",
+		"category": "角色攻击",
+		"richDescription": "获取此次攻击伤害值",
+		"author": "sharkgao",
+		"baseClass": "NumberValueDelegate"
+	},
+	"AnyAggroMonsterInStatus_BoolValueDelegate": {
+		"className": "AnyAggroMonsterInStatus_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "当前战斗相关怪物是否处于融光化/愤怒/疲劳硬直",
+		"description": "当前战斗相关怪物是否处于融光化/愤怒/疲劳硬直",
+		"category": "怪物相关",
+		"richDescription": "当前是否存在任意一个战斗相关怪物是否处于任何一种融光化/愤怒/疲劳硬直中",
+		"author": "sharkgao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"OnAggroMonsterStatus_EventDelegateEx": {
+		"className": "OnAggroMonsterStatus_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "当前战斗相关怪物进入融光化/愤怒/疲劳等硬直事件",
+		"description": "当前战斗相关怪物进入融光化/愤怒/疲劳时触发",
+		"category": "怪物相关",
+		"richDescription": "当前战斗相关怪物进入融光化/愤怒/疲劳时触发",
+		"author": "sharkgao",
+		"baseClass": "EventDelegateEx"
+	},
+	"CheckIsAdventureAI_BoolValueDelegate": {
+		"className": "CheckIsAdventureAI_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查目标是否为冒险家AI",
+		"description": "检查目标是否为冒险家AI",
+		"category": "角色相关",
+		"richDescription": "检查目标是否为冒险家AI",
+		"author": "weigangxu",
+		"baseClass": "BoolValueDelegate"
+	},
+	"EventAttributeChange_EventDelegateEx": {
+		"className": "EventAttributeChange_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "Actor属性变化事件",
+		"description": "Actor属性变化事件",
+		"category": "角色属性",
+		"richDescription": "修改{0}目标的{1}属性",
+		"author": "sharkgao",
+		"baseClass": "EventDelegateEx"
+	},
+	"CheckHasAttachedEnvMonster_BoolValueDelegate": {
+		"className": "CheckHasAttachedEnvMonster_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测怪物是否被环境怪物附着",
+		"description": "检测怪物是否被环境怪物附着",
+		"category": "怪物相关",
+		"richDescription": "检测怪物是否被环境怪物附着",
+		"author": "harryyli",
+		"baseClass": "BoolValueDelegate"
+	},
+	"SetRGPartMaxDesValue_ActionDelegate": {
+		"className": "SetRGPartMaxDesValue_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "设置融光部位Max破坏值系数",
+		"description": "设置融光部位Max破坏值系数,破坏值*系数",
+		"category": "怪物相关",
+		"richDescription": "融光部位Max破坏值*{0}",
+		"author": "jevenZhao",
+		"baseClass": "ActionDelegate"
+	},
+	"CheckMonsterRGBodyPartIsBroken_BoolValueDelegate": {
+		"className": "CheckMonsterRGBodyPartIsBroken_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测怪物的融光部位是否发生破坏",
+		"description": "检测怪物的融光部位是否发生破坏,只会检测部位本身,不会检测护盾",
+		"category": "怪物相关",
+		"richDescription": "检测怪物的融光部位是否发生破坏,只会检测部位本身,不会检测护盾",
+		"author": "birdlin",
+		"baseClass": "BoolValueDelegate"
 	},
 	"GetMonsterCurStiffnessDuration_NumberValueDelegate": {
 		"className": "GetMonsterCurStiffnessDuration_NumberValueDelegate",

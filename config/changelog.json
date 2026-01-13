@@ -1,6 +1,15 @@
 {
   "changelog": [
     {
+      "version": "1.9.4",
+      "date": "2026-01-13",
+      "changes": [
+        "🔧 重构 AI 提示词管理，新增 PromptBuilder 统一管理 DeepSeek 和混元的系统提示词",
+        "🔧 AI 助手默认模型改为 DeepSeek",
+        "🔧 修复 AI 知识库初始化时机问题，等待原子元数据加载完成后再初始化"
+      ]
+    },
+    {
       "version": "1.9.3",
       "date": "2026-01-12",
       "changes": [

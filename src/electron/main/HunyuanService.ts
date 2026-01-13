@@ -4,6 +4,7 @@
  */
 
 import { ClassMetadata } from '../../types/MetaDefine';
+import { buildSystemPrompt, getDefaultSystemPrompt } from './PromptBuilder';
 
 // ============ 类型定义 ============
 
@@ -56,8 +57,7 @@ export class HunyuanService {
    * 初始化默认提示词（无原子知识库时使用）
    */
   private initializeDefaultPrompt(): void {
-    this.systemPrompt = `你是一个专业的游戏配置原子表达式助手。你的任务是帮助用户理解和配置原子表达式。
-请根据用户的问题进行回答。`;
+    this.systemPrompt = getDefaultSystemPrompt();
 
     this.conversationHistory = [
       { role: 'system', content: this.systemPrompt }
@@ -75,67 +75,7 @@ export class HunyuanService {
 
     console.log('[HunyuanService] Building knowledge base with', metadata.length, 'atoms');
 
-    // 按类别分组
-    const categoryMap = new Map<string, ClassMetadata[]>();
-    
-    for (const meta of metadata) {
-      const category = meta.category || '未分类';
-      if (!categoryMap.has(category)) {
-        categoryMap.set(category, []);
-      }
-      categoryMap.get(category)!.push(meta);
-    }
-
-    // 构建知识库摘要
-    let atomSummary = '';
-    
-    for (const [category, atoms] of categoryMap) {
-      atomSummary += `\n### ${category}\n`;
-      
-      for (const atom of atoms) {
-        atomSummary += `- **${atom.displayName || atom.className}** (\`${atom.className}\`)\n`;
-        if (atom.funcName) {
-          atomSummary += `  - 函数名: \`${atom.funcName}\`\n`;
-        }
-        if (atom.description) {
-          atomSummary += `  - 说明: ${atom.description}\n`;
-        }
-        if (atom.richDescription) {
-          atomSummary += `  - 用法: ${atom.richDescription}\n`;
-        }
-        if (atom.baseClass) {
-          atomSummary += `  - 基类: ${atom.baseClass}\n`;
-        }
-        if (atom.fields && atom.fields.length > 0) {
-          const fieldDesc = atom.fields.map(f => `${f.label || f.key}${f.isOptional ? '?' : ''}`).join(', ');
-          atomSummary += `  - 参数: ${fieldDesc}\n`;
-        }
-      }
-    }
-
-    // 组合完整的系统提示词
-    this.systemPrompt = `你是一个专业的游戏配置原子表达式助手。你的任务是帮助用户理解和配置原子表达式。
-
-## 你的能力
-1. 解释原子的用途和参数含义
-2. 根据用户需求推荐合适的原子配置
-3. 帮助用户排查原子配置问题
-4. 提供原子表达式的最佳实践建议
-
-## 原子知识库
-
-以下是可用的原子类型及其说明：
-${atomSummary}
-
-## 回答规范
-1. 使用简洁清晰的中文回答
-2. 推荐配置时，给出具体的原子类名和参数值示例
-3. 如果用户的需求不明确，主动询问细节
-4. 对于复杂配置，分步骤说明
-5. 引用原子时只显示funcName，最后推荐的原子也只能只funcName，类似这种程序代码的格式
-(AAINextDamageTimeSpecificTaskType(RangedAttack)<=(AAIAbilityRandom()*0.05+0.075))&&AAINextDamageTimeSpecificTaskType(RangedAttack)>0&&GetDist2D(Self(), AAIGetEnemy())<=2000
-
-请根据用户的问题，结合上述原子知识库进行回答。`;
+    this.systemPrompt = buildSystemPrompt(metadata);
 
     console.log('[HunyuanService] System prompt length:', this.systemPrompt.length);
 

@@ -64,11 +64,11 @@ const isResizing = ref(false);
 const resizeHandleRef = ref<HTMLElement | null>(null);
 
 // API 配置
-const currentModel = ref<'deepseek' | 'hunyuan'>('hunyuan');
-const availableModels = ref<string[]>(['hunyuan', 'deepseek']);
+const currentModel = ref<'deepseek' | 'hunyuan'>('deepseek');
+const availableModels = ref<string[]>(['deepseek', 'hunyuan']);
 const modelLabels: Record<string, string> = {
-  hunyuan: '腾讯混元 Thinking（免费）',
-  deepseek: 'DeepSeek（免费）'
+  deepseek: 'DeepSeek（免费）',
+  hunyuan: '腾讯混元 Thinking（免费）'
 };
 
 // 流式输出控制
@@ -351,11 +351,6 @@ onMounted(async () => {
   if (builtinResult?.availableModels) {
     availableModels.value = builtinResult.availableModels;
   }
-  
-  // 如果有内置配置且已配置，初始化原子知识库
-  if (isConfigured.value && props.allAtomMetadata && props.allAtomMetadata.length > 0) {
-    await window.aiBridge?.initKnowledge(props.allAtomMetadata);
-  }
 });
 
 onUnmounted(() => {
@@ -364,6 +359,7 @@ onUnmounted(() => {
   document.removeEventListener('mousemove', handleResize);
   document.removeEventListener('mouseup', stopResize);
 });
+
 
 // 监听原子变化，添加上下文提示
 watch(() => props.currentAtom, (newAtom) => {

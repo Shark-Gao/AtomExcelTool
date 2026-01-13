@@ -997,7 +997,7 @@ ipcMain.handle('delegate:get-metadata', async () => {
 
         // 缓存 metadata 并初始化 AI 知识库（如果 AI 服务已配置）
         cachedAtomMetadata = metadata;
-        const aiService = getHunyuanService();
+        const aiService = getCurrentAIService();
         if (aiService && !aiService.isKnowledgeLoaded()) {
             aiService.initializeWithAtomKnowledge(metadata);
             console.log('[delegate:get-metadata] AI knowledge base initialized with', metadata.length, 'atoms');
@@ -1200,7 +1200,7 @@ const MODEL_CONFIGS: Record<AIModelType, ModelConfig> = {
 };
 
 // 当前选择的模型
-let currentModelType: AIModelType = 'hunyuan';  // 默认混元
+let currentModelType: AIModelType = 'deepseek';  // 默认 DeepSeek
 
 // 应用启动时自动初始化 AI 服务
 console.log('[AI] Auto-initializing with default model:', currentModelType);

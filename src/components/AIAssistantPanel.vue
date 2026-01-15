@@ -74,6 +74,10 @@ const modelLabels: Record<string, string> = {
 // 流式输出控制
 let currentStreamUnsubscribe: (() => void) | null = null;
 
+// 智能滚动控制
+const shouldAutoScroll = ref(true);  // 是否自动跟随滚动
+const showScrollToBottom = ref(false);  // 是否显示"跳到底部"按钮
+
 // 快捷问题
 const quickQuestions = [
   '这个原子有什么用途？',
@@ -109,11 +113,38 @@ function generateId(): string {
 }
 
 /** 滚动到底部 */
-async function scrollToBottom() {
+async function scrollToBottom(force = false) {
   await nextTick();
-  if (messagesContainer.value) {
+  if (messagesContainer.value && (shouldAutoScroll.value || force)) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+    if (force) {
+      shouldAutoScroll.value = true;
+      showScrollToBottom.value = false;
+    }
   }
+}
+
+/** 处理滚动事件，检测用户是否手动向上滚动 */
+function handleScroll() {
+  if (!messagesContainer.value) return;
+  
+  const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value;
+  const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+  
+  // 如果距离底部超过 100px，认为用户在浏览历史消息
+  if (distanceFromBottom > 100) {
+    shouldAutoScroll.value = false;
+    showScrollToBottom.value = true;
+  } else {
+    // 接近底部时恢复自动滚动
+    shouldAutoScroll.value = true;
+    showScrollToBottom.value = false;
+  }
+}
+
+/** 点击跳到底部按钮 */
+function jumpToBottom() {
+  scrollToBottom(true);
 }
 
 /** 渲染 Markdown 为 HTML */
@@ -137,6 +168,10 @@ async function sendMessage(content?: string) {
     return;
   }
 
+  // 发送新消息时，重置自动滚动状态
+  shouldAutoScroll.value = true;
+  showScrollToBottom.value = false;
+
   // 添加用户消息
   const userMessage: ChatMessage = {
     id: generateId(),
@@ -147,7 +182,7 @@ async function sendMessage(content?: string) {
   messages.value.push(userMessage);
   inputMessage.value = '';
   
-  await scrollToBottom();
+  await scrollToBottom(true);
 
   // 添加 AI 消息占位
   const assistantMessage: ChatMessage = {
@@ -449,7 +484,8 @@ watch(() => props.currentAtom, (newAtom) => {
       <!-- 消息列表 -->
       <div 
         ref="messagesContainer"
-        class="flex-1 overflow-y-auto p-4 space-y-4"
+        class="flex-1 overflow-y-auto p-4 space-y-4 relative"
+        @scroll="handleScroll"
       >
         <!-- 空状态 -->
         <div v-if="!hasMessages" class="h-full flex flex-col items-center justify-center text-base-content/50">
@@ -482,7 +518,7 @@ watch(() => props.currentAtom, (newAtom) => {
           >
             <div class="chat-image avatar placeholder">
               <div 
-                class="w-8 rounded-full"
+                class="w-8 rounded-full flex items-center justify-center"
                 :class="msg.role === 'user' ? 'bg-primary text-primary-content' : 'bg-secondary text-secondary-content'"
               >
                 <span class="text-xs">{{ msg.role === 'user' ? 'U' : 'AI' }}</span>
@@ -517,6 +553,20 @@ watch(() => props.currentAtom, (newAtom) => {
           </div>
         </template>
       </div>
+
+      <!-- 跳到底部按钮 -->
+      <Transition name="fade">
+        <button 
+          v-if="showScrollToBottom"
+          class="absolute bottom-32 right-8 btn btn-circle btn-sm btn-primary shadow-lg z-10"
+          @click="jumpToBottom"
+          title="跳到最新消息"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </button>
+      </Transition>
 
       <!-- 输入区域 -->
       <div class="p-4 border-t border-base-content/10 bg-base-300/30">
@@ -633,6 +683,36 @@ watch(() => props.currentAtom, (newAtom) => {
 
 .chat-bubble-dynamic {
   max-width: 85%;
+}
+
+/* AI 回复气泡颜色 - light 模式使用浅灰色 */
+.chat-bubble-secondary {
+  --tw-bg-opacity: 1;
+  background-color: oklch(92% 0.01 260 / var(--tw-bg-opacity));
+  --tw-text-opacity: 1;
+  color: oklch(25% 0 0 / var(--tw-text-opacity));
+}
+
+/* AI 回复气泡颜色 - dark 模式下使用更柔和的深灰蓝色 */
+[data-theme='dark'] .chat-bubble-secondary,
+[data-theme='black'] .chat-bubble-secondary,
+[data-theme='dracula_custom'] .chat-bubble-secondary {
+  --tw-bg-opacity: 1;
+  background-color: oklch(35% 0.02 260 / var(--tw-bg-opacity));
+  --tw-text-opacity: 1;
+  color: oklch(90% 0 0 / var(--tw-text-opacity));
+}
+
+/* 跳到底部按钮过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 
 /* 拖拽手柄样式 */

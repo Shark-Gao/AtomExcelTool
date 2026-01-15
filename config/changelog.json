@@ -2,7 +2,7 @@
   "changelog": [
     {
       "version": "1.9.4",
-      "date": "2026-01-13",
+      "date": "2026-01-15",
       "changes": [
         "🔧 重构 AI 提示词管理，新增 PromptBuilder 统一管理 DeepSeek 和混元的系统提示词",
         "🔧 AI 助手默认模型改为 DeepSeek",

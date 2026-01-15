@@ -26,10 +26,19 @@ export interface AppSettings {
   p4CheckoutPromptEnabled: boolean  // 是否提示 checkout
   // 最近打开文件历史
   recentFiles: RecentFileItem[]
+  // 原子游乐场相关
+  activeMainTab: 'config' | 'playground'  // 当前选中的主标签
+  codeEditorContent: string  // 代码编辑器内容
 }
 
 const SETTINGS_STORAGE_KEY = 'mhatomexceltool_settings'
 const MAX_RECENT_FILES = 20  // 最多保存20个最近文件
+
+const DEFAULT_CODE_EDITOR_CONTENT = `// TypeScript 代码编辑空间
+// 输入函数式程序代码，点击解析生成原子UI控件
+
+GetCombatTime() > 5 
+`
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dracula_custom',
@@ -45,7 +54,10 @@ const DEFAULT_SETTINGS: AppSettings = {
     client: ''
   },
   p4CheckoutPromptEnabled: true,
-  recentFiles: []
+  recentFiles: [],
+  // 原子游乐场相关
+  activeMainTab: 'config',
+  codeEditorContent: DEFAULT_CODE_EDITOR_CONTENT
 }
 
 /**
@@ -65,7 +77,9 @@ export function loadSettingsFromStorage(): AppSettings {
         autoSaveInterval: settings.autoSaveInterval ?? DEFAULT_SETTINGS.autoSaveInterval,
         p4: settings.p4 ?? DEFAULT_SETTINGS.p4,
         p4CheckoutPromptEnabled: settings.p4CheckoutPromptEnabled ?? DEFAULT_SETTINGS.p4CheckoutPromptEnabled,
-        recentFiles: settings.recentFiles ?? DEFAULT_SETTINGS.recentFiles
+        recentFiles: settings.recentFiles ?? DEFAULT_SETTINGS.recentFiles,
+        activeMainTab: settings.activeMainTab ?? DEFAULT_SETTINGS.activeMainTab,
+        codeEditorContent: settings.codeEditorContent ?? DEFAULT_SETTINGS.codeEditorContent
       }
     }
   } catch (error) {

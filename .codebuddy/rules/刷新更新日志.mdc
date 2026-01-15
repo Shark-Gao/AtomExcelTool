@@ -7,6 +7,5 @@ provider:
 ---
 
 1.先判断git中是否有ChangesList，根据ChangesList文件修改内容生成提交日志描述，提交到git的标题用一句话概括修改内容
-2.MHAtomExcelTool\config\changelog.json更新日志刷新，将提交日志作为更新日志。
-如果发现更新日志中已经有当前这一天的日志，将新增修改的日志内容新增到对应的那天的更新内容中，重复的则可以不添加。
+2.MHAtomExcelTool\config\changelog.json更新日志刷新，将提交日志作为更新日志。判断下修改日志时间，如果changelog中已经有今天的项则不用新增，否则新增一项今天的修改内容，重复的则可以不添加
 3.最后commit and push到git中

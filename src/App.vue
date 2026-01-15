@@ -365,7 +365,7 @@ const fieldHeights = reactive<Record<string, number>>({}) // 记录每个字段�
 const showOnlyAtomicFields = ref(initialSettings.showOnlyAtomicFields)
 const isDebugMode = ref(initialSettings.isDebugMode)
 const fieldLayoutDirection = ref<'horizontal' | 'vertical'>(initialSettings.fieldLayoutDirection)
-const activeMainTab = ref<'config' | 'playground'>('config')
+const activeMainTab = ref<'config' | 'playground'>(initialSettings.activeMainTab)
 
 // 全局搜索相关
 const globalSearchVisible = ref(false)
@@ -512,11 +512,7 @@ const expressionParseResult = ref<string>('')
 const expressionParseError = ref<string | null>(null)
 
 // 代码编辑空间相关
-const codeEditorInput = ref<string>(`// TypeScript 代码编辑空间
-// 输入函数式程序代码，点击解析生成原子UI控件
-
-GetCombatTime() > 5 
-`)
+const codeEditorInput = ref<string>(initialSettings.codeEditorContent)
 const codeEditorParseResult = ref<string>('')
 const codeEditorParseError = ref<string | null>(null)
 const codeEditorRef = ref<InstanceType<typeof CodeEditor> | null>(null)
@@ -1466,74 +1462,47 @@ function handleLeftPanelMouseUp() {
   document.removeEventListener('mouseup', handleLeftPanelMouseUp)
 }
 
+// 辅助函数：获取当前设置用于保存
+function getCurrentSettingsForSave() {
+  const existingSettings = loadSettingsFromStorage()
+  return {
+    theme: currentTheme.value,
+    showOnlyAtomicFields: showOnlyAtomicFields.value,
+    isDebugMode: isDebugMode.value,
+    fieldLayoutDirection: fieldLayoutDirection.value,
+    autoSaveEnabled: autoSaveEnabled.value,
+    autoSaveInterval: autoSaveInterval.value,
+    p4: p4Settings.value,
+    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value,
+    recentFiles: existingSettings.recentFiles, // 保留现有的最近文件列表
+    activeMainTab: activeMainTab.value,
+    codeEditorContent: codeEditorInput.value
+  }
+}
+
 watch(currentTheme, (newTheme) => {
   applyTheme(newTheme)
-  saveSettingsToStorage({
-    theme: newTheme,
-    showOnlyAtomicFields: showOnlyAtomicFields.value,
-    isDebugMode: isDebugMode.value,
-    fieldLayoutDirection: fieldLayoutDirection.value,
-    autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
-  })
+  saveSettingsToStorage(getCurrentSettingsForSave())
 })
 
-watch(showOnlyAtomicFields, (newValue) => {
-  saveSettingsToStorage({
-    theme: currentTheme.value,
-    showOnlyAtomicFields: newValue,
-    isDebugMode: isDebugMode.value,
-    fieldLayoutDirection: fieldLayoutDirection.value,
-    autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
-  })
+watch(showOnlyAtomicFields, () => {
+  saveSettingsToStorage(getCurrentSettingsForSave())
 })
 
-watch(isDebugMode, (newValue) => {
-  saveSettingsToStorage({
-    theme: currentTheme.value,
-    showOnlyAtomicFields: showOnlyAtomicFields.value,
-    isDebugMode: newValue,
-    fieldLayoutDirection: fieldLayoutDirection.value,
-    autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
-  })
+watch(isDebugMode, () => {
+  saveSettingsToStorage(getCurrentSettingsForSave())
 })
 
-watch(fieldLayoutDirection, (newValue) => {
+watch(fieldLayoutDirection, () => {
   // 切换布局时重置滚动位置
   fieldVirtualScrollTop.value = 0
   fieldVirtualScrollLeft.value = 0
   
-  saveSettingsToStorage({
-    theme: currentTheme.value,
-    showOnlyAtomicFields: showOnlyAtomicFields.value,
-    isDebugMode: isDebugMode.value,
-    fieldLayoutDirection: newValue,
-    autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
-  })
+  saveSettingsToStorage(getCurrentSettingsForSave())
 })
 
 watch(autoSaveEnabled, (newValue) => {
-  saveSettingsToStorage({
-    theme: currentTheme.value,
-    showOnlyAtomicFields: showOnlyAtomicFields.value,
-    isDebugMode: isDebugMode.value,
-    fieldLayoutDirection: fieldLayoutDirection.value,
-    autoSaveEnabled: newValue,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
-  })
+  saveSettingsToStorage(getCurrentSettingsForSave())
   // 根据开关状态启动或停止自动保存
   if (newValue) {
     startAutoSave()
@@ -1542,17 +1511,8 @@ watch(autoSaveEnabled, (newValue) => {
   }
 })
 
-watch(autoSaveInterval, (newValue) => {
-  saveSettingsToStorage({
-    theme: currentTheme.value,
-    showOnlyAtomicFields: showOnlyAtomicFields.value,
-    isDebugMode: isDebugMode.value,
-    fieldLayoutDirection: fieldLayoutDirection.value,
-    autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: newValue,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
-  })
+watch(autoSaveInterval, () => {
+  saveSettingsToStorage(getCurrentSettingsForSave())
   // 如果自动保存已启用，重启定时器以应用新间隔
   if (autoSaveEnabled.value) {
     startAutoSave()
@@ -1560,16 +1520,7 @@ watch(autoSaveInterval, (newValue) => {
 })
 
 watch(p4Settings, (newValue) => {
-  saveSettingsToStorage({
-    theme: currentTheme.value,
-    showOnlyAtomicFields: showOnlyAtomicFields.value,
-    isDebugMode: isDebugMode.value,
-    fieldLayoutDirection: fieldLayoutDirection.value,
-    autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: newValue,
-    p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value
-  })
+  saveSettingsToStorage(getCurrentSettingsForSave())
   // 同步配置到主进程并检测连接状态
   if (newValue.port && newValue.user && newValue.client) {
     (window as any).electronAPI?.invoke('p4:configure', { ...newValue })
@@ -1580,17 +1531,23 @@ watch(p4Settings, (newValue) => {
   }
 }, { deep: true })
 
-watch(p4CheckoutPromptEnabled, (newValue) => {
-  saveSettingsToStorage({
-    theme: currentTheme.value,
-    showOnlyAtomicFields: showOnlyAtomicFields.value,
-    isDebugMode: isDebugMode.value,
-    fieldLayoutDirection: fieldLayoutDirection.value,
-    autoSaveEnabled: autoSaveEnabled.value,
-    autoSaveInterval: autoSaveInterval.value,
-    p4: p4Settings.value,
-    p4CheckoutPromptEnabled: newValue
-  })
+watch(p4CheckoutPromptEnabled, () => {
+  saveSettingsToStorage(getCurrentSettingsForSave())
+})
+
+watch(activeMainTab, () => {
+  saveSettingsToStorage(getCurrentSettingsForSave())
+})
+
+// 代码编辑器内容变化时保存（使用防抖避免频繁保存）
+let codeEditorSaveTimer: ReturnType<typeof setTimeout> | null = null
+watch(codeEditorInput, () => {
+  if (codeEditorSaveTimer) {
+    clearTimeout(codeEditorSaveTimer)
+  }
+  codeEditorSaveTimer = setTimeout(() => {
+    saveSettingsToStorage(getCurrentSettingsForSave())
+  }, 1000) // 1秒防抖
 })
 
 // 当 AI 助手面板关闭时，重新检查 AI 状态（用户可能在面板中配置了 AI）

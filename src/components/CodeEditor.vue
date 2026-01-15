@@ -220,7 +220,7 @@ onBeforeUnmount(() => {
 
   <!-- 弹窗编辑器 -->
   <Teleport to="body">
-    <div v-if="isModalOpen" class="modal-overlay" @click.self="closeModal">
+    <div v-if="isModalOpen" class="modal-overlay">
       <div 
         class="modal-container"
         :style="{ width: modalWidth, height: modalHeight }"

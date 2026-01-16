@@ -106,11 +106,53 @@
       "description": "特定工作表的自定义规则",
       "sheetName": "Sheet4",
       "xlsxFile": "PilotMode",
+      "suffixRules": [
+        {
+          "value": "Condition",
+          "baseClass": "BoolValueDelegate",
+          "allowCombination": false
+        }
+      ],
+      "prefixRules": [],
+      "exactFieldNames": []
+    },
+    {
+      "description": "特定工作表的自定义规则",
+      "sheetName": "Sheet1",
+      "xlsxFile": "BuffDebuffs",
       "suffixRules": [],
       "prefixRules": [],
       "exactFieldNames": [
         {
-          "value": "Condition",
+          "value": "ActionOverTime",
+          "baseClass": "",
+          "allowCombination": true
+        }
+      ]
+    },
+    {
+      "description": "特定工作表的自定义规则",
+      "sheetName": "Sheet1",
+      "xlsxFile": "PilotMode",
+      "suffixRules": [],
+      "prefixRules": [],
+      "exactFieldNames": [
+        {
+          "value": "ConditionRowName",
+          "baseClass": "BoolValueDelegate",
+          "allowCombination": false
+        }
+      ]
+    },
+    {
+      "description": "特定工作表的自定义规则",
+      "sheetName": "Sheet3",
+      "xlsxFile": "PilotMode",
+      "suffixRules": [],
+      "prefixRules": [],
+      "exactFieldNames": [
+        {
+          "value": "LightConditionRowName",
           "baseClass": "BoolValueDelegate",
           "allowCombination": false
         }

@@ -498,6 +498,85 @@ export function openCmdForP4Sync(dirPath: string, exePath?: string): void {
 }
 
 /**
+ * 启动时强制同步 config 目录
+ * 在 exe 同级目录下执行 p4 sync -f config\...#head
+ * @param exeDir exe 所在目录
+ * @returns 同步结果
+ */
+export async function syncConfigOnStartup(exeDir: string): Promise<{
+    success: boolean;
+    message: string;
+    output?: string;
+}> {
+    try {
+        // 构建 config 目录的同步路径
+        const configPath = `${exeDir}\\config\\...#head`;
+        const command = `p4 sync -f "${configPath}"`;
+        console.log('[P4Service] Syncing config on startup:', command);
+        
+        const { stdout, stderr } = await execAsync(command, {
+            cwd: exeDir,
+            timeout: 60000, // 60秒超时，config 可能包含多个文件
+            encoding: 'utf8'
+        });
+        
+        // 合并输出
+        const output = [stdout, stderr].filter(Boolean).join('\n').trim();
+        
+        // 检查是否成功
+        // p4 sync 成功时输出同步的文件列表或 "up-to-date" 消息
+        if (stderr && !stderr.includes('up-to-date') && !stdout) {
+            console.warn('[P4Service] syncConfigOnStartup stderr:', stderr);
+        }
+        
+        console.log('[P4Service] Config sync completed:', output || '(no output)');
+        return {
+            success: true,
+            message: output || '配置同步完成',
+            output
+        };
+    } catch (error: any) {
+        const errMsg = error.stderr || error.message || String(error);
+        
+        // 检查常见错误情况
+        if (errMsg.includes('up-to-date')) {
+            return {
+                success: true,
+                message: '配置已是最新',
+                output: errMsg
+            };
+        }
+        
+        // P4 未安装或未配置
+        if (errMsg.includes('not recognized') || 
+            errMsg.includes('not found') ||
+            errMsg.includes('ENOENT')) {
+            console.log('[P4Service] P4 not available for config sync');
+            return {
+                success: false,
+                message: 'P4 命令行工具未安装或未配置'
+            };
+        }
+        
+        // 文件不在 P4 下
+        if (errMsg.includes('not in client view') || 
+            errMsg.includes('no such file')) {
+            console.log('[P4Service] Config not under P4 control');
+            return {
+                success: false,
+                message: 'config 目录不在 P4 版本控制下'
+            };
+        }
+        
+        console.error('[P4Service] syncConfigOnStartup error:', errMsg);
+        return {
+            success: false,
+            message: `配置同步失败: ${errMsg}`
+        };
+    }
+}
+
+/**
  * 获取文件的 P4 提交历史描述
  * 返回从 haveRev+1 到 headRev 之间的所有提交描述
  */

@@ -153,6 +153,22 @@ contextBridge.exposeInMainWorld('delegateBridge', {
         ok: boolean;
         expression?: { expression: string; expressionDesc: string };
         error?: string;
+    }>,
+    // 监听元数据加载完成事件
+    onMetadataLoaded: (callback: () => void) => {
+        const handler = () => callback();
+        ipcRenderer.on('delegate:metadata-loaded', handler);
+        return () => ipcRenderer.removeListener('delegate:metadata-loaded', handler);
+    }
+});
+
+// ============ Monaco 编辑器 Bridge ============
+contextBridge.exposeInMainWorld('monacoBridge', {
+    /** 获取类型元数据（用于 Monaco 编辑器类型提示，直接使用 cachedAtomMetadata） */
+    getTypeMetadata: () => ipcRenderer.invoke('monaco:get-type-metadata') as Promise<{
+        ok: boolean;
+        atomMetadata?: any[];
+        error?: string;
     }>
 });
 

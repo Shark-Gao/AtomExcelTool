@@ -1,5 +1,5 @@
 // src/electron/main/main.ts
-import { join, extname, basename } from 'path';
+import { join, extname, basename, dirname } from 'path';
 import { existsSync, chmodSync, statSync, constants } from 'fs';
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
 import { execFile } from 'child_process';
@@ -14,7 +14,7 @@ import { AtomFieldsConfigLoader } from './AtomFieldsConfigLoader';
 import { LogManager } from './LogManager';
 import { initHunyuanService, getHunyuanService, HunyuanConfig } from './HunyuanService';
 import { initDeepSeekService, getDeepSeekService, DeepSeekConfig } from './DeepSeekService';
-import { initP4Service, getP4Config, isP4Configured, testP4Connection, isFileUnderP4, checkoutFile, getFileStatus, P4Config, checkExeUpdateWithoutConfig, openCmdForP4Sync, getFileChangeDescriptions } from './P4Service';
+import { initP4Service, getP4Config, isP4Configured, testP4Connection, isFileUnderP4, checkoutFile, getFileStatus, P4Config, checkExeUpdateWithoutConfig, openCmdForP4Sync, getFileChangeDescriptions, syncConfigOnStartup } from './P4Service';
 // import { runAllTests } from './DeParseJsonToExpression.test';
 
 
@@ -1003,6 +1003,11 @@ ipcMain.handle('delegate:get-metadata', async () => {
             console.log('[delegate:get-metadata] AI knowledge base initialized with', metadata.length, 'atoms');
         }
 
+        // 通知渲染进程元数据已加载（用于 Monaco 类型注册）
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('delegate:metadata-loaded');
+        }
+
         return {
             ok: true,
             metadata,
@@ -1013,6 +1018,26 @@ ipcMain.handle('delegate:get-metadata', async () => {
     } catch (error) {
         const message = error instanceof Error ? error.message : '生成Delegate元数据失败。';
         console.error('[delegate:get-metadata]', message);
+        return { ok: false, error: message };
+    }
+});
+
+// 获取 Monaco 编辑器所需的类型元数据（直接使用 cachedAtomMetadata）
+ipcMain.handle('monaco:get-type-metadata', async () => {
+    try {
+        if (!cachedAtomMetadata || cachedAtomMetadata.length === 0) {
+            return { ok: false, error: '元数据尚未加载，请等待 delegate:get-metadata 完成' };
+        }
+        
+        console.log('[monaco:get-type-metadata] Returning cached metadata:', cachedAtomMetadata.length, 'entries');
+        
+        return {
+            ok: true,
+            atomMetadata: cachedAtomMetadata
+        };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '获取类型元数据失败';
+        console.error('[monaco:get-type-metadata]', message);
         return { ok: false, error: message };
     }
 });
@@ -1519,8 +1544,39 @@ function createWindow() {
         return;
     }
 
-    // 禁用菜单栏
-    Menu.setApplicationMenu(null);
+    // 创建带有快捷键的菜单（隐藏菜单栏但保留快捷键功能）
+    const template: Electron.MenuItemConstructorOptions[] = [
+        // {
+        //     label: '编辑',
+        //     submenu: [
+        //         { role: 'undo', label: '撤销' },
+        //         { role: 'redo', label: '重做' },
+        //         { type: 'separator' },
+        //         { role: 'cut', label: '剪切' },
+        //         { role: 'copy', label: '复制' },
+        //         { role: 'paste', label: '粘贴' },
+        //         { role: 'selectAll', label: '全选' },
+        //     ]
+        // },
+        {
+            label: '视图',
+            submenu: [
+                { role: 'reload', label: '刷新' },
+                { role: 'forceReload', label: '强制刷新' },
+                { type: 'separator' },
+                { role: 'resetZoom', label: '重置缩放' },
+                { role: 'zoomIn', label: '放大' },
+                { role: 'zoomOut', label: '缩小' },
+                { type: 'separator' },
+                { role: 'togglefullscreen', label: '全屏' }
+            ]
+        }
+    ];
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
+    // 隐藏菜单栏但保留快捷键
+    windowRef.setMenuBarVisibility(false);
+    windowRef.setAutoHideMenuBar(true);
 
     if (isDev) {
         windowRef.loadURL('http://localhost:5173');
@@ -1534,27 +1590,36 @@ function createWindow() {
         if ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i') {
             windowRef.webContents.toggleDevTools();
             event.preventDefault();
+            return;
         }
         // F12 打开开发者工具
         if (input.key === 'F12') {
             windowRef.webContents.toggleDevTools();
             event.preventDefault();
+            return;
         }
         // Ctrl+O 打开
         if ((input.control || input.meta) && !input.shift && input.key.toLowerCase() === 'o') {
             windowRef.webContents.send('shortcut:open');
             event.preventDefault();
+            return;
         }
         // Ctrl+S 保存
         if ((input.control || input.meta) && !input.shift && input.key.toLowerCase() === 's') {
             windowRef.webContents.send('shortcut:save');
             event.preventDefault();
+            return;
         }
         // Ctrl+Shift+S 另存为
         if ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 's') {
             windowRef.webContents.send('shortcut:save-as');
             event.preventDefault();
+            return;
         }
+        // 允许浏览器内置快捷键通过（不阻止默认行为）
+        // Ctrl+Plus/Ctrl+= 放大, Ctrl+Minus 缩小, Ctrl+0 重置缩放
+        // Ctrl+F 查找, Ctrl+G 查找下一个, Ctrl+A 全选, Ctrl+C/V/X 复制粘贴剪切
+        // 这些快捷键默认会被 WebContents 处理，无需额外代码
     });
     
     // 初始 HTML 解析完成即显示（可看到 index.html 中的 Skeleton）
@@ -1667,6 +1732,33 @@ app.whenReady().then(async () => {
             console.log('[main] P4 update check skipped:', errorMsg);
             // 更新检查失败不影响程序启动
         }
+    }
+    
+    // ============ 启动时同步 config 目录 ============
+    // 在打开窗口前，执行 p4 sync -f config\...#head 强制更新配置
+    try {
+        const exeDir = isDev 
+            ? process.cwd()  // 开发模式使用当前工作目录
+            : dirname(app.getPath('exe'));  // 生产模式使用 exe 所在目录
+        
+        console.log('[main] Syncing config directory from P4...');
+        console.log('[main] Exe directory:', exeDir);
+        
+        const syncResult = await syncConfigOnStartup(exeDir);
+        
+        if (syncResult.success) {
+            console.log('[main] Config sync successful:', syncResult.message);
+            if (syncResult.output) {
+                console.log('[main] Sync output:', syncResult.output);
+            }
+        } else {
+            // 同步失败不阻止启动，只记录日志
+            console.log('[main] Config sync skipped:', syncResult.message);
+        }
+    } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.log('[main] Config sync error (ignored):', errorMsg);
+        // 同步失败不影响程序启动
     }
     
     // Initialize atom fields config loader

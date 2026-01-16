@@ -5,7 +5,7 @@
 import * as monaco from 'monaco-editor'
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
-import { EAtomType } from '../types/MetaDefine'
+import { EAtomType, type ClassMetadata, type FieldMeta, type BaseClassType } from '../types/MetaDefine'
 
 // 配置 Monaco Editor 的 worker（必须在使用前配置）
 self.MonacoEnvironment = {
@@ -23,60 +23,39 @@ const ScriptTarget = (monaco.languages as any).typescript?.ScriptTarget
 const ModuleResolutionKind = (monaco.languages as any).typescript?.ModuleResolutionKind
 const ModuleKind = (monaco.languages as any).typescript?.ModuleKind
 
-// 元数据类型定义
-export interface DecoratorMetaData {
-  className: string
-  isDelegate?: boolean
-  fields?: Record<string, unknown>
-  displayName?: string
-  description?: string
-  category?: string
-  richDescription?: string
-  author?: string
-  baseClass?: string
-}
-
-export interface ParameterInfo {
-  ParentAtomClassName: string
-  OrdinalIndex: number
-  bLastParameter: boolean
-  bOptional: boolean
-  bRest: boolean
-  ParameterName: string
-  AtomType: unknown
-  TypeString: string
-  TypeNodeText: string
-}
-
-export interface ScriptMetaData {
-  FunctionName: string
-  AtomClassName: string
-  ParameterList: ParameterInfo[]
-  AtomType: number
-}
-
 // AtomType 到 TypeScript 返回类型的映射
-// 注意：这里映射的是函数的最终返回类型，而不是 Delegate 类型本身
 const ATOM_TYPE_MAP: Record<number, string> = {
   [EAtomType.Unknown]: 'unknown',
   [EAtomType.Any]: 'any',
   [EAtomType.LiteralString]: 'string',
   [EAtomType.LiteralNumber]: 'number',
   [EAtomType.LiteralBoolean]: 'boolean',
-  [EAtomType.Number]: 'number',       // NumberValueDelegate 最终返回 number
-  [EAtomType.Boolean]: 'boolean',     // BoolValueDelegate 最终返回 boolean
-  [EAtomType.Action]: 'void',         // ActionDelegate 返回 void
-  [EAtomType.Actor]: 'Actor',         // ActorValueDelegate 返回 Actor
-  [EAtomType.Event]: 'void',          // EventDelegateEx 返回 void
-  [EAtomType.Task]: 'Promise<void>'   // TaskDelegate 返回 Promise
+  [EAtomType.Number]: 'number',
+  [EAtomType.Boolean]: 'boolean',
+  [EAtomType.Action]: 'void',
+  [EAtomType.Actor]: 'Actor',
+  [EAtomType.Event]: 'void',
+  [EAtomType.Task]: 'Promise<void>'
+}
+
+// BaseClassType 到 TypeScript 类型的映射
+const BASE_CLASS_TYPE_MAP: Record<BaseClassType, string> = {
+  'string': 'string',
+  'number': 'number',
+  'boolean': 'boolean',
+  'NumberValueDelegate': 'NumberValueDelegate',
+  'BoolValueDelegate': 'BoolValueDelegate',
+  'ActorValueDelegate': 'ActorValueDelegate',
+  'EventDelegateEx': 'EventDelegateEx',
+  'ActionDelegate': 'ActionDelegate',
+  'TaskDelegate': 'TaskDelegate'
 }
 
 class MonacoTypeRegistry {
   private static instance: MonacoTypeRegistry
   private initialized = false
   private disposables: monaco.IDisposable[] = []
-  private decoratorMetaData: Record<string, DecoratorMetaData> | null = null
-  private scriptMetaData: Record<string, ScriptMetaData> | null = null
+  private atomMetadata: ClassMetadata[] | null = null
   private completionProviderDisposable: monaco.IDisposable | null = null
 
   private constructor() {}
@@ -89,21 +68,69 @@ class MonacoTypeRegistry {
   }
 
   /**
-   * 初始化类型注册表
-   * @param scriptMetaData AtomSystemScriptMetaData.json 的内容
-   * @param decoratorMetaData AtomDecoratorMetaData.json 的内容（可选，用于补充描述）
+   * 从 FieldMeta 生成 TypeScript 类型字符串
    */
-  async initialize(
-    scriptMetaData: Record<string, ScriptMetaData>,
-    decoratorMetaData?: Record<string, DecoratorMetaData>
-  ): Promise<void> {
+  private fieldMetaToTypeString(field: FieldMeta): string {
+    const types = Array.isArray(field.type) ? field.type : [field.type]
+    
+    const typeStrings = types.map(t => {
+      if (t === 'object' && field.baseClass) {
+        return BASE_CLASS_TYPE_MAP[field.baseClass] || field.baseClass
+      }
+      if (t === 'select' && field.options) {
+        // 枚举类型，生成联合类型
+        return field.options.map(opt => 
+          typeof opt.value === 'string' ? `'${opt.value}'` : String(opt.value)
+        ).join(' | ')
+      }
+      if (t === 'array' && field.elementType) {
+        const elemType = field.elementType.baseClass 
+          ? (BASE_CLASS_TYPE_MAP[field.elementType.baseClass] || field.elementType.baseClass)
+          : 'unknown'
+        return `${elemType}[]`
+      }
+      // 基本类型映射
+      switch (t) {
+        case 'string': return 'string'
+        case 'number': return 'number'
+        case 'boolean': return 'boolean'
+        case 'object': return 'object'
+        case 'array': return 'unknown[]'
+        default: return 'unknown'
+      }
+    })
+
+    return typeStrings.length > 1 ? typeStrings.join(' | ') : typeStrings[0]
+  }
+
+  /**
+   * 从 baseClass 获取返回类型
+   */
+  private getReturnTypeFromBaseClass(baseClass: BaseClassType): string {
+    switch (baseClass) {
+      case 'NumberValueDelegate': return 'number'
+      case 'BoolValueDelegate': return 'boolean'
+      case 'ActorValueDelegate': return 'Actor'
+      case 'ActionDelegate': return 'void'
+      case 'EventDelegateEx': return 'void'
+      case 'TaskDelegate': return 'Promise<void>'
+      case 'string': return 'string'
+      case 'number': return 'number'
+      case 'boolean': return 'boolean'
+      default: return 'unknown'
+    }
+  }
+
+  /**
+   * 初始化类型注册表（使用 ClassMetadata[]）
+   */
+  async initializeWithAtomMetadata(atomMetadata: ClassMetadata[]): Promise<void> {
     if (this.initialized) {
       console.warn('[MonacoTypeRegistry] Already initialized, skipping...')
       return
     }
 
-    this.scriptMetaData = scriptMetaData
-    this.decoratorMetaData = decoratorMetaData || null
+    this.atomMetadata = atomMetadata
 
     // 配置 TypeScript 编译选项
     typescriptDefaults?.setCompilerOptions({
@@ -120,24 +147,24 @@ class MonacoTypeRegistry {
     })
 
     // 生成并注入类型定义
-    const typeDefinitions = this.generateTypeDefinitions()
+    const typeDefinitions = this.generateTypeDefinitionsFromMetadata()
     const disposable = typescriptDefaults?.addExtraLib(
       typeDefinitions,
       'ts:atom-global.d.ts'
     )
     this.disposables.push(disposable)
 
-    // 注册自定义补全提供器（支持自动补全括号）
-    this.registerCompletionProvider()
+    // 注册自定义补全提供器
+    this.registerCompletionProviderFromMetadata()
 
     this.initialized = true
-    console.log('[MonacoTypeRegistry] Initialized with', Object.keys(scriptMetaData).length, 'functions')
+    console.log('[MonacoTypeRegistry] Initialized with', atomMetadata.length, 'atoms from ClassMetadata')
   }
 
   /**
-   * 注册自定义补全提供器，实现函数自动补全括号
+   * 注册自定义补全提供器（使用 ClassMetadata[]）
    */
-  private registerCompletionProvider(): void {
+  private registerCompletionProviderFromMetadata(): void {
     if (this.completionProviderDisposable) {
       this.completionProviderDisposable.dispose()
     }
@@ -145,12 +172,10 @@ class MonacoTypeRegistry {
     this.completionProviderDisposable = monaco.languages.registerCompletionItemProvider('typescript', {
       triggerCharacters: ['.', '('],
       provideCompletionItems: (model, position) => {
-        if (!this.scriptMetaData) {
+        if (!this.atomMetadata) {
           return { suggestions: [] }
         }
 
-        // 获取当前行的文本
-        const lineContent = model.getLineContent(position.lineNumber)
         const wordInfo = model.getWordUntilPosition(position)
         const range = {
           startLineNumber: position.lineNumber,
@@ -161,52 +186,44 @@ class MonacoTypeRegistry {
 
         const suggestions: monaco.languages.CompletionItem[] = []
 
-        // 遍历所有原子函数生成补全项
-        Object.entries(this.scriptMetaData).forEach(([atomClassName, meta]) => {
+        this.atomMetadata.forEach(meta => {
           // 跳过测试函数
-          if (meta.FunctionName.startsWith('__')) return
+          if (meta.funcName.startsWith('__')) return
 
-          // 获取描述信息
-          const decoratorInfo = this.decoratorMetaData?.[atomClassName]
-          const description = decoratorInfo?.description || decoratorInfo?.displayName || atomClassName
+          const description = meta.description || meta.displayName || meta.className
+          const fields = meta.fields || []
+          const hasParams = fields.length > 0
 
-          // 生成参数占位符
-          const params = meta.ParameterList
-          const hasParams = params.length > 0
-
-          // 构建插入文本（带括号和参数占位符）
+          // 构建插入文本
           let insertText: string
           let insertTextRules: monaco.languages.CompletionItemInsertTextRule | undefined
 
           if (hasParams) {
-            // 有参数：生成 snippet 格式，支持 Tab 跳转
-            const paramSnippets = params.map((param, index) => {
-              const paramName = param.ParameterName
-              const isOptional = param.bOptional
-              if (isOptional) {
-                return `\${${index + 1}:/* ${paramName}? */}`
+            const paramSnippets = fields.map((field, index) => {
+              if (field.isOptional) {
+                return `\${${index + 1}:/* ${field.label}? */}`
               }
-              return `\${${index + 1}:${paramName}}`
+              return `\${${index + 1}:${field.label}}`
             }).join(', ')
-            insertText = `${meta.FunctionName}(${paramSnippets})`
+            insertText = `${meta.funcName}(${paramSnippets})`
             insertTextRules = monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
           } else {
-            // 无参数：直接插入函数名和空括号
-            insertText = `${meta.FunctionName}()`
+            insertText = `${meta.funcName}()`
           }
 
-          // 生成参数签名用于显示
-          const paramSignature = params.map(param => {
-            const optional = param.bOptional ? '?' : ''
-            return `${param.ParameterName}${optional}: ${param.TypeString || 'unknown'}`
+          // 生成参数签名
+          const paramSignature = fields.map(field => {
+            const optional = field.isOptional ? '?' : ''
+            const typeStr = this.fieldMetaToTypeString(field)
+            return `${field.label}${optional}: ${typeStr}`
           }).join(', ')
 
           // 获取返回类型
-          const returnType = ATOM_TYPE_MAP[meta.AtomType] || 'unknown'
+          const returnType = this.getReturnTypeFromBaseClass(meta.baseClass)
 
           suggestions.push({
             label: {
-              label: meta.FunctionName,
+              label: meta.funcName,
               detail: `(${paramSignature})`,
               description: `: ${returnType}`
             },
@@ -214,12 +231,12 @@ class MonacoTypeRegistry {
             insertText: insertText,
             insertTextRules: insertTextRules,
             range: range,
-            detail: `${meta.FunctionName}(${paramSignature}): ${returnType}`,
+            detail: `${meta.funcName}(${paramSignature}): ${returnType}`,
             documentation: {
-              value: `**${description}**\n\n${decoratorInfo?.richDescription || ''}`
+              value: `**${description}**\n\n${meta.richDescription || ''}`
             },
-            sortText: `0_${meta.FunctionName}`, // 优先显示原子函数
-            filterText: meta.FunctionName
+            sortText: `0_${meta.funcName}`,
+            filterText: meta.funcName
           })
         })
 
@@ -233,13 +250,14 @@ class MonacoTypeRegistry {
   }
 
   /**
-   * 生成 TypeScript 类型定义
+   * 从 ClassMetadata[] 生成 TypeScript 类型定义
    */
-  private generateTypeDefinitions(): string {
+  private generateTypeDefinitionsFromMetadata(): string {
     const lines: string[] = []
     
     lines.push('// ============================================')
     lines.push('// Auto-generated Atom Script Type Definitions')
+    lines.push('// (Generated from ClassMetadata)')
     lines.push('// ============================================')
     lines.push('')
 
@@ -249,7 +267,7 @@ class MonacoTypeRegistry {
     lines.push('declare type Actor = unknown;')
     lines.push('')
     
-    // Delegate 类型（保留用于参数类型）
+    // Delegate 类型
     lines.push('// Delegate Types (for parameter types)')
     const delegateTypes = [
       { name: 'NumberValueDelegate', desc: '数值委托类型' },
@@ -266,68 +284,66 @@ class MonacoTypeRegistry {
     })
     lines.push('')
 
-    // 2. 收集所有使用到的类型
-    const usedTypes = new Set<string>()
-    if (this.scriptMetaData) {
-      Object.values(this.scriptMetaData).forEach(meta => {
-        meta.ParameterList.forEach(param => {
-          // 从 TypeString 中提取类型名
-          const typeMatches = param.TypeString.match(/[A-Z][a-zA-Z]*Delegate/g)
-          if (typeMatches) {
-            typeMatches.forEach(t => usedTypes.add(t))
-          }
-        })
+    // 2. 收集所有使用到的自定义类型
+    const customTypes = new Set<string>()
+    const builtinTypes = new Set(['NumberValueDelegate', 'BoolValueDelegate', 'StringValueDelegate', 
+                          'ActorValueDelegate', 'EventDelegateEx', 'ActionDelegate', 'TaskDelegate', 'Actor',
+                          'string', 'number', 'boolean', 'unknown', 'void', 'object'])
+    
+    if (this.atomMetadata) {
+      // 从 className 收集类型
+      this.atomMetadata.forEach(meta => {
+        if (!builtinTypes.has(meta.className)) {
+          customTypes.add(meta.className)
+        }
       })
     }
 
-    // 3. 从 DecoratorMetaData 生成额外的类型定义
-    const builtinTypes = ['NumberValueDelegate', 'BoolValueDelegate', 'StringValueDelegate', 
-                          'ActorValueDelegate', 'EventDelegateEx', 'ActionDelegate', 'TaskDelegate', 'Actor']
-    if (this.decoratorMetaData) {
-      lines.push('// Decorator Types with Descriptions')
-      Object.entries(this.decoratorMetaData).forEach(([className, meta]) => {
-        if (builtinTypes.includes(className)) return
-        
-        const desc = meta.description || meta.displayName || className
-        lines.push(`/** ${desc} */`)
-        if (meta.richDescription) {
-          lines.push(`/** @remarks ${meta.richDescription} */`)
+    // 3. 生成自定义类型声明
+    if (customTypes.size > 0) {
+      lines.push('// Custom Atom Types')
+      this.atomMetadata?.forEach(meta => {
+        if (customTypes.has(meta.className)) {
+          const desc = meta.description || meta.displayName || meta.className
+          lines.push(`/** ${desc} */`)
+          if (meta.richDescription) {
+            lines.push(`/** @remarks ${meta.richDescription} */`)
+          }
+          lines.push(`declare type ${meta.className} = ${meta.baseClass || 'unknown'};`)
         }
-        lines.push(`declare type ${className} = ${meta.baseClass || 'unknown'};`)
       })
       lines.push('')
     }
 
     // 4. 生成函数声明
-    if (this.scriptMetaData) {
+    if (this.atomMetadata) {
       lines.push('// Function Declarations')
       lines.push('')
 
-      Object.entries(this.scriptMetaData).forEach(([atomClassName, meta]) => {
+      this.atomMetadata.forEach(meta => {
         // 跳过测试函数
-        if (meta.FunctionName.startsWith('__')) return
+        if (meta.funcName.startsWith('__')) return
 
-        // 获取描述信息
-        const decoratorInfo = this.decoratorMetaData?.[atomClassName]
-        const description = decoratorInfo?.description || decoratorInfo?.displayName || atomClassName
-        const richDescription = decoratorInfo?.richDescription
+        const description = meta.description || meta.displayName || meta.className
+        const richDescription = meta.richDescription
+        const fields = meta.fields || []
 
         // 生成参数列表
-        const params = meta.ParameterList.map(param => {
-          const optional = param.bOptional ? '?' : ''
-          const rest = param.bRest ? '...' : ''
-          let type = param.TypeString || 'unknown'
+        const params = fields.map(field => {
+          const optional = field.isOptional ? '?' : ''
+          const rest = field.isRest ? '...' : ''
+          let type = this.fieldMetaToTypeString(field)
           
           // 处理 rest 参数的类型
-          if (param.bRest && !type.endsWith('[]')) {
+          if (field.isRest && !type.endsWith('[]')) {
             type = `${type}[]`
           }
           
-          return `${rest}${param.ParameterName}${optional}: ${type}`
+          return `${rest}${field.label}${optional}: ${type}`
         }).join(', ')
 
         // 获取返回类型
-        const returnType = ATOM_TYPE_MAP[meta.AtomType] || 'unknown'
+        const returnType = this.getReturnTypeFromBaseClass(meta.baseClass)
 
         // 生成 JSDoc
         lines.push('/**')
@@ -335,13 +351,14 @@ class MonacoTypeRegistry {
         if (richDescription) {
           lines.push(` * @remarks ${richDescription}`)
         }
-        meta.ParameterList.forEach(param => {
-          const paramDesc = param.TypeNodeText || param.TypeString
-          lines.push(` * @param ${param.ParameterName} - ${paramDesc}`)
+        fields.forEach(field => {
+          const typeStr = this.fieldMetaToTypeString(field)
+          const fieldDesc = field.description || typeStr
+          lines.push(` * @param ${field.label} - ${fieldDesc}`)
         })
         lines.push(` * @returns ${returnType}`)
         lines.push(' */')
-        lines.push(`declare function ${meta.FunctionName}(${params}): ${returnType};`)
+        lines.push(`declare function ${meta.funcName}(${params}): ${returnType};`)
         lines.push('')
       })
     }
@@ -374,14 +391,14 @@ class MonacoTypeRegistry {
    * 获取已注册的函数数量
    */
   getFunctionCount(): number {
-    return this.scriptMetaData ? Object.keys(this.scriptMetaData).length : 0
+    return this.atomMetadata ? this.atomMetadata.length : 0
   }
 
   /**
    * 获取生成的类型定义（用于调试）
    */
   getGeneratedTypes(): string {
-    return this.generateTypeDefinitions()
+    return this.generateTypeDefinitionsFromMetadata()
   }
 
   /**
@@ -395,30 +412,50 @@ class MonacoTypeRegistry {
       this.completionProviderDisposable = null
     }
     this.initialized = false
-    this.scriptMetaData = null
-    this.decoratorMetaData = null
+    this.atomMetadata = null
   }
 }
 
 // 导出单例
 export const monacoTypeRegistry = MonacoTypeRegistry.getInstance()
 
+// 声明全局 bridge 类型
+declare global {
+  interface Window {
+    monacoBridge?: {
+      getTypeMetadata: () => Promise<{
+        ok: boolean;
+        atomMetadata?: ClassMetadata[];
+        error?: string;
+      }>;
+    };
+    delegateBridge?: {
+      onMetadataLoaded: (callback: () => void) => () => void;
+    };
+  }
+}
+
 // 便捷初始化函数
+// 从主进程获取 cachedAtomMetadata，等待 delegate:get-metadata 完成后再初始化
 export async function initializeMonacoTypes(): Promise<void> {
   try {
-    // 动态导入元数据文件
-    const [scriptMetaModule, decoratorMetaModule] = await Promise.all([
-      import('../../config/AtomSystemScriptMetaData.json'),
-      import('../../config/AtomDecoratorMetaData.json')
-    ])
+    // 检查是否在 Electron 环境中
+    if (!window.monacoBridge) {
+      console.warn('[MonacoTypeRegistry] monacoBridge not available, skipping initialization')
+      return
+    }
 
-    const scriptMeta = scriptMetaModule.default as Record<string, ScriptMetaData>
-    const decoratorMeta = decoratorMetaModule.default as Record<string, DecoratorMetaData>
+    // 从主进程获取类型元数据（直接使用 cachedAtomMetadata）
+    const result = await window.monacoBridge.getTypeMetadata()
     
-    console.log('[MonacoTypeRegistry] Loaded scriptMetaData:', Object.keys(scriptMeta).length, 'entries')
-    console.log('[MonacoTypeRegistry] Loaded decoratorMetaData:', Object.keys(decoratorMeta).length, 'entries')
+    if (!result.ok || !result.atomMetadata) {
+      console.error('[MonacoTypeRegistry] Failed to get type metadata:', result.error)
+      return
+    }
 
-    await monacoTypeRegistry.initialize(scriptMeta, decoratorMeta)
+    console.log('[MonacoTypeRegistry] Received atomMetadata:', result.atomMetadata.length, 'entries')
+
+    await monacoTypeRegistry.initializeWithAtomMetadata(result.atomMetadata)
   } catch (error) {
     console.error('[MonacoTypeRegistry] Failed to initialize:', error)
   }

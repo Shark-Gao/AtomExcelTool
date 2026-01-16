@@ -774,7 +774,7 @@
 		"isDelegate": true,
 		"fields": {
 			"1": {
-				"key": "operator",
+				"key": "Operator",
 				"label": "运算符",
 				"type": "select",
 				"options": [
@@ -949,17 +949,6 @@
 		"author": "unknown",
 		"baseClass": "NumberValueDelegate"
 	},
-	"NumberValueAAIToughnessZeroRemainTime": {
-		"className": "NumberValueAAIToughnessZeroRemainTime",
-		"isDelegate": true,
-		"fields": {},
-		"displayName": "AI怪物集中力恢复时间",
-		"description": "获取AI感知的怪物集中力清空后复原的时间",
-		"category": "AI冒险家相关",
-		"richDescription": "获取AI感知的怪物集中力清空后，恢复至正常所需的时间（0表示未清空）",
-		"author": "unknown",
-		"baseClass": "NumberValueDelegate"
-	},
 	"NumberValueAAIFurinkazanStageRemainTime": {
 		"className": "NumberValueAAIFurinkazanStageRemainTime",
 		"isDelegate": true,
@@ -1111,6 +1100,17 @@
 		"description": "冒险家AI技能专用随机数，当前技能不变时随机数相同",
 		"category": "AI冒险家相关",
 		"richDescription": "返回AI技能专用[0,1)区间随机数（当前技能不变时结果相同）",
+		"author": "unknown",
+		"baseClass": "NumberValueDelegate"
+	},
+	"NumberValueAAIAbilityRandomWithParam": {
+		"className": "NumberValueAAIAbilityRandomWithParam",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "AI技能随机数范围常量",
+		"description": "冒险家AI技能专用随机数，当前技能不变时随机数相同,指定随机数范围和常量",
+		"category": "AI冒险家相关",
+		"richDescription": "返回AI技能专用随机数（当前技能不变时结果相同）,指定随机数范围{0}和常量{1}",
 		"author": "unknown",
 		"baseClass": "NumberValueDelegate"
 	},
@@ -1647,7 +1647,7 @@
 		"isDelegate": true,
 		"fields": {
 			"1": {
-				"key": "operator",
+				"key": "operatorInTrigger",
 				"label": "运算符",
 				"type": "select",
 				"options": [
@@ -2032,7 +2032,7 @@
 		"isDelegate": true,
 		"fields": {
 			"0": {
-				"key": "operator",
+				"key": "operatorInTrigger",
 				"label": "运算符",
 				"type": "select",
 				"options": [
@@ -2060,7 +2060,7 @@
 		"isDelegate": true,
 		"fields": {
 			"1": {
-				"key": "operator",
+				"key": "operatorInTrigger",
 				"label": "运算符",
 				"type": "select",
 				"options": [
@@ -2105,6 +2105,17 @@
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
+	"BoolValueCheckContextAbilityHasTagListDelegate": {
+		"className": "BoolValueCheckContextAbilityHasTagListDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "同时检查多个技能标签",
+		"description": "检查环境中是否有指定标签的技能",
+		"category": "技能相关",
+		"richDescription": "检查环境中是否有{0}标签的技能的技能",
+		"author": "sharkgao",
+		"baseClass": "BoolValueDelegate"
+	},
 	"BoolValueCheckContextAbilityHasTag": {
 		"className": "BoolValueCheckContextAbilityHasTag",
 		"isDelegate": true,
@@ -2114,6 +2125,17 @@
 		"category": "技能相关",
 		"richDescription": "检查环境中（攻击/技能事件等）是否有{0}标签的技能",
 		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"BoolValueCheckContextAbilityHasAdventureShuzhiTag": {
+		"className": "BoolValueCheckContextAbilityHasAdventureShuzhiTag",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查技能冒险家数值标签",
+		"description": "检查环境中是否有指定冒险家数值标签的技能",
+		"category": "技能相关",
+		"richDescription": "检查环境中（攻击/技能事件等）是否有{0}数值标签的技能",
+		"author": "linengzeng",
 		"baseClass": "BoolValueDelegate"
 	},
 	"BoolValueCheckContextAbilityIsFromSkillSlot": {
@@ -2234,6 +2256,28 @@
 		"description": "查询怪物是否处于指定类型的硬直状态",
 		"category": "AI冒险家相关",
 		"richDescription": "查询怪物是否处于{0}类型（EStiffnessType）的硬直状态（仅AI用）",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"BoolValueAAIMonsterInAnyStiffnessTypeDelegate": {
+		"className": "BoolValueAAIMonsterInAnyStiffnessTypeDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "AI怪物硬直类型判断",
+		"description": "查询怪物是否处于指定类型的硬直状态中的任意一种",
+		"category": "AI冒险家相关",
+		"richDescription": "查询怪物是否处于{0}类型（EStiffnessType）的硬直状态中的任意一种（仅AI用）",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"BoolValueAAIMonsterInAnyCreatureStateDelegate": {
+		"className": "BoolValueAAIMonsterInAnyCreatureStateDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "AI怪物生物状态判断",
+		"description": "检测怪物是否处于指定生物状态中的任意一种（飞行/地面等）",
+		"category": "AI冒险家相关",
+		"richDescription": "检测怪物是否处于{0}生物状态中的任意一种（Floating/Flying等，仅AI用）",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -3451,7 +3495,7 @@
 		"displayName": "获取Buff上下文中触发Event的Monster",
 		"description": "获取Buff上下文中触发Event的Monster",
 		"category": "怪物相关",
-		"richDescription": "获取Buff上下文中触发Event的Monster。目前支持的事件：OnAggroMonsterTumble",
+		"richDescription": "获取Buff上下文中触发Event的Monster。目前支持的事件：OnAggroMonsterTumble, OnAggroMonsterStatus",
 		"author": "emiljqchen",
 		"baseClass": "ActorValueDelegate"
 	},
@@ -3858,7 +3902,7 @@
 		"displayName": "修改角色属性",
 		"description": "修改指定角色的基础属性（敏感操作，需谨慎）",
 		"category": "角色相关",
-		"richDescription": "修改{0}角色的{1}属性，修改值{2}（仅服务器事件生效，敏感操作）",
+		"richDescription": "修改角色的{0}属性，修改值{1}（仅服务器事件生效，敏感操作）",
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
@@ -4240,8 +4284,8 @@
 		"className": "CheckMonsterBuffState_BoolValueDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "检测MonsterActor是否处于指定BuffState",
-		"description": "检测MonsterActor是否处于指定BuffState",
+		"displayName": "检测MonsterActor是否处于指定BuffStateID",
+		"description": "检测MonsterActor是否处于指定BuffStateID",
 		"category": "怪物相关",
 		"richDescription": "检测怪物{0}是否处于{1}状态",
 		"author": "jevenZhao",
@@ -4425,7 +4469,7 @@
 		"fields": {
 			"0": {
 				"key": "TableName",
-				"label": "配置名(格式:Physiology_[ArchetypeID]_EcologicalNicheLevel[Number])",
+				"label": "配置名(格式:Physiology_[ArchetypeID])",
 				"type": "string"
 			},
 			"1": {

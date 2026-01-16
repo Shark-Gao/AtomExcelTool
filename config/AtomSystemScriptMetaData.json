@@ -7814,6 +7814,70 @@
         ],
         "AtomType": 12
     },
+    "BoolValueCheckContextAbilityHasAdventureShuzhiTag": {
+        "FunctionName": "CheckContextAbilityHasAdventureShuzhiTag",
+        "AtomClassName": "BoolValueCheckContextAbilityHasAdventureShuzhiTag",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "BoolValueCheckContextAbilityHasAdventureShuzhiTag",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Tag",
+                "AtomType": {
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 9
+                        },
+                        {
+                            "AtomType": 11
+                        }
+                    ]
+                },
+                "TypeString": "number | NumberValueConstDelegate",
+                "TypeNodeText": "number | NumberValueConstDelegate"
+            }
+        ],
+        "AtomType": 12
+    },
+    "BoolValueCheckContextAbilityHasTagListDelegate": {
+        "FunctionName": "CheckContextAbilityHasTagList",
+        "AtomClassName": "BoolValueCheckContextAbilityHasTagListDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "BoolValueCheckContextAbilityHasTagListDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "operatorInTrigger",
+                "AtomType": {
+                    "AtomType": 1
+                },
+                "TypeString": "EMHBoolTriggerValueBinaryOperatorOnBool",
+                "TypeNodeText": "ue.EMHBoolTriggerValueBinaryOperatorOnBool"
+            },
+            {
+                "ParentAtomClassName": "BoolValueCheckContextAbilityHasTagListDelegate",
+                "OrdinalIndex": 1,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "TagNameList",
+                "AtomType": {
+                    "AtomType": 4,
+                    "ElementType": {
+                        "AtomType": 8
+                    }
+                },
+                "TypeString": "string[]",
+                "TypeNodeText": "string[]"
+            }
+        ],
+        "AtomType": 12
+    },
     "NumberValueGetHitzone": {
         "FunctionName": "GetHitzoneOfAttack",
         "AtomClassName": "NumberValueGetHitzone",
@@ -14648,12 +14712,6 @@
         ],
         "AtomType": 11
     },
-    "NumberValueAAIToughnessZeroRemainTime": {
-        "FunctionName": "AAIToughnessZeroRemainTime",
-        "AtomClassName": "NumberValueAAIToughnessZeroRemainTime",
-        "ParameterList": [],
-        "AtomType": 11
-    },
     "NumberValueAAIFurinkazanStageRemainTime": {
         "FunctionName": "AAIFurinkazanStageRemainTime",
         "AtomClassName": "NumberValueAAIFurinkazanStageRemainTime",
@@ -14676,6 +14734,52 @@
                 },
                 "TypeString": "string",
                 "TypeNodeText": "string"
+            }
+        ],
+        "AtomType": 12
+    },
+    "BoolValueAAIMonsterInAnyStiffnessTypeDelegate": {
+        "FunctionName": "AAIMonsterInAnyStiffnessType",
+        "AtomClassName": "BoolValueAAIMonsterInAnyStiffnessTypeDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "BoolValueAAIMonsterInAnyStiffnessTypeDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": true,
+                "ParameterName": "InStiffnessTypes",
+                "AtomType": {
+                    "AtomType": 4,
+                    "ElementType": {
+                        "AtomType": 8
+                    }
+                },
+                "TypeString": "readonly string[]",
+                "TypeNodeText": "readonly string[]"
+            }
+        ],
+        "AtomType": 12
+    },
+    "BoolValueAAIMonsterInAnyCreatureStateDelegate": {
+        "FunctionName": "AAIMonsterInAnyCreatureState",
+        "AtomClassName": "BoolValueAAIMonsterInAnyCreatureStateDelegate",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "BoolValueAAIMonsterInAnyCreatureStateDelegate",
+                "OrdinalIndex": 0,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": true,
+                "ParameterName": "InTagNames",
+                "AtomType": {
+                    "AtomType": 4,
+                    "ElementType": {
+                        "AtomType": 8
+                    }
+                },
+                "TypeString": "readonly string[]",
+                "TypeNodeText": "readonly string[]"
             }
         ],
         "AtomType": 12
@@ -21223,6 +21327,55 @@
         "ParameterList": [],
         "AtomType": 11
     },
+    "NumberValueAAIAbilityRandomWithParam": {
+        "FunctionName": "AAIAbilityRandomWithParam",
+        "AtomClassName": "NumberValueAAIAbilityRandomWithParam",
+        "ParameterList": [
+            {
+                "ParentAtomClassName": "NumberValueAAIAbilityRandomWithParam",
+                "OrdinalIndex": 0,
+                "bLastParameter": false,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Param_Random",
+                "AtomType": {
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 9
+                        },
+                        {
+                            "AtomType": 11
+                        }
+                    ]
+                },
+                "TypeString": "number | NumberValueConstDelegate",
+                "TypeNodeText": "number | NumberValueConstDelegate"
+            },
+            {
+                "ParentAtomClassName": "NumberValueAAIAbilityRandomWithParam",
+                "OrdinalIndex": 1,
+                "bLastParameter": true,
+                "bOptional": false,
+                "bRest": false,
+                "ParameterName": "Param_Const",
+                "AtomType": {
+                    "AtomType": 2,
+                    "UnionTypes": [
+                        {
+                            "AtomType": 9
+                        },
+                        {
+                            "AtomType": 11
+                        }
+                    ]
+                },
+                "TypeString": "number | NumberValueConstDelegate",
+                "TypeNodeText": "number | NumberValueConstDelegate"
+            }
+        ],
+        "AtomType": 11
+    },
     "NumberValueAttributeScalingByPlayerSkillGroupLevel": {
         "FunctionName": "ScalingByPlayerSkillGroupLevel",
         "AtomClassName": "NumberValueAttributeScalingByPlayerSkillGroupLevel",
@@ -24827,7 +24980,7 @@
                 "bLastParameter": true,
                 "bOptional": false,
                 "bRest": false,
-                "ParameterName": "BuffState",
+                "ParameterName": "BuffStateID",
                 "AtomType": {
                     "AtomType": 8
                 },
@@ -28198,7 +28351,7 @@
                 "bLastParameter": false,
                 "bOptional": false,
                 "bRest": false,
-                "ParameterName": "operator",
+                "ParameterName": "Operator",
                 "AtomType": {
                     "AtomType": 1
                 },
@@ -28244,7 +28397,7 @@
                 "bLastParameter": false,
                 "bOptional": false,
                 "bRest": false,
-                "ParameterName": "operator",
+                "ParameterName": "operatorInTrigger",
                 "AtomType": {
                     "AtomType": 1
                 },
@@ -28277,7 +28430,7 @@
                 "bLastParameter": false,
                 "bOptional": false,
                 "bRest": false,
-                "ParameterName": "operator",
+                "ParameterName": "operatorInTrigger",
                 "AtomType": {
                     "AtomType": 1
                 },
@@ -28326,7 +28479,7 @@
                 "bLastParameter": false,
                 "bOptional": false,
                 "bRest": false,
-                "ParameterName": "operator",
+                "ParameterName": "operatorInTrigger",
                 "AtomType": {
                     "AtomType": 1
                 },

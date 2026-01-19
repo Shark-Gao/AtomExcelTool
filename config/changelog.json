@@ -1,6 +1,14 @@
 {
   "changelog": [
     {
+      "version": "1.9.8",
+      "date": "2026-01-19",
+      "changes": [
+        "🔧 修复布尔/数值二元操作符字段名映射问题（operator → Operator/operatorInTrigger）",
+        "🔧 修复 select 类型字段初始化时未正确设置默认值的问题"
+      ]
+    },
+    {
       "version": "1.9.7",
       "date": "2026-01-16",
       "changes": [

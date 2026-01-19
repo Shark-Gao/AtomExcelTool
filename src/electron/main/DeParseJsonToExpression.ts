@@ -62,7 +62,7 @@ export function deParseJsonToExpression(jsonObject: any, isRoot = true): DeParse
   if (className === 'NumberValueBinaryOperatorDelegate') {
     const lhs = deParseJsonToExpression(jsonObject.lhs, false);
     const rhs = deParseJsonToExpression(jsonObject.rhs, false);
-    const operator = getOperatorString(jsonObject.operator, 'number');
+    const operator = getOperatorString(jsonObject.Operator, 'number');
     return {expression:`(${lhs.expression} ${operator} ${rhs.expression})`, expressionDesc:`(${lhs.expressionDesc} ${operator} ${rhs.expressionDesc})`};
   }
 
@@ -70,7 +70,7 @@ export function deParseJsonToExpression(jsonObject: any, isRoot = true): DeParse
   if (className === 'BoolValueBinaryOperatorOnBoolDelegate') {
     const lhs = deParseJsonToExpression(jsonObject.lhs, false);
     const rhs = deParseJsonToExpression(jsonObject.rhs, false);
-    const operator = getOperatorString(jsonObject.operator, 'bool');
+    const operator = getOperatorString(jsonObject.operatorInTrigger, 'bool');
     return {expression:`(${lhs.expression} ${operator} ${rhs.expression})`, expressionDesc:`(${lhs.expressionDesc} ${operator} ${rhs.expressionDesc})`};;
   }
 
@@ -80,7 +80,7 @@ export function deParseJsonToExpression(jsonObject: any, isRoot = true): DeParse
     if (!conditions || conditions.length === 0) {
       return {expression:'', expressionDesc:''};
     }
-    const operator = getOperatorString(jsonObject.operator, 'bool');
+    const operator = getOperatorString(jsonObject.operatorInTrigger, 'bool');
     const parsedConditions = conditions.map(c => deParseJsonToExpression(c, false));
     const expressions = parsedConditions.map(p => p.expression).join(` ${operator} `);
     const expressionDescs = parsedConditions.map(p => p.expressionDesc).join(` ${operator} `);
@@ -91,7 +91,7 @@ export function deParseJsonToExpression(jsonObject: any, isRoot = true): DeParse
   if (className === 'BoolValueBinaryOperatorOnNumberDelegate') {
     const lhs = deParseJsonToExpression(jsonObject.lhs, false);
     const rhs = deParseJsonToExpression(jsonObject.rhs, false);
-    const operator = getOperatorString(jsonObject.operator, 'compare');
+    const operator = getOperatorString(jsonObject.operatorInTrigger, 'compare');
     return {expression:`(${lhs.expression} ${operator} ${rhs.expression})`, expressionDesc:`(${lhs.expressionDesc} ${operator} ${rhs.expressionDesc})`};
   }
 

@@ -6372,7 +6372,7 @@ class FAtomExpressionParser {
             typeof lhs === 'object' && 
             lhs !== null &&
             (lhs as any)._ClassName === 'BoolValuesBinaryOperatorOnBoolDelegate' &&
-            (lhs as any).operator === currentBoolOperator
+            (lhs as any).operatorInTrigger === currentBoolOperator
           ) {
             // 追加 rhs 到已有的 Conditions 数组
             (lhs as any).Conditions.push(rhs);
@@ -6381,7 +6381,7 @@ class FAtomExpressionParser {
             // 创建新的 BoolValuesBinaryOperatorOnBoolDelegate，使用数组形式
             stack.push({
               _ClassName: 'BoolValuesBinaryOperatorOnBoolDelegate',
-              operator: currentBoolOperator,
+              operatorInTrigger: currentBoolOperator,
               Conditions: [lhs, rhs]
             });
           }

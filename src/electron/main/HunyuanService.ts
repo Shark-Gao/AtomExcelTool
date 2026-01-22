@@ -3,8 +3,14 @@
  * 用于原子配置推荐问答
  */
 
-import { ClassMetadata } from '../../types/MetaDefine';
-import { buildSystemPrompt, getDefaultSystemPrompt } from './PromptBuilder';
+import {
+  BaseAIService,
+  ChatMessage,
+  StreamChunk,
+  TokenUsage,
+  AIResponse,
+  estimateMessagesTokens
+} from './BaseAIService';
 
 // ============ 类型定义 ============
 
@@ -14,175 +20,32 @@ export interface HunyuanConfig {
   model?: string;
 }
 
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
-export interface HunyuanResponse {
-  success: boolean;
-  content?: string;
-  error?: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-}
-
-export interface StreamChunk {
-  type: 'content' | 'done' | 'error';
-  content?: string;
-  error?: string;
-}
+// 重新导出公共类型
+export type { ChatMessage, TokenUsage, StreamChunk };
+export type HunyuanResponse = AIResponse;
 
 // ============ 混元服务类 ============
 
-export class HunyuanService {
+export class HunyuanService extends BaseAIService {
   private config: HunyuanConfig;
-  private conversationHistory: ChatMessage[] = [];
-  private systemPrompt: string = '';
-  private atomKnowledgeLoaded: boolean = false;
+  
+  // 混元价格：输入约 0.004元/1K tokens，输出约 0.008元/1K tokens
+  // 混元内网免费，但记录估算成本用于参考（按公网价格）
+  protected inputPricePerK = 0.004;
+  protected outputPricePerK = 0.008;
 
   constructor(config: HunyuanConfig) {
+    super('HunyuanService');
     this.config = {
       ...config
     };
     console.log('[HunyuanService] Initialized with model:', this.config.model);
-    // 初始化默认提示词
-    this.initializeDefaultPrompt();
   }
 
   /**
-   * 初始化默认提示词（无原子知识库时使用）
+   * 调用腾讯混元内网 OpenAPI（非流式）
    */
-  private initializeDefaultPrompt(): void {
-    this.systemPrompt = getDefaultSystemPrompt();
-
-    this.conversationHistory = [
-      { role: 'system', content: this.systemPrompt }
-    ];
-  }
-
-  /**
-   * 使用已解析的 ClassMetadata 初始化原子知识库
-   */
-  initializeWithAtomKnowledge(metadata: ClassMetadata[]): void {
-    if (!metadata || metadata.length === 0) {
-      console.log('[HunyuanService] No metadata provided, using default prompt');
-      return;
-    }
-
-    console.log('[HunyuanService] Building knowledge base with', metadata.length, 'atoms');
-
-    this.systemPrompt = buildSystemPrompt(metadata);
-
-    console.log('[HunyuanService] System prompt length:', this.systemPrompt.length);
-
-    this.conversationHistory = [
-      { role: 'system', content: this.systemPrompt }
-    ];
-    
-    this.atomKnowledgeLoaded = true;
-  }
-
-  /**
-   * 检查知识库是否已加载
-   */
-  isKnowledgeLoaded(): boolean {
-    return this.atomKnowledgeLoaded;
-  }
-
-  /**
-   * 发送消息并获取回复（使用流式调用，收集完整响应）
-   */
-  async chat(userMessage: string, context?: { currentAtom?: ClassMetadata }): Promise<HunyuanResponse> {
-    try {
-      // 构建用户消息，可附加当前上下文
-      let fullMessage = userMessage;
-      if (context?.currentAtom) {
-        fullMessage = `[当前正在编辑的原子: ${context.currentAtom.displayName || context.currentAtom.className}]\n\n${userMessage}`;
-      }
-
-      this.conversationHistory.push({ role: 'user', content: fullMessage });
-
-      // 使用流式调用，收集完整响应
-      let fullContent = '';
-      let errorMsg = '';
-      
-      for await (const chunk of this.callHunyuanAPIStream(this.conversationHistory)) {
-        if (chunk.type === 'content' && chunk.content) {
-          fullContent += chunk.content;
-        } else if (chunk.type === 'error') {
-          errorMsg = chunk.error || '未知错误';
-        }
-      }
-
-      if (errorMsg) {
-        return { success: false, error: errorMsg };
-      }
-      
-      if (fullContent) {
-        this.conversationHistory.push({ role: 'assistant', content: fullContent });
-      }
-
-      return {
-        success: true,
-        content: fullContent
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : '未知错误'
-      };
-    }
-  }
-
-  /**
-   * 流式对话（返回 AsyncGenerator）
-   */
-  async *chatStream(userMessage: string, context?: { currentAtom?: ClassMetadata }): AsyncGenerator<StreamChunk> {
-    try {
-      let fullMessage = userMessage;
-      if (context?.currentAtom) {
-        fullMessage = `[当前正在编辑的原子: ${context.currentAtom.displayName || context.currentAtom.className}]\n\n${userMessage}`;
-      }
-
-      this.conversationHistory.push({ role: 'user', content: fullMessage });
-
-      let fullResponse = '';
-      
-      for await (const chunk of this.callHunyuanAPIStream(this.conversationHistory)) {
-        if (chunk.type === 'content' && chunk.content) {
-          fullResponse += chunk.content;
-        }
-        yield chunk;
-      }
-
-      if (fullResponse) {
-        this.conversationHistory.push({ role: 'assistant', content: fullResponse });
-      }
-    } catch (error) {
-      yield {
-        type: 'error',
-        error: error instanceof Error ? error.message : '未知错误'
-      };
-    }
-  }
-
-  /**
-   * 清空对话历史
-   */
-  clearHistory(): void {
-    this.conversationHistory = [
-      { role: 'system', content: this.systemPrompt }
-    ];
-  }
-
-  /**
-   * 调用腾讯混元内网 OpenAPI
-   */
-  private async callHunyuanAPI(messages: ChatMessage[]): Promise<HunyuanResponse> {
+  private async callHunyuanAPI(messages: ChatMessage[]): Promise<AIResponse> {
     const { apiKey, apiHost, model } = this.config;
     
     const payload = {
@@ -254,7 +117,7 @@ export class HunyuanService {
   /**
    * 流式调用腾讯混元内网 OpenAPI
    */
-  private async *callHunyuanAPIStream(messages: ChatMessage[]): AsyncGenerator<StreamChunk> {
+  protected async *callAPIStream(messages: ChatMessage[]): AsyncGenerator<StreamChunk> {
     const { apiKey, apiHost, model } = this.config;
     
     const payload = {
@@ -267,8 +130,12 @@ export class HunyuanService {
     };
 
     const url = `http://${apiHost}/openapi/v1/chat/completions`;
+    
+    // 估算本次请求的输入 token
+    const estimatedInputTokens = estimateMessagesTokens(messages);
     console.log('[HunyuanAPI Stream] Request URL:', url);
     console.log('[HunyuanAPI Stream] Model:', model);
+    console.log('[HunyuanAPI Stream] Estimated input tokens:', estimatedInputTokens);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -333,6 +200,17 @@ export class HunyuanService {
               if (content) {
                 yield { type: 'content', content };
               }
+              // 解析 usage 信息
+              if (json.usage) {
+                yield {
+                  type: 'usage',
+                  usage: {
+                    promptTokens: json.usage.prompt_tokens || 0,
+                    completionTokens: json.usage.completion_tokens || 0,
+                    totalTokens: json.usage.total_tokens || 0
+                  }
+                };
+              }
             } catch {
               // 忽略解析错误
             }
@@ -350,6 +228,16 @@ export class HunyuanService {
           if (content) {
             yield { type: 'content', content };
           }
+          if (json.usage) {
+            yield {
+              type: 'usage',
+              usage: {
+                promptTokens: json.usage.prompt_tokens || 0,
+                completionTokens: json.usage.completion_tokens || 0,
+                totalTokens: json.usage.total_tokens || 0
+              }
+            };
+          }
           if (json.error) {
             yield { type: 'error', error: json.error.message || json.error.code || '请求失败' };
             return;
@@ -364,6 +252,16 @@ export class HunyuanService {
                 const content = json.choices?.[0]?.delta?.content;
                 if (content) {
                   yield { type: 'content', content };
+                }
+                if (json.usage) {
+                  yield {
+                    type: 'usage',
+                    usage: {
+                      promptTokens: json.usage.prompt_tokens || 0,
+                      completionTokens: json.usage.completion_tokens || 0,
+                      totalTokens: json.usage.total_tokens || 0
+                    }
+                  };
                 }
               } catch {
                 // 忽略

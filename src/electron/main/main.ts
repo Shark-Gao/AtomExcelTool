@@ -1429,6 +1429,41 @@ ipcMain.handle('ai:clear-history', async () => {
     }
 });
 
+// 获取 Token 使用统计
+ipcMain.handle('ai:get-usage', async () => {
+    try {
+        const service = getCurrentAIService();
+        if (!service) {
+            return { success: false, error: 'AI 服务未配置' };
+        }
+        const usage = service.getTotalUsage();
+        const estimate = service.estimateCurrentUsage();
+        return {
+            success: true,
+            usage,
+            estimate,
+            modelType: currentModelType
+        };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '获取统计失败';
+        return { success: false, error: message };
+    }
+});
+
+// 重置 Token 统计
+ipcMain.handle('ai:reset-usage', async () => {
+    try {
+        const service = getCurrentAIService();
+        if (service) {
+            service.resetUsage();
+            console.log('[ai:reset-usage] Usage reset');
+        }
+        return { success: true };
+    } catch (error) {
+        return { success: false };
+    }
+});
+
 ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
     try {
         if (!filePath) {

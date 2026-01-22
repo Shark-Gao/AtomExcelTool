@@ -180,6 +180,25 @@ declare global {
     chatStream: (payload: { message: string; currentAtom?: ClassMetadata }) => AIStreamHandle
     /** 清空对话历史 */
     clearHistory: () => Promise<{ success: boolean }>
+    /** 获取 Token 使用统计 */
+    getUsage: () => Promise<{
+      success: boolean
+      usage?: {
+        promptTokens: number
+        completionTokens: number
+        totalTokens: number
+        estimatedCost?: number
+      }
+      estimate?: {
+        systemTokens: number
+        historyTokens: number
+        totalInputTokens: number
+      }
+      modelType?: string
+      error?: string
+    }>
+    /** 重置 Token 统计 */
+    resetUsage: () => Promise<{ success: boolean }>
   }
 
   interface Window {

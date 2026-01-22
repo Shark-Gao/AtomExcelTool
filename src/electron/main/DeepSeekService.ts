@@ -3,8 +3,15 @@
  * 用于原子配置推荐问答
  */
 
-import { ClassMetadata } from '../../types/MetaDefine';
-import { buildSystemPrompt, getDefaultSystemPrompt } from './PromptBuilder';
+import {
+  BaseAIService,
+  ChatMessage,
+  StreamChunk,
+  TokenUsage,
+  AIResponse,
+  estimateTokens,
+  estimateMessagesTokens
+} from './BaseAIService';
 
 // ============ 类型定义 ============
 
@@ -13,175 +20,40 @@ export interface DeepSeekConfig {
   model?: string;
 }
 
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
-export interface DeepSeekResponse {
-  success: boolean;
-  content?: string;
-  error?: string;
-}
-
-export interface StreamChunk {
-  type: 'content' | 'done' | 'error';
-  content?: string;
-  error?: string;
-}
+// 重新导出公共类型
+export type { ChatMessage, TokenUsage, StreamChunk };
+export type DeepSeekResponse = AIResponse;
 
 // ============ DeepSeek 服务类 ============
 
-export class DeepSeekService {
+export class DeepSeekService extends BaseAIService {
   private config: DeepSeekConfig;
-  private conversationHistory: ChatMessage[] = [];
-  private systemPrompt: string = '';
-  private atomKnowledgeLoaded: boolean = false;
+  
+  // DeepSeek 价格：输入 0.001元/1K tokens，输出 0.002元/1K tokens
+  protected inputPricePerK = 0.001;
+  protected outputPricePerK = 0.002;
 
   constructor(config: DeepSeekConfig) {
+    super('DeepSeekService');
     this.config = {
       model: 'ep-20251231180434-9vq8m',
       ...config
     };
     console.log('[DeepSeekService] Initialized with model:', this.config.model);
-    this.initializeDefaultPrompt();
-  }
-
-  /**
-   * 初始化默认提示词
-   */
-  private initializeDefaultPrompt(): void {
-    this.systemPrompt = getDefaultSystemPrompt();
-
-    this.conversationHistory = [
-      { role: 'system', content: this.systemPrompt }
-    ];
-  }
-
-  /**
-   * 使用已解析的 ClassMetadata 初始化原子知识库
-   */
-  initializeWithAtomKnowledge(metadata: ClassMetadata[]): void {
-    if (!metadata || metadata.length === 0) {
-      console.log('[DeepSeekService] No metadata provided, using default prompt');
-      return;
-    }
-
-    console.log('[DeepSeekService] Building knowledge base with', metadata.length, 'atoms');
-
-    this.systemPrompt = buildSystemPrompt(metadata);
-
-    console.log('[DeepSeekService] System prompt length:', this.systemPrompt.length);
-
-    this.conversationHistory = [
-      { role: 'system', content: this.systemPrompt }
-    ];
-    
-    this.atomKnowledgeLoaded = true;
-  }
-
-  /**
-   * 检查知识库是否已加载
-   */
-  isKnowledgeLoaded(): boolean {
-    return this.atomKnowledgeLoaded;
-  }
-
-  /**
-   * 发送消息并获取回复
-   */
-  async chat(userMessage: string, context?: { currentAtom?: ClassMetadata }): Promise<DeepSeekResponse> {
-    try {
-      let fullMessage = userMessage;
-      if (context?.currentAtom) {
-        fullMessage = `[当前正在编辑的原子: ${context.currentAtom.displayName || context.currentAtom.className}]\n\n${userMessage}`;
-      }
-
-      this.conversationHistory.push({ role: 'user', content: fullMessage });
-
-      let fullContent = '';
-      let errorMsg = '';
-      
-      for await (const chunk of this.callDeepSeekAPIStream(this.conversationHistory)) {
-        if (chunk.type === 'content' && chunk.content) {
-          fullContent += chunk.content;
-        } else if (chunk.type === 'error') {
-          errorMsg = chunk.error || '未知错误';
-        }
-      }
-
-      if (errorMsg) {
-        return { success: false, error: errorMsg };
-      }
-      
-      if (fullContent) {
-        this.conversationHistory.push({ role: 'assistant', content: fullContent });
-      }
-
-      return {
-        success: true,
-        content: fullContent
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : '未知错误'
-      };
-    }
-  }
-
-  /**
-   * 流式对话
-   */
-  async *chatStream(userMessage: string, context?: { currentAtom?: ClassMetadata }): AsyncGenerator<StreamChunk> {
-    try {
-      let fullMessage = userMessage;
-      if (context?.currentAtom) {
-        fullMessage = `[当前正在编辑的原子: ${context.currentAtom.displayName || context.currentAtom.className}]\n\n${userMessage}`;
-      }
-
-      this.conversationHistory.push({ role: 'user', content: fullMessage });
-
-      let fullResponse = '';
-      
-      for await (const chunk of this.callDeepSeekAPIStream(this.conversationHistory)) {
-        if (chunk.type === 'content' && chunk.content) {
-          fullResponse += chunk.content;
-        }
-        yield chunk;
-      }
-
-      if (fullResponse) {
-        this.conversationHistory.push({ role: 'assistant', content: fullResponse });
-      }
-    } catch (error) {
-      yield {
-        type: 'error',
-        error: error instanceof Error ? error.message : '未知错误'
-      };
-    }
-  }
-
-  /**
-   * 清空对话历史
-   */
-  clearHistory(): void {
-    this.conversationHistory = [
-      { role: 'system', content: this.systemPrompt }
-    ];
   }
 
   /**
    * 流式调用 DeepSeek API（火山引擎）
    * 使用 OpenAI 兼容格式：/api/v3/chat/completions
    */
-  private async *callDeepSeekAPIStream(messages: ChatMessage[]): AsyncGenerator<StreamChunk> {
+  protected async *callAPIStream(messages: ChatMessage[]): AsyncGenerator<StreamChunk> {
     const { apiKey, model } = this.config;
     
     // 构建请求格式（OpenAI 兼容格式）
     const payload = {
       model: model,
       stream: true,
+      stream_options: { include_usage: true },  // 请求返回 usage 信息
       messages: messages.map(m => ({
         role: m.role,
         content: m.content
@@ -189,9 +61,13 @@ export class DeepSeekService {
     };
 
     const url = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
+    
+    // 估算本次请求的输入 token
+    const estimatedInputTokens = estimateMessagesTokens(messages);
     console.log('[DeepSeekAPI Stream] Request URL:', url);
     console.log('[DeepSeekAPI Stream] Model:', model);
     console.log('[DeepSeekAPI Stream] Messages count:', messages.length);
+    console.log('[DeepSeekAPI Stream] Estimated input tokens:', estimatedInputTokens);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -256,6 +132,17 @@ export class DeepSeekService {
               if (content) {
                 yield { type: 'content', content };
               }
+              // 解析 usage 信息（通常在最后一个 chunk）
+              if (json.usage) {
+                yield {
+                  type: 'usage',
+                  usage: {
+                    promptTokens: json.usage.prompt_tokens || 0,
+                    completionTokens: json.usage.completion_tokens || 0,
+                    totalTokens: json.usage.total_tokens || 0
+                  }
+                };
+              }
             } catch {
               // 忽略解析错误
             }
@@ -280,6 +167,16 @@ export class DeepSeekService {
                 const content = json.choices?.[0]?.delta?.content || json.choices?.[0]?.message?.content || '';
                 if (content) {
                   yield { type: 'content', content };
+                }
+                if (json.usage) {
+                  yield {
+                    type: 'usage',
+                    usage: {
+                      promptTokens: json.usage.prompt_tokens || 0,
+                      completionTokens: json.usage.completion_tokens || 0,
+                      totalTokens: json.usage.total_tokens || 0
+                    }
+                  };
                 }
                 if (json.error) {
                   yield { type: 'error', error: json.error.message || json.error.code || '请求失败' };
@@ -312,3 +209,6 @@ export function initDeepSeekService(config: DeepSeekConfig): DeepSeekService {
 export function getDeepSeekService(): DeepSeekService | null {
   return deepSeekServiceInstance;
 }
+
+// 导出 Token 估算函数供外部使用
+export { estimateTokens, estimateMessagesTokens };

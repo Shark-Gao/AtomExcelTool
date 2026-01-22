@@ -317,5 +317,28 @@ contextBridge.exposeInMainWorld('aiBridge', {
     
     /** 清空对话历史 */
     clearHistory: () =>
-        ipcRenderer.invoke('ai:clear-history') as Promise<{ success: boolean }>
+        ipcRenderer.invoke('ai:clear-history') as Promise<{ success: boolean }>,
+    
+    /** 获取 Token 使用统计 */
+    getUsage: () =>
+        ipcRenderer.invoke('ai:get-usage') as Promise<{
+            success: boolean;
+            usage?: {
+                promptTokens: number;
+                completionTokens: number;
+                totalTokens: number;
+                estimatedCost?: number;
+            };
+            estimate?: {
+                systemTokens: number;
+                historyTokens: number;
+                totalInputTokens: number;
+            };
+            modelType?: string;
+            error?: string;
+        }>,
+    
+    /** 重置 Token 统计 */
+    resetUsage: () =>
+        ipcRenderer.invoke('ai:reset-usage') as Promise<{ success: boolean }>
 });

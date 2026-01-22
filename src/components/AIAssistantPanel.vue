@@ -71,6 +71,15 @@ const modelLabels: Record<string, string> = {
   hunyuan: '腾讯混元 Thinking（免费）'
 };
 
+// Token 使用统计
+interface TokenUsageData {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCost?: number;
+}
+const tokenUsage = ref<TokenUsageData | null>(null);
+
 // 流式输出控制
 let currentStreamUnsubscribe: (() => void) | null = null;
 
@@ -306,6 +315,36 @@ function copyMessage(content: string) {
   navigator.clipboard.writeText(content);
 }
 
+/** 获取 Token 使用统计 */
+async function fetchUsage() {
+  const result = await window.aiBridge?.getUsage();
+  if (result?.success && result.usage) {
+    tokenUsage.value = result.usage;
+  }
+}
+
+/** 重置 Token 统计 */
+async function resetUsage() {
+  await window.aiBridge?.resetUsage();
+  tokenUsage.value = { promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0 };
+}
+
+/** 格式化 Token 数量 */
+function formatTokens(num: number): string {
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(2) + 'M';
+  } else if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'K';
+  }
+  return num.toString();
+}
+
+/** 格式化费用 */
+function formatCost(cost?: number): string {
+  if (cost === undefined || cost === null) return '¥0.00';
+  return '¥' + cost.toFixed(4);
+}
+
 /** 应用建议到编辑器 */
 function applySuggestion(content: string) {
   emit('apply-suggestion', content);
@@ -400,6 +439,13 @@ onUnmounted(() => {
 watch(() => props.currentAtom, (newAtom) => {
   if (newAtom && messages.value.length === 0) {
     // 可选：自动添加欢迎消息
+  }
+});
+
+// 监听设置面板打开，自动加载统计数据
+watch(showSettings, (isOpen) => {
+  if (isOpen) {
+    fetchUsage();
   }
 });
 </script>
@@ -659,6 +705,46 @@ watch(() => props.currentAtom, (newAtom) => {
             d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <span>切换模型会清空当前对话历史</span>
+      </div>
+
+      <!-- Token 使用统计 -->
+      <div class="divider text-xs">Token 消耗统计</div>
+      <div v-if="tokenUsage" class="stats stats-vertical lg:stats-horizontal shadow w-full mb-4">
+        <div class="stat py-2 px-3">
+          <div class="stat-title text-xs">输入 Tokens</div>
+          <div class="stat-value text-lg text-primary">{{ formatTokens(tokenUsage.promptTokens) }}</div>
+        </div>
+        <div class="stat py-2 px-3">
+          <div class="stat-title text-xs">输出 Tokens</div>
+          <div class="stat-value text-lg text-secondary">{{ formatTokens(tokenUsage.completionTokens) }}</div>
+        </div>
+        <div class="stat py-2 px-3">
+          <div class="stat-title text-xs">总计</div>
+          <div class="stat-value text-lg">{{ formatTokens(tokenUsage.totalTokens) }}</div>
+        </div>
+        <div class="stat py-2 px-3">
+          <div class="stat-title text-xs">估算费用</div>
+          <div class="stat-value text-lg text-accent">{{ formatCost(tokenUsage.estimatedCost) }}</div>
+        </div>
+      </div>
+      <div v-else class="text-center text-base-content/50 text-sm mb-4">
+        暂无统计数据
+      </div>
+      <div class="flex gap-2 justify-end mb-4">
+        <button class="btn btn-sm btn-ghost" @click="fetchUsage">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          刷新统计
+        </button>
+        <button class="btn btn-sm btn-outline btn-warning" @click="resetUsage">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          重置统计
+        </button>
       </div>
 
       <div class="modal-action">

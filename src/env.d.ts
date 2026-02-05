@@ -201,11 +201,22 @@ declare global {
     resetUsage: () => Promise<{ success: boolean }>
   }
 
+  // ============ 使用统计上报相关类型 ============
+  interface UsageBridge {
+    /** 上报打开代码编辑器 */
+    reportOpenCodeEditor: (extraInfo?: Record<string, unknown>) => Promise<void>
+    /** 上报自定义操作 */
+    reportAction: (actionName: string, extraInfo?: Record<string, unknown>) => Promise<void>
+    /** 上报自定义事件 */
+    reportEvent: (eventType: string, extraInfo?: Record<string, unknown>) => Promise<void>
+  }
+
   interface Window {
     excelBridge?: ExcelBridge
     delegateBridge?: DelegateBridge
     electronAPI?: ElectronAPI
     aiBridge?: AIBridge
+    usageBridge?: UsageBridge
   }
 }
 

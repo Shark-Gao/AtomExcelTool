@@ -669,6 +669,8 @@ onMounted(() => {
     document.addEventListener('keydown', handleKeyboardShortcut)
     // 初始化历史记录
     pushHistory()
+    // 上报编辑 DynamicObjectForm 控件
+    window.usageBridge?.reportEvent('edit_dynamic_form', { className: props.className })
   }
 })
 

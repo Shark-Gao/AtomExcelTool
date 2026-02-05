@@ -141,6 +141,9 @@ function openModal() {
   tempValue.value = props.modelValue || ''
   isModalOpen.value = true
   
+  // 上报打开代码编辑器操作
+  window.usageBridge?.reportOpenCodeEditor()
+  
   nextTick(() => {
     initEditor()
   })

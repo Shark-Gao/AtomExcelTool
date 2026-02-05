@@ -342,3 +342,18 @@ contextBridge.exposeInMainWorld('aiBridge', {
     resetUsage: () =>
         ipcRenderer.invoke('ai:reset-usage') as Promise<{ success: boolean }>
 });
+
+// ============ 使用统计上报 Bridge ============
+contextBridge.exposeInMainWorld('usageBridge', {
+    /** 上报打开代码编辑器 */
+    reportOpenCodeEditor: (extraInfo?: Record<string, unknown>) =>
+        ipcRenderer.invoke('usage:report-open-code-editor', extraInfo) as Promise<void>,
+    
+    /** 上报自定义操作 */
+    reportAction: (actionName: string, extraInfo?: Record<string, unknown>) =>
+        ipcRenderer.invoke('usage:report-action', { actionName, extraInfo }) as Promise<void>,
+    
+    /** 上报自定义事件 */
+    reportEvent: (eventType: string, extraInfo?: Record<string, unknown>) =>
+        ipcRenderer.invoke('usage:report-event', { eventType, extraInfo }) as Promise<void>
+});

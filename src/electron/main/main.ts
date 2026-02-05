@@ -15,6 +15,7 @@ import { LogManager } from './LogManager';
 import { initHunyuanService, getHunyuanService, HunyuanConfig } from './HunyuanService';
 import { initDeepSeekService, getDeepSeekService, DeepSeekConfig } from './DeepSeekService';
 import { initP4Service, getP4Config, isP4Configured, testP4Connection, isFileUnderP4, checkoutFile, getFileStatus, P4Config, checkExeUpdateWithoutConfig, openCmdForP4Sync, getFileChangeDescriptions, syncConfigOnStartup } from './P4Service';
+import { reportLaunch, reportClose, reportOpenExcel, reportSaveExcel, reportSaveExcelAs, reportAIChat, reportOpenCodeEditor, reportAction, reportEvent } from './UsageReporter';
 // import { runAllTests } from './DeParseJsonToExpression.test';
 
 
@@ -844,6 +845,10 @@ async function registerExcelContextMenu() {
 ipcMain.handle('excel:open', async () => {
     try {
         const result = await handleOpenWorkbook();
+        // 上报打开 Excel 操作
+        if (!result.canceled && 'filePath' in result && result.filePath) {
+            reportOpenExcel(result.filePath);
+        }
         return result;
     } catch (error) {
         const message = error instanceof Error ? error.message : '读取 Excel 文件时发生未知错误。';
@@ -859,6 +864,8 @@ ipcMain.handle('excel:open-by-path', async (_event, payload: { filePath: string 
         console.log('[IPC excel:open-by-path] Loading file:', payload.filePath);
         const result = await loadWorkbookFromFile(payload.filePath);
         console.log('[IPC excel:open-by-path] File loaded successfully, sheet:', result.sheetName, 'rows:', result.rowCount);
+        // 上报打开 Excel 操作
+        reportOpenExcel(payload.filePath);
         return { canceled: false, ...result };
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to open Excel file by path.';
@@ -963,6 +970,8 @@ ipcMain.handle('excel:load-sheet', async (_event, payload: { filePath: string; s
 ipcMain.handle('excel:save', async (_event, payload: { filePath: string; sheetName: string; rows: RowRecord[] }) => {
     try {
         await writeWorkbookToDisk(payload.filePath, payload.rows, payload.sheetName);
+        // 上报保存 Excel 操作
+        reportSaveExcel(payload.filePath);
         return { ok: true };
     } catch (error) {
         const message = error instanceof Error ? error.message : '写入 Excel 文件失败。';
@@ -982,6 +991,8 @@ ipcMain.handle('excel:save-as', async (_event, payload: { defaultPath?: string; 
         }
 
         await writeWorkbookToDisk(filePath, payload.rows, payload.sheetName);
+        // 上报另存为 Excel 操作
+        reportSaveExcelAs(filePath);
         return { canceled: false, filePath, ok: true };
     } catch (error) {
         const message = error instanceof Error ? error.message : '写入 Excel 文件失败。';
@@ -1372,6 +1383,8 @@ ipcMain.handle('ai:chat', async (_event, payload: { message: string; currentAtom
             return { success: false, error: 'AI 服务未配置' };
         }
         console.log('[ai:chat] Sending message:', payload.message.substring(0, 50) + '...');
+        // 上报 AI 问答操作
+        reportAIChat(currentModelType);
         const response = await service.chat(payload.message, { currentAtom: payload.currentAtom });
         console.log('[ai:chat] Response received');
         return {
@@ -1398,6 +1411,8 @@ ipcMain.on('ai:chat-stream', async (event, payload: { message: string; currentAt
             return;
         }
         console.log('[ai:chat-stream] Starting stream for:', payload.message.substring(0, 50) + '...');
+        // 上报 AI 问答操作（stream 类型）
+        reportAIChat(currentModelType, { stream: true });
         for await (const chunk of service.chatStream(payload.message, { currentAtom: payload.currentAtom })) {
             event.reply('ai:chat-stream-chunk', {
                 requestId: payload.requestId,
@@ -1462,6 +1477,19 @@ ipcMain.handle('ai:reset-usage', async () => {
     } catch (error) {
         return { success: false };
     }
+});
+
+// ============ 使用统计上报处理器 ============
+ipcMain.handle('usage:report-open-code-editor', async (_event, extraInfo?: Record<string, unknown>) => {
+    reportOpenCodeEditor(extraInfo);
+});
+
+ipcMain.handle('usage:report-action', async (_event, payload: { actionName: string; extraInfo?: Record<string, unknown> }) => {
+    reportAction(payload.actionName, payload.extraInfo);
+});
+
+ipcMain.handle('usage:report-event', async (_event, payload: { eventType: string; extraInfo?: Record<string, unknown> }) => {
+    reportEvent(payload.eventType, payload.extraInfo);
 });
 
 ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
@@ -1815,6 +1843,10 @@ app.whenReady().then(async () => {
     console.log('[main] Creating app window...');
     createWindow();
     console.log('[main] Window created');
+    
+    // 上报应用启动
+    reportLaunch();
+    console.log('[main] Launch event reported');
     
     app.on('activate', function () {
         if (BrowserWindow.getAllWindows().length === 0) {

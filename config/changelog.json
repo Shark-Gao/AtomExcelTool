@@ -1,6 +1,17 @@
 {
   "changelog": [
     {
+      "version": "2.0.0",
+      "date": "2026-03-12",
+      "changes": [
+        "✨ 新增 MCP Server，支持外部 CLI 工具（如 Claude）通过 MCP 协议调用原子配置工具",
+        "✨ 新增 MCP 工具调用和 claude-internal 使用的经分上报",
+        "🔧 移除内置 AI 模型的 MCP/Function Calling 逻辑，改为纯问答模式，避免上下文溢出",
+        "🔧 精简 AI 助手前端，移除工具调用展示相关 UI",
+        "🔧 优化 PromptBuilder 提示词，AI 直接使用内置签名索引回答问题"
+      ]
+    },
+    {
       "version": "1.9.9",
       "date": "2026-01-22",
       "changes": [

@@ -1560,6 +1560,30 @@ watch(isAIAssistantOpen, (newValue, oldValue) => {
 
 applyTheme(currentTheme.value)
 
+/** 打开 Claude Internal 命令行 */
+async function openClaudeInternal() {
+  try {
+    const result = await (window as any).electronAPI?.openClaudeInternal()
+    if (result?.ok) {
+      successMessage.value = 'Claude Internal 已启动'
+      setTimeout(() => { successMessage.value = null }, 3000)
+    } else {
+      errorMessage.value = `启动 Claude Internal 失败: ${result?.error || '未知错误'}`
+    }
+  } catch (error) {
+    errorMessage.value = `启动 Claude Internal 失败: ${error instanceof Error ? error.message : '未知错误'}`
+  }
+}
+
+/** 使用系统默认程序打开当前文件 */
+async function openFileWithDefaultApp() {
+  if (!openedFilePath.value) return
+  const result = await (window as any).electronAPI?.openPath(openedFilePath.value)
+  if (result && !result.ok) {
+    errorMessage.value = `打开文件失败: ${result.error || '未知错误'}`
+  }
+}
+
 function focusColumnSearchInput(options: { select?: boolean } = {}) {
   const input = columnSearchInputRef.value
   if (!input) {
@@ -3508,11 +3532,32 @@ function handleP4DisablePrompt() {
             <button class="btn join-item" :disabled="!Object.keys(rowNameToRecord).length" @click="saveWorkbookToDisk" title="保存 (Ctrl+S)">保存</button>
             <button class="btn join-item" :disabled="!Object.keys(rowNameToRecord).length" @click="saveWorkbookAs" title="另存为 (Ctrl+Shift+S)">另存为</button>
             </div>
+            <!-- Claude Internal 按钮 -->
+            <button 
+              class="btn btn-accent gap-1.5 ml-3 shadow-sm"
+              @click="openClaudeInternal"
+              title="在项目根目录打开 Claude Internal 命令行"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Claude
+            </button>
           </div>
           <div class="flex flex-wrap items-center gap-3">
             <span v-if="isDelegateMetadataLoading" class="loading loading-spinner text-primary"></span>
             <span v-if="workbookMeta" class="badge badge-outline">{{ sheetName }} · {{ workbookMeta.rowCount }} 行</span>
             <span v-if="openedFilePath" class="badge badge-ghost">{{ openedFilePath }}</span>
+            <button
+              v-if="openedFilePath"
+              class="btn btn-ghost btn-xs p-0 min-h-0 w-5 h-5"
+              title="使用默认程序打开文件"
+              @click="openFileWithDefaultApp"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </button>
             <span 
               v-if="lastAutoSaveTime && openedFilePath" 
               class="badge badge-success badge-sm gap-1"

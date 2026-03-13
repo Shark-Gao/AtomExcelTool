@@ -5,13 +5,23 @@
 
 import { join, dirname } from 'path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, watchFile, unwatchFile, statSync, chmodSync } from 'fs'
-import { app } from 'electron'
 import { checkoutFile, isP4Configured } from './P4Service'
 
 // ============ 配置路径管理 ============
 
+// 自定义配置目录（用于 MCP Server 等非 Electron 环境）
+let _customConfigDir: string | null = null
+
+/**
+ * 设置自定义配置目录路径（供 MCP Server 等非 Electron 环境使用）
+ */
+export function setConfigDirectory(dir: string): void {
+  _customConfigDir = dir
+}
+
 /**
  * 获取配置目录路径
+ * - 自定义模式：使用 setConfigDirectory 设置的路径
  * - 开发环境：项目根目录/config
  * - 生产环境：EXE 同级目录/config
  * 
@@ -20,7 +30,38 @@ import { checkoutFile, isP4Configured } from './P4Service'
  * - 打包时：app.getPath('exe') 返回 EXE 路径，使用其目录下的 config
  */
 export function getConfigDirectory(): string {
+  // 优先使用自定义配置目录
+  if (_customConfigDir) {
+    if (!existsSync(_customConfigDir)) {
+      mkdirSync(_customConfigDir, { recursive: true })
+    }
+    return _customConfigDir
+  }
+
   let configDir: string
+
+  // 尝试加载 Electron app 模块（在非 Electron 环境中会失败或返回字符串路径）
+  let app: any
+  try {
+    const electronModule = require('electron')
+    // 在纯 Node 环境中，require('electron') 返回 electron 可执行文件路径（字符串）
+    // 只有在 Electron 运行时中，它才返回包含 app 属性的对象
+    if (typeof electronModule === 'object' && electronModule.app) {
+      app = electronModule.app
+    }
+  } catch {
+    // require 失败
+  }
+
+  if (!app) {
+    // 非 Electron 环境，使用基于 __dirname 的路径
+    // MCP Server: dist/electron/mcp → dist/electron → dist → {project-root} → config
+    configDir = join(__dirname, '../../..', 'config')
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true })
+    }
+    return configDir
+  }
 
   if (!app.isPackaged) {
     // 开发模式：从 dist/electron/main 回到项目根目录的 config

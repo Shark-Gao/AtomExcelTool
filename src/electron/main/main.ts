@@ -1520,9 +1520,50 @@ ipcMain.handle('shell:register-excel-context-menu', async () => {
     }
 });
 
+
 ipcMain.handle('shell:open-external', async (_event, url: string) => {
     const { shell } = await import('electron');
     await shell.openExternal(url);
+});
+
+// 打开 claude-internal 命令行
+ipcMain.handle('shell:open-claude-internal', async () => {
+    try {
+        // 上报使用 claude-internal
+        reportAction('open_claude_internal');
+        
+        const { spawn } = await import('child_process');
+        
+        // 确定工作目录：开发模式用项目根目录，打包后用 exe 所在目录
+        const workingDir = isDev
+            ? process.cwd()
+            : dirname(app.getPath('exe'));
+        
+        console.log('[shell:open-claude-internal] Opening claude-internal in:', workingDir);
+        
+        // 在 Windows 上使用 cmd /c start 来打开一个新的终端窗口执行命令
+        if (process.platform === 'win32') {
+            spawn('cmd', ['/c', 'start', 'cmd', '/k', 'claude-internal'], {
+                cwd: workingDir,
+                detached: true,
+                stdio: 'ignore'
+            }).unref();
+        } else {
+            // macOS/Linux 使用终端打开
+            spawn('claude-internal', [], {
+                cwd: workingDir,
+                detached: true,
+                stdio: 'ignore',
+                shell: true
+            }).unref();
+        }
+        
+        return { ok: true };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to open claude-internal.';
+        console.error('[shell:open-claude-internal]:', message);
+        return { ok: false, error: message };
+    }
 });
 
 // ============ P4V 相关 IPC ============

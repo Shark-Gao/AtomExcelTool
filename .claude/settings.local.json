@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__mhatom-excel-tool__read_excel_workbook",
+      "mcp__mhatom-excel-tool__search_atom_metadata",
+      "mcp__mhatom-excel-tool__read_excel_sheet",
+      "mcp__mhatom-excel-tool__parse_excel_atom_fields",
+      "mcp__mhatom-excel-tool__validate_atom_expression",
+      "mcp__mhatom-excel-tool__write_excel_rows",
+      "mcp__mhatom-excel-tool__add_excel_row",
+      "mcp__mhatom-excel-tool__get_instructions",
+      "mcp__mhatom-excel-tool__update_excel_cell",
+      "mcp__mhatom-excel-tool__get_atom_metadata",
+      "Bash(cat:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "mhatom-excel-tool"
+  ]
+}

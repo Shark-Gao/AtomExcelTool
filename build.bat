@@ -22,9 +22,9 @@ if exist dist (
   rmdir /s /q dist
   echo   ✓ dist 文件夹已删除
 )
-if exist release\0.0.2 (
-  rmdir /s /q release\0.0.2
-  echo   ✓ release\0.0.2 文件夹已删除
+if exist release\1.0.0 (
+  rmdir /s /q release\1.0.0
+  echo   ✓ release\1.0.0 文件夹已删除
 )
 
 REM 开始打包
@@ -36,17 +36,17 @@ call npm run app:build
 REM 检查打包结果
 echo.
 echo [4/4] 检查打包结果...
-if exist release\0.0.2 (
+if exist release\1.0.0 (
   echo.
   echo ========================================
   echo     ✓ 打包成功！
   echo ========================================
-  echo 输出位置: g:\workspace\MHAtomExcelTool\release\0.0.2
+  echo 输出位置: g:\workspace\MHAtomExcelTool\release\1.0.0
   echo.
   
   REM 复制文件到目标目录
   echo [5/6] 正在复制文件到目标目录...
-  set SOURCE_DIR=g:\workspace\MHAtomExcelTool\release\0.0.2\win-unpacked
+  set SOURCE_DIR=g:\workspace\MHAtomExcelTool\release\1.0.0\win-unpacked
   set TARGET_DIR=K:\MHA_Client_main\MHAGame\Tools\MHAtomExcelTool
   
   REM 清理目标目录（保留 config 目录）

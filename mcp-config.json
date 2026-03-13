@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/servers/main/schemas/mcp-config.schema.json",
+  "$comment": "MHAtomExcelTool MCP Server 配置 - 将此配置复制到你的 AI 客户端配置中（如 Claude Desktop 的 claude_desktop_config.json 或 Cursor 的 mcp.json）",
+  "mcpServers": {
+    "mhatom-excel-tool": {
+      "command": "node",
+      "args": [
+        "dist/electron/mcp/McpServer.js"
+      ],
+      "cwd": "G:\\workspace\\MHAtomExcelTool"
+    }
+  }
+}

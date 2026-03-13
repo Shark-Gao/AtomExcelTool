@@ -177,6 +177,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     registerExcelContextMenu: () => ipcRenderer.invoke('shell:register-excel-context-menu') as Promise<{ ok: boolean; error?: string }>,
     onOpenExternalExcel: (callback: (filePath: string) => void) => registerExternalExcelListener(callback),
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url) as Promise<void>,
+    openPath: (filePath: string) => ipcRenderer.invoke('shell:openPath', filePath) as Promise<{ ok: boolean; error?: string }>,
+    openClaudeInternal: () => ipcRenderer.invoke('shell:open-claude-internal') as Promise<{ ok: boolean; error?: string }>,
     getLogInfo: () => ipcRenderer.invoke('app:get-log-info') as Promise<{
         ok: boolean;
         logDir?: string;
@@ -300,7 +302,11 @@ contextBridge.exposeInMainWorld('aiBridge', {
         ipcRenderer.send('ai:chat-stream', { ...payload, requestId });
         return {
             requestId,
-            onChunk: (callback: (chunk: { type: string; content?: string; error?: string }) => void) => {
+            onChunk: (callback: (chunk: { 
+                type: string; 
+                content?: string; 
+                error?: string;
+            }) => void) => {
                 const handler = (_event: any, data: any) => {
                     if (data.requestId === requestId) {
                         callback(data.chunk);

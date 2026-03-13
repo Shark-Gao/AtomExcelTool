@@ -1,6 +1,9 @@
 /**
  * 腾讯混元 AI 服务（内网 OpenAPI 版本）
  * 用于原子配置推荐问答
+ * 
+ * 纯 AI 问答模式：不使用 Function Calling，
+ * 仅根据提示词中的知识库回答问题。
  */
 
 import {
@@ -9,7 +12,7 @@ import {
   StreamChunk,
   TokenUsage,
   AIResponse,
-  estimateMessagesTokens
+  estimateMessagesTokens,
 } from './BaseAIService';
 
 // ============ 类型定义 ============
@@ -34,6 +37,10 @@ export class HunyuanService extends BaseAIService {
   protected inputPricePerK = 0.004;
   protected outputPricePerK = 0.008;
 
+  // 混元 2.0 thinking 模型上下文窗口 32K
+  // 如使用 hunyuan-pro / hunyuan-turbo 等模型可按需调整
+  protected maxContextTokens: number = 3276800;
+
   constructor(config: HunyuanConfig) {
     super('HunyuanService');
     this.config = {
@@ -43,99 +50,33 @@ export class HunyuanService extends BaseAIService {
   }
 
   /**
-   * 调用腾讯混元内网 OpenAPI（非流式）
-   */
-  private async callHunyuanAPI(messages: ChatMessage[]): Promise<AIResponse> {
-    const { apiKey, apiHost, model } = this.config;
-    
-    const payload = {
-      model: model,
-      messages: messages.map(m => ({
-        role: m.role,
-        content: m.content
-      })),
-      stream: false
-    };
-
-    const url = `http://${apiHost}/v1/chat/completions`;
-    console.log('[HunyuanAPI] Request URL:', url);
-    console.log('[HunyuanAPI] Request payload:', JSON.stringify(payload, null, 2));
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(payload)
-    });
-
-    console.log('[HunyuanAPI] Response status:', response.status, response.statusText);
-
-    // 先获取原始文本，便于调试
-    const rawText = await response.text();
-    console.log('[HunyuanAPI] Raw response (first 500 chars):', rawText.substring(0, 500));
-
-    // 检查 HTTP 状态
-    if (!response.ok) {
-      return {
-        success: false,
-        error: `HTTP ${response.status}: ${response.statusText}\n${rawText.substring(0, 200)}`
-      };
-    }
-
-    // 尝试解析 JSON
-    let data: any;
-    try {
-      data = JSON.parse(rawText);
-    } catch (parseError) {
-      console.error('[HunyuanAPI] JSON parse error:', parseError);
-      return {
-        success: false,
-        error: `响应不是有效的 JSON 格式: ${rawText.substring(0, 200)}`
-      };
-    }
-
-    if (data.error) {
-      return {
-        success: false,
-        error: data.error.message || data.error.code || '请求失败'
-      };
-    }
-
-    return {
-      success: true,
-      content: data.choices?.[0]?.message?.content || '',
-      usage: {
-        promptTokens: data.usage?.prompt_tokens || 0,
-        completionTokens: data.usage?.completion_tokens || 0,
-        totalTokens: data.usage?.total_tokens || 0
-      }
-    };
-  }
-
-  /**
    * 流式调用腾讯混元内网 OpenAPI
+   * 纯文本问答，不使用 Function Calling
    */
   protected async *callAPIStream(messages: ChatMessage[]): AsyncGenerator<StreamChunk> {
     const { apiKey, apiHost, model } = this.config;
     
-    const payload = {
+    // 构建请求消息
+    const apiMessages = messages.map(m => ({
+      role: m.role,
+      content: m.content
+    }));
+
+    // 构建请求格式（不附带 tools）
+    const payload: any = {
       model: model,
-      messages: messages.map(m => ({
-        role: m.role,
-        content: m.content
-      })),
-      stream: true
+      messages: apiMessages,
+      stream: true,
+      stream_options: { include_usage: true }
     };
 
     const url = `http://${apiHost}/openapi/v1/chat/completions`;
     
-    // 估算本次请求的输入 token
-    const estimatedInputTokens = estimateMessagesTokens(messages);
+    const estimatedMsgTokens = estimateMessagesTokens(messages);
     console.log('[HunyuanAPI Stream] Request URL:', url);
     console.log('[HunyuanAPI Stream] Model:', model);
-    console.log('[HunyuanAPI Stream] Estimated input tokens:', estimatedInputTokens);
+    console.log('[HunyuanAPI Stream] Messages count:', messages.length);
+    console.log(`[HunyuanAPI Stream] Estimated tokens: msgs=${estimatedMsgTokens}`);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -173,13 +114,11 @@ export class HunyuanService extends BaseAIService {
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
         
-        // 调试：打印第一个 chunk
         if (isFirstChunk) {
           console.log('[HunyuanAPI Stream] First chunk (100 chars):', chunk.substring(0, 100));
           isFirstChunk = false;
         }
 
-        // 尝试按行解析 SSE 格式
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
@@ -187,7 +126,6 @@ export class HunyuanService extends BaseAIService {
           const trimmedLine = line.trim();
           if (!trimmedLine) continue;
           
-          // SSE 格式: data: {...}
           if (trimmedLine.startsWith('data:')) {
             const data = trimmedLine.slice(5).trim();
             if (data === '[DONE]') {
@@ -196,11 +134,15 @@ export class HunyuanService extends BaseAIService {
             }
             try {
               const json = JSON.parse(data);
-              const content = json.choices?.[0]?.delta?.content;
-              if (content) {
-                yield { type: 'content', content };
+              const choice = json.choices?.[0];
+              
+              if (choice?.delta) {
+                const content = choice.delta.content;
+                if (content) {
+                  yield { type: 'content', content };
+                }
               }
-              // 解析 usage 信息
+
               if (json.usage) {
                 yield {
                   type: 'usage',
@@ -218,12 +160,11 @@ export class HunyuanService extends BaseAIService {
         }
       }
 
-      // 处理剩余 buffer（可能是完整 JSON 响应而非 SSE）
+      // 处理剩余 buffer
       if (buffer.trim()) {
         console.log('[HunyuanAPI Stream] Remaining buffer (200 chars):', buffer.substring(0, 200));
         try {
           const json = JSON.parse(buffer);
-          // 非流式 JSON 响应格式
           const content = json.choices?.[0]?.message?.content || json.choices?.[0]?.delta?.content;
           if (content) {
             yield { type: 'content', content };
@@ -243,7 +184,6 @@ export class HunyuanService extends BaseAIService {
             return;
           }
         } catch {
-          // 可能是 SSE 的最后一行
           if (buffer.startsWith('data:')) {
             const data = buffer.slice(5).trim();
             if (data && data !== '[DONE]') {

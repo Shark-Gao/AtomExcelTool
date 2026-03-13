@@ -580,8 +580,10 @@ watch(showSettings, (isOpen) => {
               <div 
                 v-else 
                 class="prose prose-sm prose-invert max-w-none ai-markdown"
-                v-html="renderMarkdown(msg.content)"
-              ></div>
+              >
+                <!-- Markdown 内容 -->
+                <div v-html="renderMarkdown(msg.content)"></div>
+              </div>
               <div v-if="msg.isStreaming" class="flex items-center gap-1 mt-2">
                 <span class="loading loading-dots loading-xs"></span>
               </div>

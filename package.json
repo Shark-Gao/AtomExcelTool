@@ -1,7 +1,7 @@
 {
   "name": "mhatomexceltool",
   "private": true,
-  "version": "0.0.2",
+  "version": "1.0.0",
   "main": "dist/electron/main/main.js",
   "scripts": {
     "vite:dev": "vite",
@@ -12,16 +12,20 @@
     "lint": "eslint -c .eslintrc --ext .ts ./src",
     "app:dev": "tsc && concurrently vite \" electron .\" \"tsc -w\"",
     "app:build": "npm run vite:build && tsc && electron-builder",
-    "app:preview": "npm run vite:build && tsc && electron ."
+    "app:preview": "npm run vite:build && tsc && electron .",
+    "mcp:build": "tsc",
+    "mcp:start": "node dist/electron/mcp/McpServer.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "exceljs": "^4.4.0",
     "marked": "^17.0.1",
     "monaco-editor": "^0.55.1",
     "reflect-metadata": "^0.2.2",
     "vite-plugin-monaco-editor": "^1.1.0",
     "vue": "^3.5.22",
-    "xlsx-populate": "^1.21.0"
+    "xlsx-populate": "^1.21.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.16",

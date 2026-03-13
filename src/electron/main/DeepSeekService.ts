@@ -1,6 +1,9 @@
 /**
  * DeepSeek AI 服务（火山引擎 API）
  * 用于原子配置推荐问答
+ * 
+ * 纯 AI 问答模式：不使用 Function Calling，
+ * 仅根据提示词中的知识库回答问题。
  */
 
 import {
@@ -10,7 +13,7 @@ import {
   TokenUsage,
   AIResponse,
   estimateTokens,
-  estimateMessagesTokens
+  estimateMessagesTokens,
 } from './BaseAIService';
 
 // ============ 类型定义 ============
@@ -33,6 +36,9 @@ export class DeepSeekService extends BaseAIService {
   protected inputPricePerK = 0.001;
   protected outputPricePerK = 0.002;
 
+  // DeepSeek-V3 上下文窗口 98304 tokens
+  protected maxContextTokens: number = 98304;
+
   constructor(config: DeepSeekConfig) {
     super('DeepSeekService');
     this.config = {
@@ -45,29 +51,32 @@ export class DeepSeekService extends BaseAIService {
   /**
    * 流式调用 DeepSeek API（火山引擎）
    * 使用 OpenAI 兼容格式：/api/v3/chat/completions
+   * 纯文本问答，不使用 Function Calling
    */
   protected async *callAPIStream(messages: ChatMessage[]): AsyncGenerator<StreamChunk> {
     const { apiKey, model } = this.config;
-    
-    // 构建请求格式（OpenAI 兼容格式）
-    const payload = {
+
+    // 构建请求消息
+    const apiMessages = messages.map(m => ({
+      role: m.role,
+      content: m.content
+    }));
+
+    // 构建请求格式（OpenAI 兼容格式，不附带 tools）
+    const payload: any = {
       model: model,
       stream: true,
-      stream_options: { include_usage: true },  // 请求返回 usage 信息
-      messages: messages.map(m => ({
-        role: m.role,
-        content: m.content
-      }))
+      stream_options: { include_usage: true },
+      messages: apiMessages
     };
 
     const url = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
     
-    // 估算本次请求的输入 token
-    const estimatedInputTokens = estimateMessagesTokens(messages);
+    const estimatedMsgTokens = estimateMessagesTokens(messages);
     console.log('[DeepSeekAPI Stream] Request URL:', url);
     console.log('[DeepSeekAPI Stream] Model:', model);
     console.log('[DeepSeekAPI Stream] Messages count:', messages.length);
-    console.log('[DeepSeekAPI Stream] Estimated input tokens:', estimatedInputTokens);
+    console.log(`[DeepSeekAPI Stream] Estimated tokens: msgs=${estimatedMsgTokens}`);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -127,11 +136,15 @@ export class DeepSeekService extends BaseAIService {
             
             try {
               const json = JSON.parse(data);
-              // OpenAI 格式: choices[].delta.content
-              const content = json.choices?.[0]?.delta?.content || '';
-              if (content) {
-                yield { type: 'content', content };
+              const choice = json.choices?.[0];
+              
+              if (choice?.delta) {
+                const content = choice.delta.content || '';
+                if (content) {
+                  yield { type: 'content', content };
+                }
               }
+
               // 解析 usage 信息（通常在最后一个 chunk）
               if (json.usage) {
                 yield {

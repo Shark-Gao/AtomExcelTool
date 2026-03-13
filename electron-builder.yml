@@ -1,6 +1,14 @@
 appId: YourAppID
 productName: MHAtomExcelTool
 asar: true
+# 将 MCP Server 及其依赖的本地模块排除出 asar，
+# 使打包后仍可通过 node 子进程方式运行 McpServer.js
+# 这些文件会被释放到 app.asar.unpacked/ 目录下
+asarUnpack:
+  - dist/electron/mcp/**/*
+  - dist/electron/main/**/*
+  - dist/types/**/*
+  - dist/constants/**/*
 directories:
   buildResources: assets
   output: release/${version}

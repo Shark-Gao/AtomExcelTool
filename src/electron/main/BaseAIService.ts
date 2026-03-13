@@ -1,6 +1,9 @@
 /**
  * AI 服务基类
  * 抽取 DeepSeek 和 Hunyuan 服务的公共逻辑
+ * 
+ * 纯 AI 问答模式：不使用 Function Calling / MCP 工具调用，
+ * 仅根据提示词中注入的原子知识库来回答问题，避免超出上下文限制。
  */
 
 import { ClassMetadata } from '../../types/MetaDefine';
@@ -10,7 +13,7 @@ import { buildSystemPrompt, getDefaultSystemPrompt } from './PromptBuilder';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: string | null;
 }
 
 export interface TokenUsage {
@@ -37,10 +40,15 @@ export interface StreamChunk {
 // ============ Token 估算工具 ============
 
 /**
- * 估算文本的 token 数量
- * 中文约 1.5-2 字符/token，英文约 4 字符/token
+ * 估算文本的 token 数量（保守估算，宁多不少）
+ * 
+ * 实际 BPE tokenizer 特性：
+ * - 中文：约 1.2-1.8 字符/token（取 1.2，保守）
+ * - 英文单词：约 1-1.5 token/word，即约 3 字符/token
+ * - JSON/代码：关键字、括号、引号等各占 1 token，约 2.5 字符/token
+ * - 标点符号：通常 1 字符 = 1 token
  */
-export function estimateTokens(text: string): number {
+export function estimateTokens(text: string | null | undefined): number {
   if (!text) return 0;
   
   // 统计中文字符数
@@ -48,8 +56,8 @@ export function estimateTokens(text: string): number {
   // 统计英文和其他字符
   const otherChars = text.length - chineseChars;
   
-  // 中文约 1.5 字符/token，英文约 4 字符/token
-  return Math.ceil(chineseChars / 1.5 + otherChars / 4);
+  // 保守估算：中文 1.2 字符/token，英文/JSON 约 2.5 字符/token
+  return Math.ceil(chineseChars / 1.2 + otherChars / 2.5);
 }
 
 /**
@@ -58,8 +66,11 @@ export function estimateTokens(text: string): number {
 export function estimateMessagesTokens(messages: ChatMessage[]): number {
   let total = 0;
   for (const msg of messages) {
-    // 每条消息有约 4 token 的元数据开销
-    total += 4 + estimateTokens(msg.content);
+    // 每条消息有约 7 token 的元数据开销（role, name, 分隔符等）
+    total += 7;
+    
+    // 消息内容
+    total += estimateTokens(msg.content);
   }
   return total;
 }
@@ -83,6 +94,12 @@ export abstract class BaseAIService {
   /** 价格配置：输入价格（元/1K tokens）和输出价格（元/1K tokens） */
   protected abstract inputPricePerK: number;
   protected abstract outputPricePerK: number;
+
+  /** 
+   * 模型最大上下文 token 数
+   * 子类可以覆盖此值。默认 98304（DeepSeek 的限制）
+   */
+  protected maxContextTokens: number = 98304;
 
   constructor(serviceName: string) {
     this.serviceName = serviceName;
@@ -192,45 +209,18 @@ export abstract class BaseAIService {
    */
   async chat(userMessage: string, context?: { currentAtom?: ClassMetadata }): Promise<AIResponse> {
     try {
-      const fullMessage = this.buildUserMessage(userMessage, context);
-      this.conversationHistory.push({ role: 'user', content: fullMessage });
-
       let fullContent = '';
-      let errorMsg = '';
       let usage: TokenUsage | undefined;
-      
-      for await (const chunk of this.callAPIStream(this.conversationHistory)) {
+
+      for await (const chunk of this.chatStream(userMessage, context)) {
         if (chunk.type === 'content' && chunk.content) {
           fullContent += chunk.content;
         } else if (chunk.type === 'error') {
-          errorMsg = chunk.error || '未知错误';
+          return { success: false, error: chunk.error || '未知错误' };
         } else if (chunk.type === 'usage' && chunk.usage) {
           usage = chunk.usage;
         }
       }
-
-      if (errorMsg) {
-        return { success: false, error: errorMsg };
-      }
-      
-      if (fullContent) {
-        this.conversationHistory.push({ role: 'assistant', content: fullContent });
-      }
-
-      // 如果 API 没返回 usage，使用估算值
-      if (!usage) {
-        const promptTokens = estimateMessagesTokens(this.conversationHistory.slice(0, -1));
-        const completionTokens = estimateTokens(fullContent);
-        usage = {
-          promptTokens,
-          completionTokens,
-          totalTokens: promptTokens + completionTokens
-        };
-      }
-
-      this.updateUsage(usage);
-      console.log(`[${this.serviceName}] This request usage:`, usage);
-      console.log(`[${this.serviceName}] Total accumulated usage:`, this.totalUsage);
 
       return {
         success: true,
@@ -246,34 +236,47 @@ export abstract class BaseAIService {
   }
 
   /**
-   * 流式对话
+   * 流式对话（纯 AI 问答，无工具调用）
    */
   async *chatStream(userMessage: string, context?: { currentAtom?: ClassMetadata }): AsyncGenerator<StreamChunk> {
     try {
       const fullMessage = this.buildUserMessage(userMessage, context);
       this.conversationHistory.push({ role: 'user', content: fullMessage });
 
-      let fullResponse = '';
-      let usage: TokenUsage | undefined;
+      // 安全阈值 = 模型上下文限制 * 0.85（留 15% 余量给 completion 和误差）
+      const safeContextLimit = Math.floor(this.maxContextTokens * 0.85);
+      const MAX_INPUT_TOKENS = Math.max(15000, safeContextLimit);
       
+      console.log(`[${this.serviceName}] Context limit: ${this.maxContextTokens}, max history tokens: ~${MAX_INPUT_TOKENS}`);
+
+      // 发送前检查并裁剪对话历史
+      this.trimHistoryIfNeeded(MAX_INPUT_TOKENS);
+
+      let finalResponse = '';
+      let usage: TokenUsage | undefined;
+
+      // 单次 API 调用（无工具循环）
       for await (const chunk of this.callAPIStream(this.conversationHistory)) {
         if (chunk.type === 'content' && chunk.content) {
-          fullResponse += chunk.content;
-        }
-        if (chunk.type === 'usage' && chunk.usage) {
+          finalResponse += chunk.content;
+          yield chunk;
+        } else if (chunk.type === 'usage' && chunk.usage) {
           usage = chunk.usage;
+        } else if (chunk.type === 'error') {
+          yield chunk;
+          return;
         }
-        yield chunk;
       }
 
-      if (fullResponse) {
-        this.conversationHistory.push({ role: 'assistant', content: fullResponse });
+      // 将最终回复加入历史
+      if (finalResponse) {
+        this.conversationHistory.push({ role: 'assistant', content: finalResponse });
       }
 
-      // 如果 API 没返回 usage，使用估算值
+      // 处理 usage
       if (!usage) {
         const promptTokens = estimateMessagesTokens(this.conversationHistory.slice(0, -1));
-        const completionTokens = estimateTokens(fullResponse);
+        const completionTokens = estimateTokens(finalResponse);
         usage = {
           promptTokens,
           completionTokens,
@@ -285,11 +288,68 @@ export abstract class BaseAIService {
       this.updateUsage(usage);
       console.log(`[${this.serviceName}] This request usage:`, usage);
       console.log(`[${this.serviceName}] Total accumulated usage:`, this.totalUsage);
+
+      yield { type: 'done' };
     } catch (error) {
       yield {
         type: 'error',
         error: error instanceof Error ? error.message : '未知错误'
       };
+    }
+  }
+
+  /**
+   * 自动裁剪对话历史，确保总 token 不超过限制
+   * 
+   * 保留策略：
+   * - system 消息永远保留（第一条）
+   * - 最近的用户消息永远保留（最后几条）
+   * - 从最早的非 system 消息开始移除，直到 token 降到阈值以下
+   */
+  protected trimHistoryIfNeeded(maxTokens: number): void {
+    const currentTokens = estimateMessagesTokens(this.conversationHistory);
+    
+    if (currentTokens <= maxTokens) {
+      return; // 不需要裁剪
+    }
+
+    console.log(`[${this.serviceName}] History too long: ~${currentTokens} tokens (limit: ${maxTokens}). Trimming...`);
+
+    // 保留 system 消息（index 0）和最近的几条消息
+    const systemMsg = this.conversationHistory[0]; // system 消息
+    const remaining = this.conversationHistory.slice(1); // 其余消息
+
+    // 从前面开始逐步移除，每次移除 2 条（一轮 user + assistant）
+    while (remaining.length > 2) { // 至少保留最近一轮对话
+      const newHistory = [systemMsg, ...remaining];
+      const newTokens = estimateMessagesTokens(newHistory);
+      
+      if (newTokens <= maxTokens) {
+        break;
+      }
+
+      // 移除最早的消息
+      const removed = remaining.shift()!;
+      
+      // 如果移除的是 user 消息，对应的 assistant 回复也应该移除
+      if (removed.role === 'user' && remaining.length > 0 && (remaining[0] as ChatMessage).role === 'assistant') {
+        remaining.shift();
+      }
+    }
+
+    this.conversationHistory = [systemMsg, ...remaining];
+    let finalTokens = estimateMessagesTokens(this.conversationHistory);
+    console.log(`[${this.serviceName}] Trimmed history to ~${finalTokens} tokens (${this.conversationHistory.length} messages)`);
+
+    // 最后手段：如果 system prompt 本身太大，截断它
+    if (finalTokens > maxTokens && this.conversationHistory[0]?.role === 'system') {
+      const sysContent = this.conversationHistory[0].content;
+      if (sysContent && sysContent.length > 5000) {
+        const originalLen = sysContent.length;
+        this.conversationHistory[0].content = sysContent.substring(0, 4000) + '\n\n[系统提示已截断以控制 token 总量]';
+        finalTokens = estimateMessagesTokens(this.conversationHistory);
+        console.log(`[${this.serviceName}] System prompt truncated: ${originalLen} -> ${this.conversationHistory[0].content.length} chars. Tokens: ~${finalTokens}`);
+      }
     }
   }
 

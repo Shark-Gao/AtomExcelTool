@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "mhatom-excel-tool": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "G:/workspace/MHAtomExcelTool/dist/electron/mcp/McpServer.js"
+      ],
+      "env": {}
+    }
+  }
+}

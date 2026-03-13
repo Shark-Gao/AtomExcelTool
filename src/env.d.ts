@@ -140,6 +140,7 @@ declare global {
     registerExcelContextMenu: () => Promise<{ ok: boolean; error?: string }>
     onOpenExternalExcel: (callback: (filePath: string) => void) => () => void
     openExternal: (url: string) => Promise<void>
+    openPath: (filePath: string) => Promise<{ ok: boolean; error?: string }>
     getLogInfo: () => Promise<{ ok: boolean; logDir?: string; logFilePath?: string; error?: string }>
     // 快捷键监听
     onOpen: (callback: () => void) => () => void

@@ -11,7 +11,7 @@
         "🔧 模型名从 hunyuan-2.0-thinking 更换为 hy3-preview",
         "🔧 适配 v2 协议 finish_reason 映射（sensitive→content_filter，新增 length）",
         "🔧 移除已废弃参数（stream_moderation、enable_enhancement 等）",
-        "✨ 新增「深度思考」开关，用户可在 AI 助手面板中切换（默认关闭，开启后使用 reasoning_effort=high）",
+        "✨ 新增思考模式三档选择（快速/轻度/深度），替代原开关式设计，对应 reasoning_effort: no_think/low/high",
         "🔧 上下文窗口调整为 256K（适配 Hy3 Preview 模型规格）"
       ]
     },

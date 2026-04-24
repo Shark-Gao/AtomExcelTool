@@ -1323,16 +1323,16 @@ ipcMain.handle('ai:get-status', async () => {
     };
 });
 
-// 设置深度思考等级
+// 设置思考模式
 ipcMain.handle('ai:set-reasoning-effort', async (_event, level: string) => {
     try {
         const service = getHunyuanService();
         if (!service) {
             return { success: false, error: 'AI 服务未配置' };
         }
-        const validLevels = ['none', 'low', 'medium', 'high'];
+        const validLevels = ['no_think', 'low', 'high'];
         if (!validLevels.includes(level)) {
-            return { success: false, error: `无效的思考等级: ${level}` };
+            return { success: false, error: `无效的思考模式: ${level}` };
         }
         service.setReasoningEffort(level as any);
         console.log('[ai:set-reasoning-effort] Set to:', level);
@@ -1348,7 +1348,7 @@ ipcMain.handle('ai:get-reasoning-effort', async () => {
     const service = getHunyuanService();
     return {
         success: true,
-        level: service?.getReasoningEffort() || 'none'
+        level: service?.getReasoningEffort() || 'no_think'
     };
 });
 

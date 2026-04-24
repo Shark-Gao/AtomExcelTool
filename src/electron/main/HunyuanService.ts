@@ -47,8 +47,8 @@ export class HunyuanService extends BaseAIService {
   // Hy3 preview 上下文窗口 256K
   protected maxContextTokens: number = 262144;
 
-  // 深度思考等级：'none' = 快思考, 'low' / 'medium' / 'high' = 深度思考
-  private reasoningEffort: string = 'none';
+  // 思考模式：'no_think'(默认) / 'low' / 'high'
+  private reasoningEffort: string = 'no_think';
 
   constructor(config: HunyuanConfig) {
     super('HunyuanService');
@@ -59,9 +59,9 @@ export class HunyuanService extends BaseAIService {
   }
 
   /**
-   * 设置深度思考等级
+   * 设置思考模式
    */
-  setReasoningEffort(level: 'none' | 'low' | 'medium' | 'high'): void {
+  setReasoningEffort(level: 'no_think' | 'low' | 'high'): void {
     this.reasoningEffort = level;
     console.log('[HunyuanService] Reasoning effort set to:', level);
   }
@@ -106,8 +106,8 @@ export class HunyuanService extends BaseAIService {
       stream_options: { include_usage: true }
     };
 
-    // 仅在开启深度思考时才设置 reasoning_effort
-    if (this.reasoningEffort && this.reasoningEffort !== 'none') {
+    // 仅在非 no_think 时才设置 reasoning_effort
+    if (this.reasoningEffort && this.reasoningEffort !== 'no_think') {
       payload.reasoning_effort = this.reasoningEffort;
     }
 

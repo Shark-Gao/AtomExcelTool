@@ -70,8 +70,13 @@ const modelLabels: Record<string, string> = {
   hunyuan: '混元 Hy3 Preview（免费）'
 };
 
-// 深度思考控制
-const deepThinking = ref(false);
+// 思考模式控制
+const reasoningEffort = ref('no_think');
+const reasoningLabels: Record<string, string> = {
+  no_think: '快速',
+  low: '轻度',
+  high: '深度'
+};
 
 // Token 使用统计
 interface TokenUsageData {
@@ -312,19 +317,19 @@ async function switchModel(modelType: string) {
   }
 }
 
-/** 切换深度思考 */
-async function toggleDeepThinking() {
-  const newLevel = deepThinking.value ? 'high' : 'none';
+/** 切换思考模式 */
+async function switchReasoningEffort(level: string) {
+  const oldLevel = reasoningEffort.value;
+  reasoningEffort.value = level;
   try {
-    const result = await window.aiBridge?.setReasoningEffort(newLevel);
+    const result = await window.aiBridge?.setReasoningEffort(level);
     if (!result?.success) {
-      // 恢复状态
-      deepThinking.value = !deepThinking.value;
-      console.error('设置深度思考失败:', result?.error);
+      reasoningEffort.value = oldLevel;
+      console.error('设置思考模式失败:', result?.error);
     }
   } catch (error) {
-    deepThinking.value = !deepThinking.value;
-    console.error('设置深度思考失败:', error);
+    reasoningEffort.value = oldLevel;
+    console.error('设置思考模式失败:', error);
   }
 }
 
@@ -423,6 +428,14 @@ function handleWindowResize() {
 
 // ============ 生命周期 ============
 
+/** 加载思考模式状态 */
+async function loadReasoningEffort() {
+  const result = await window.aiBridge?.getReasoningEffort();
+  if (result?.success) {
+    reasoningEffort.value = result.level;
+  }
+}
+
 onMounted(async () => {
   // 监听窗口大小变化
   window.addEventListener('resize', handleWindowResize);
@@ -444,11 +457,8 @@ onMounted(async () => {
     availableModels.value = builtinResult.availableModels;
   }
 
-  // 获取深度思考状态
-  const reasoningResult = await window.aiBridge?.getReasoningEffort();
-  if (reasoningResult?.success) {
-    deepThinking.value = reasoningResult.level !== 'none';
-  }
+  // 获取思考模式状态
+  loadReasoningEffort();
 });
 
 onUnmounted(() => {
@@ -642,7 +652,7 @@ watch(showSettings, (isOpen) => {
 
       <!-- 输入区域 -->
       <div class="p-4 border-t border-base-content/10 bg-base-300/30">
-        <!-- 模型选择 & 深度思考开关 -->
+        <!-- 模型选择 & 思考模式 -->
         <div class="flex items-center gap-2 mb-2">
           <span class="text-xs text-base-content/60">模型:</span>
           <select 
@@ -659,16 +669,17 @@ watch(showSettings, (isOpen) => {
               {{ modelLabels[model] || model }}
             </option>
           </select>
-          <label class="flex items-center gap-1 cursor-pointer" title="开启后回答质量更高，但速度更慢">
-            <span class="text-xs text-base-content/60 whitespace-nowrap">深度思考</span>
-            <input 
-              type="checkbox" 
-              class="toggle toggle-xs toggle-primary" 
-              :checked="deepThinking"
-              :disabled="isLoading"
-              @change="deepThinking = !deepThinking; toggleDeepThinking()"
-            />
-          </label>
+          <span class="text-xs text-base-content/60 whitespace-nowrap">思考:</span>
+          <select
+            class="select select-bordered select-xs w-1/4 min-w-0"
+            :value="reasoningEffort"
+            :disabled="isLoading"
+            @change="switchReasoningEffort(($event.target as HTMLSelectElement).value)"
+          >
+            <option value="no_think">{{ reasoningLabels.no_think }}</option>
+            <option value="low">{{ reasoningLabels.low }}</option>
+            <option value="high">{{ reasoningLabels.high }}</option>
+          </select>
         </div>
         
         <!-- 输入框和发送/停止按钮 -->

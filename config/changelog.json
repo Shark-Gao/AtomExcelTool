@@ -1,6 +1,21 @@
 {
   "changelog": [
     {
+      "version": "2.1.0",
+      "date": "2026-04-24",
+      "changes": [
+        "🔧 下架 DeepSeek 模型，移除相关配置和前端选项，后续视情况恢复",
+        "✨ 接入混元 Hy3 Preview 模型，迁移至太极平台 OpenAPI v2 协议",
+        "🔧 API 域名从 hunyuanapi.woa.com 更换为 api.taiji.woa.com",
+        "🔧 接口路径从 /openapi/v1 升级为 /openapi/v2",
+        "🔧 模型名从 hunyuan-2.0-thinking 更换为 hy3-preview",
+        "🔧 适配 v2 协议 finish_reason 映射（sensitive→content_filter，新增 length）",
+        "🔧 移除已废弃参数（stream_moderation、enable_enhancement 等）",
+        "✨ 新增「深度思考」开关，用户可在 AI 助手面板中切换（默认关闭，开启后使用 reasoning_effort=high）",
+        "🔧 上下文窗口调整为 256K（适配 Hy3 Preview 模型规格）"
+      ]
+    },
+    {
       "version": "2.0.0",
       "date": "2026-03-12",
       "changes": [

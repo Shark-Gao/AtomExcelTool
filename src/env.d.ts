@@ -200,6 +200,10 @@ declare global {
     }>
     /** 重置 Token 统计 */
     resetUsage: () => Promise<{ success: boolean }>
+    /** 设置深度思考等级 */
+    setReasoningEffort: (level: string) => Promise<{ success: boolean; level?: string; error?: string }>
+    /** 获取深度思考等级 */
+    getReasoningEffort: () => Promise<{ success: boolean; level: string }>
   }
 
   // ============ 使用统计上报相关类型 ============

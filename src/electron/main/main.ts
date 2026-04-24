@@ -13,7 +13,8 @@ import { deParseJsonToExpression } from './DeParseJsonToExpression';
 import { AtomFieldsConfigLoader } from './AtomFieldsConfigLoader';
 import { LogManager } from './LogManager';
 import { initHunyuanService, getHunyuanService, HunyuanConfig } from './HunyuanService';
-import { initDeepSeekService, getDeepSeekService, DeepSeekConfig } from './DeepSeekService';
+// DeepSeek 已下架，保留 import 以备后续恢复
+// import { initDeepSeekService, getDeepSeekService, DeepSeekConfig } from './DeepSeekService';
 import { initP4Service, getP4Config, isP4Configured, testP4Connection, isFileUnderP4, checkoutFile, getFileStatus, P4Config, checkExeUpdateWithoutConfig, openCmdForP4Sync, getFileChangeDescriptions, syncConfigOnStartup } from './P4Service';
 import { reportLaunch, reportClose, reportOpenExcel, reportSaveExcel, reportSaveExcelAs, reportAIChat, reportOpenCodeEditor, reportAction, reportEvent } from './UsageReporter';
 // import { runAllTests } from './DeParseJsonToExpression.test';
@@ -22,7 +23,7 @@ import { reportLaunch, reportClose, reportOpenExcel, reportSaveExcel, reportSave
 
 // AI 服务相关变量（需要在 delegate:get-metadata 之前声明）
 let aiConfigured = false;
-let aiConfig: { model: string } = { model: 'hunyuan-2.0-thinking-20251109' };
+let aiConfig: { model: string } = { model: 'hy3-preview' };
 let cachedAtomMetadata: any[] | null = null;
 
 // 在应用启动时立即初始化日志系统
@@ -1203,14 +1204,8 @@ ipcMain.handle('config:save-atom-fields-config', async (_event, config: any) => 
 
 // ============ AI 助手相关 IPC 处理器 ============
 
-// 模型配置
-type AIModelType = 'deepseek' | 'hunyuan';
-
-interface DeepSeekModelConfig {
-  type: 'deepseek';
-  apiKey: string;
-  model: string;
-}
+// 模型配置（DeepSeek 已下架，仅保留混元 Hy3 Preview）
+type AIModelType = 'hunyuan';
 
 interface HunyuanModelConfig {
   type: 'hunyuan';
@@ -1219,41 +1214,29 @@ interface HunyuanModelConfig {
   model: string;
 }
 
-type ModelConfig = DeepSeekModelConfig | HunyuanModelConfig;
+type ModelConfig = HunyuanModelConfig;
 
 const MODEL_CONFIGS: Record<AIModelType, ModelConfig> = {
-  deepseek: {
-    type: 'deepseek',
-    apiKey: '779b1227-d043-4fb7-8d2d-d4572773dbe7',
-    model: 'ep-20251231180434-9vq8m'
-  },
   hunyuan: {
     type: 'hunyuan',
     apiKey: '9a0d84de-caed-4048-9c3e-c7ec16ea8a1d',
-    apiHost: 'hunyuanapi.woa.com',
-    model: 'hunyuan-2.0-thinking-20251109'
+    apiHost: 'api.taiji.woa.com',
+    model: 'hy3-preview'
   }
 };
 
-// 当前选择的模型
-let currentModelType: AIModelType = 'deepseek';  // 默认 DeepSeek
+// 当前选择的模型（DeepSeek 已下架，默认混元）
+let currentModelType: AIModelType = 'hunyuan';
 
 // 应用启动时自动初始化 AI 服务
 console.log('[AI] Auto-initializing with default model:', currentModelType);
 try {
     const defaultConfig = MODEL_CONFIGS[currentModelType];
-    if (defaultConfig.type === 'deepseek') {
-        initDeepSeekService({
-            apiKey: defaultConfig.apiKey,
-            model: defaultConfig.model
-        });
-    } else {
-        initHunyuanService({
-            apiKey: defaultConfig.apiKey,
-            apiHost: defaultConfig.apiHost,
-            model: defaultConfig.model
-        });
-    }
+    initHunyuanService({
+        apiKey: defaultConfig.apiKey,
+        apiHost: defaultConfig.apiHost,
+        model: defaultConfig.model
+    });
     aiConfigured = true;
     aiConfig = { model: defaultConfig.model };
     console.log('[AI] Service initialized with model:', defaultConfig.model);
@@ -1270,7 +1253,7 @@ ipcMain.handle('ai:get-builtin-config', async () => {
     };
 });
 
-// 切换模型
+// 切换模型（当前仅支持混元，保留接口兼容性）
 ipcMain.handle('ai:switch-model', async (_event, modelType: string) => {
     try {
         if (!MODEL_CONFIGS[modelType as AIModelType]) {
@@ -1281,19 +1264,11 @@ ipcMain.handle('ai:switch-model', async (_event, modelType: string) => {
         currentModelType = modelType as AIModelType;
         const config = MODEL_CONFIGS[currentModelType];
         
-        let service: any;
-        if (config.type === 'deepseek') {
-            service = initDeepSeekService({
-                apiKey: config.apiKey,
-                model: config.model
-            });
-        } else {
-            service = initHunyuanService({
-                apiKey: config.apiKey,
-                apiHost: config.apiHost,
-                model: config.model
-            });
-        }
+        const service = initHunyuanService({
+            apiKey: config.apiKey,
+            apiHost: config.apiHost,
+            model: config.model
+        });
         
         // 如果已有缓存的 metadata，直接注入知识库
         if (cachedAtomMetadata && cachedAtomMetadata.length > 0) {
@@ -1318,8 +1293,8 @@ ipcMain.handle('ai:configure', async (_event, config: { apiKey: string; apiHost?
         console.log('[ai:configure] Configuring AI service...');
         const hunyuanConfig: HunyuanConfig = {
             apiKey: config.apiKey,
-            apiHost: config.apiHost || 'hunyuanapi.woa.com',
-            model: config.model || 'hunyuan-2.0-thinking-20251109'
+            apiHost: config.apiHost || 'api.taiji.woa.com',
+            model: config.model || 'hy3-preview'
         };
         const service = initHunyuanService(hunyuanConfig);
         
@@ -1348,13 +1323,38 @@ ipcMain.handle('ai:get-status', async () => {
     };
 });
 
-// 获取当前 AI 服务实例（根据模型类型）
-function getCurrentAIService() {
-    if (currentModelType === 'deepseek') {
-        return getDeepSeekService();
-    } else {
-        return getHunyuanService();
+// 设置深度思考等级
+ipcMain.handle('ai:set-reasoning-effort', async (_event, level: string) => {
+    try {
+        const service = getHunyuanService();
+        if (!service) {
+            return { success: false, error: 'AI 服务未配置' };
+        }
+        const validLevels = ['none', 'low', 'medium', 'high'];
+        if (!validLevels.includes(level)) {
+            return { success: false, error: `无效的思考等级: ${level}` };
+        }
+        service.setReasoningEffort(level as any);
+        console.log('[ai:set-reasoning-effort] Set to:', level);
+        return { success: true, level };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '设置失败';
+        return { success: false, error: message };
     }
+});
+
+// 获取深度思考等级
+ipcMain.handle('ai:get-reasoning-effort', async () => {
+    const service = getHunyuanService();
+    return {
+        success: true,
+        level: service?.getReasoningEffort() || 'none'
+    };
+});
+
+// 获取当前 AI 服务实例（当前仅混元）
+function getCurrentAIService() {
+    return getHunyuanService();
 }
 
 // 初始化原子知识库

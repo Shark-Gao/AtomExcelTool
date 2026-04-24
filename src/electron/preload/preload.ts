@@ -346,7 +346,15 @@ contextBridge.exposeInMainWorld('aiBridge', {
     
     /** 重置 Token 统计 */
     resetUsage: () =>
-        ipcRenderer.invoke('ai:reset-usage') as Promise<{ success: boolean }>
+        ipcRenderer.invoke('ai:reset-usage') as Promise<{ success: boolean }>,
+    
+    /** 设置深度思考等级 */
+    setReasoningEffort: (level: string) =>
+        ipcRenderer.invoke('ai:set-reasoning-effort', level) as Promise<{ success: boolean; level?: string; error?: string }>,
+    
+    /** 获取深度思考等级 */
+    getReasoningEffort: () =>
+        ipcRenderer.invoke('ai:get-reasoning-effort') as Promise<{ success: boolean; level: string }>
 });
 
 // ============ 使用统计上报 Bridge ============

@@ -63,13 +63,15 @@ const minPanelWidth = 320;  // 最小宽度
 const isResizing = ref(false);
 const resizeHandleRef = ref<HTMLElement | null>(null);
 
-// API 配置
-const currentModel = ref<'deepseek' | 'hunyuan'>('deepseek');
-const availableModels = ref<string[]>(['deepseek', 'hunyuan']);
+// API 配置（DeepSeek 已下架，仅保留混元 Hy3 Preview）
+const currentModel = ref<'hunyuan'>('hunyuan');
+const availableModels = ref<string[]>(['hunyuan']);
 const modelLabels: Record<string, string> = {
-  deepseek: 'DeepSeek（免费）',
-  hunyuan: '腾讯混元 Thinking（免费）'
+  hunyuan: '混元 Hy3 Preview（免费）'
 };
+
+// 深度思考控制
+const deepThinking = ref(false);
 
 // Token 使用统计
 interface TokenUsageData {
@@ -301,12 +303,28 @@ async function switchModel(modelType: string) {
   try {
     const result = await (window as any).aiBridge?.switchModel(modelType);
     if (result?.success) {
-      currentModel.value = modelType as 'deepseek' | 'hunyuan';
+      currentModel.value = modelType as 'hunyuan';
       // 清空对话历史，因为切换了模型
       clearChat();
     }
   } catch (error) {
     console.error('切换模型失败:', error);
+  }
+}
+
+/** 切换深度思考 */
+async function toggleDeepThinking() {
+  const newLevel = deepThinking.value ? 'high' : 'none';
+  try {
+    const result = await window.aiBridge?.setReasoningEffort(newLevel);
+    if (!result?.success) {
+      // 恢复状态
+      deepThinking.value = !deepThinking.value;
+      console.error('设置深度思考失败:', result?.error);
+    }
+  } catch (error) {
+    deepThinking.value = !deepThinking.value;
+    console.error('设置深度思考失败:', error);
   }
 }
 
@@ -424,6 +442,12 @@ onMounted(async () => {
   }
   if (builtinResult?.availableModels) {
     availableModels.value = builtinResult.availableModels;
+  }
+
+  // 获取深度思考状态
+  const reasoningResult = await window.aiBridge?.getReasoningEffort();
+  if (reasoningResult?.success) {
+    deepThinking.value = reasoningResult.level !== 'none';
   }
 });
 
@@ -618,7 +642,7 @@ watch(showSettings, (isOpen) => {
 
       <!-- 输入区域 -->
       <div class="p-4 border-t border-base-content/10 bg-base-300/30">
-        <!-- 模型选择下拉框 -->
+        <!-- 模型选择 & 深度思考开关 -->
         <div class="flex items-center gap-2 mb-2">
           <span class="text-xs text-base-content/60">模型:</span>
           <select 
@@ -635,6 +659,16 @@ watch(showSettings, (isOpen) => {
               {{ modelLabels[model] || model }}
             </option>
           </select>
+          <label class="flex items-center gap-1 cursor-pointer" title="开启后回答质量更高，但速度更慢">
+            <span class="text-xs text-base-content/60 whitespace-nowrap">深度思考</span>
+            <input 
+              type="checkbox" 
+              class="toggle toggle-xs toggle-primary" 
+              :checked="deepThinking"
+              :disabled="isLoading"
+              @change="deepThinking = !deepThinking; toggleDeepThinking()"
+            />
+          </label>
         </div>
         
         <!-- 输入框和发送/停止按钮 -->

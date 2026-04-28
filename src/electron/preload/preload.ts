@@ -273,6 +273,7 @@ contextBridge.exposeInMainWorld('aiBridge', {
             hasBuiltinConfig: boolean;
             currentModel?: string;
             availableModels?: string[];
+            knotModels?: Array<{ value: string; label: string }>;
         }>,
     
     /** 切换模型 */
@@ -354,7 +355,26 @@ contextBridge.exposeInMainWorld('aiBridge', {
     
     /** 获取深度思考等级 */
     getReasoningEffort: () =>
-        ipcRenderer.invoke('ai:get-reasoning-effort') as Promise<{ success: boolean; level: string }>
+        ipcRenderer.invoke('ai:get-reasoning-effort') as Promise<{ success: boolean; level: string }>,
+
+    /** 配置 Knot 服务 */
+    configureKnot: (config: { apiToken: string; apiUser: string; agentId: string; model?: string }) =>
+        ipcRenderer.invoke('ai:configure-knot', config) as Promise<{ success: boolean; model?: string; error?: string }>,
+
+    /** 获取 Knot 配置状态 */
+    getKnotConfig: () =>
+        ipcRenderer.invoke('ai:get-knot-config') as Promise<{
+            configured: boolean;
+            apiUser: string;
+            agentId: string;
+            model: string;
+            hasToken: boolean;
+            availableModels: Array<{ value: string; label: string }>;
+        }>,
+
+    /** 设置 Knot 子模型 */
+    setKnotModel: (model: string) =>
+        ipcRenderer.invoke('ai:set-knot-model', model) as Promise<{ success: boolean; model?: string; error?: string }>
 });
 
 // ============ 使用统计上报 Bridge ============

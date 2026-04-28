@@ -63,11 +63,12 @@ const minPanelWidth = 320;  // 最小宽度
 const isResizing = ref(false);
 const resizeHandleRef = ref<HTMLElement | null>(null);
 
-// API 配置（DeepSeek 已下架，仅保留混元 Hy3 Preview）
-const currentModel = ref<'hunyuan'>('hunyuan');
-const availableModels = ref<string[]>(['hunyuan']);
+// API 配置（混元 + Knot）
+const currentModel = ref<'hunyuan' | 'knot'>('hunyuan');
+const availableModels = ref<string[]>(['hunyuan', 'knot']);
 const modelLabels: Record<string, string> = {
-  hunyuan: '混元 Hy3 Preview（免费）'
+  hunyuan: '混元 Hy3 Preview（免费）',
+  knot: 'Knot 智能体（需配置 Token）'
 };
 
 // 思考模式控制
@@ -86,6 +87,29 @@ interface TokenUsageData {
   estimatedCost?: number;
 }
 const tokenUsage = ref<TokenUsageData | null>(null);
+
+// Knot 配置相关
+const showKnotConfig = ref(false);
+const knotToken = ref('');
+const knotUser = ref('');
+const knotAgentId = ref('');
+const knotModel = ref('deepseek-v3.1');
+const knotConfigured = ref(false);
+const knotSaving = ref(false);
+const knotSaveResult = ref<{ success: boolean; message: string } | null>(null);
+const knotAvailableModels = ref<Array<{ value: string; label: string }>>([
+  { value: 'deepseek-v3.1', label: 'DeepSeek V3.1' },
+  { value: 'deepseek-v3.2', label: 'DeepSeek V3.2' },
+  { value: 'glm-4.7', label: 'GLM 4.7' },
+  { value: 'glm-5.1', label: 'GLM 5.1' },
+  { value: 'claude-4.7-opus', label: 'Claude 4.7 Opus' },
+  { value: 'claude-4.6-sonnet', label: 'Claude 4.6 Sonnet' },
+  { value: 'claude-4.6-sonnet-1m-context', label: 'Claude 4.6 Sonnet (1M)' },
+  { value: 'claude-4.6-opus', label: 'Claude 4.6 Opus' },
+  { value: 'claude-4.6-opus-1m-context', label: 'Claude 4.6 Opus (1M)' },
+  { value: 'gpt-5.4', label: 'GPT 5.4' },
+  { value: 'hy3-preview', label: '混元 Hy3 Preview' },
+]);
 
 // 流式输出控制
 let currentStreamUnsubscribe: (() => void) | null = null;
@@ -306,15 +330,124 @@ function closePanel() {
 /** 切换模型 */
 async function switchModel(modelType: string) {
   try {
+    // 切换到 knot 时，先检查是否已配置
+    if (modelType === 'knot' && !knotConfigured.value) {
+      currentModel.value = 'knot';
+      showKnotConfig.value = true;
+      return;
+    }
+
     const result = await (window as any).aiBridge?.switchModel(modelType);
     if (result?.success) {
-      currentModel.value = modelType as 'hunyuan';
+      currentModel.value = modelType as 'hunyuan' | 'knot';
+      // 如果返回 needsConfig，说明 knot 还没配置
+      if (result.needsConfig) {
+        showKnotConfig.value = true;
+        return;
+      }
       // 清空对话历史，因为切换了模型
       clearChat();
     }
   } catch (error) {
     console.error('切换模型失败:', error);
   }
+}
+
+/** 保存 Knot 配置 */
+async function saveKnotConfig() {
+  if (!knotToken.value.trim() || !knotAgentId.value.trim()) {
+    knotSaveResult.value = { success: false, message: 'API Token 和 Agent ID 不能为空' };
+    return;
+  }
+
+  knotSaving.value = true;
+  knotSaveResult.value = null;
+
+  try {
+    const result = await (window as any).aiBridge?.configureKnot({
+      apiToken: knotToken.value.trim(),
+      apiUser: knotUser.value.trim(),
+      agentId: knotAgentId.value.trim(),
+      model: knotModel.value
+    });
+
+    if (result?.success) {
+      knotConfigured.value = true;
+      knotSaveResult.value = { success: true, message: '配置保存成功！' };
+
+      // 保存到 localStorage 持久化
+      try {
+        const stored = localStorage.getItem('mhatomexceltool_settings');
+        const settings = stored ? JSON.parse(stored) : {};
+        settings.knot = {
+          apiToken: knotToken.value.trim(),
+          apiUser: knotUser.value.trim(),
+          agentId: knotAgentId.value.trim(),
+          model: knotModel.value
+        };
+        localStorage.setItem('mhatomexceltool_settings', JSON.stringify(settings));
+      } catch { /* ignore */ }
+
+      // 如果当前选择的是 knot，切换到它
+      if (currentModel.value === 'knot') {
+        await (window as any).aiBridge?.switchModel('knot');
+        isConfigured.value = true;
+        clearChat();
+      }
+    } else {
+      knotSaveResult.value = { success: false, message: result?.error || '配置失败' };
+    }
+  } catch (error) {
+    knotSaveResult.value = { success: false, message: error instanceof Error ? error.message : '配置失败' };
+  } finally {
+    knotSaving.value = false;
+  }
+}
+
+/** 切换 Knot 子模型 */
+async function switchKnotModel(model: string) {
+  knotModel.value = model;
+  try {
+    await (window as any).aiBridge?.setKnotModel(model);
+    // 同步到 localStorage
+    try {
+      const stored = localStorage.getItem('mhatomexceltool_settings');
+      const settings = stored ? JSON.parse(stored) : {};
+      if (settings.knot) {
+        settings.knot.model = model;
+        localStorage.setItem('mhatomexceltool_settings', JSON.stringify(settings));
+      }
+    } catch { /* ignore */ }
+  } catch (error) {
+    console.error('切换 Knot 子模型失败:', error);
+  }
+}
+
+/** 加载 Knot 持久化配置 */
+async function loadKnotConfig() {
+  try {
+    const stored = localStorage.getItem('mhatomexceltool_settings');
+    if (stored) {
+      const settings = JSON.parse(stored);
+      if (settings.knot?.apiToken) {
+        knotToken.value = settings.knot.apiToken;
+        knotUser.value = settings.knot.apiUser || '';
+        knotAgentId.value = settings.knot.agentId || '';
+        knotModel.value = settings.knot.model || 'deepseek-v3.1';
+        knotConfigured.value = !!(settings.knot.apiToken && settings.knot.agentId);
+
+        // 如果已有配置，自动注入到主进程
+        if (knotConfigured.value) {
+          await (window as any).aiBridge?.configureKnot({
+            apiToken: knotToken.value,
+            apiUser: knotUser.value,
+            agentId: knotAgentId.value,
+            model: knotModel.value
+          });
+        }
+      }
+    }
+  } catch { /* ignore */ }
 }
 
 /** 切换思考模式 */
@@ -459,6 +592,9 @@ onMounted(async () => {
 
   // 获取思考模式状态
   loadReasoningEffort();
+
+  // 加载 Knot 持久化配置
+  loadKnotConfig();
 });
 
 onUnmounted(() => {
@@ -652,34 +788,65 @@ watch(showSettings, (isOpen) => {
 
       <!-- 输入区域 -->
       <div class="p-4 border-t border-base-content/10 bg-base-300/30">
-        <!-- 模型选择 & 思考模式 -->
+        <!-- 模型选择 & 思考模式/Knot子模型 -->
         <div class="flex items-center gap-2 mb-2">
           <span class="text-xs text-base-content/60">模型:</span>
-          <select 
+          <select
             class="select select-bordered select-xs flex-1"
             :value="currentModel"
             :disabled="isLoading"
             @change="switchModel(($event.target as HTMLSelectElement).value)"
           >
-            <option 
-              v-for="model in availableModels" 
-              :key="model" 
+            <option
+              v-for="model in availableModels"
+              :key="model"
               :value="model"
             >
               {{ modelLabels[model] || model }}
             </option>
           </select>
-          <span class="text-xs text-base-content/60 whitespace-nowrap">思考:</span>
-          <select
-            class="select select-bordered select-xs w-1/4 min-w-0"
-            :value="reasoningEffort"
-            :disabled="isLoading"
-            @change="switchReasoningEffort(($event.target as HTMLSelectElement).value)"
-          >
-            <option value="no_think">{{ reasoningLabels.no_think }}</option>
-            <option value="low">{{ reasoningLabels.low }}</option>
-            <option value="high">{{ reasoningLabels.high }}</option>
-          </select>
+          <!-- 混元模型：显示思考模式选择 -->
+          <template v-if="currentModel === 'hunyuan'">
+            <span class="text-xs text-base-content/60 whitespace-nowrap">思考:</span>
+            <select
+              class="select select-bordered select-xs w-1/4 min-w-0"
+              :value="reasoningEffort"
+              :disabled="isLoading"
+              @change="switchReasoningEffort(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="no_think">{{ reasoningLabels.no_think }}</option>
+              <option value="low">{{ reasoningLabels.low }}</option>
+              <option value="high">{{ reasoningLabels.high }}</option>
+            </select>
+          </template>
+          <!-- Knot 模型：显示子模型选择 + 配置按钮 -->
+          <template v-if="currentModel === 'knot'">
+            <select
+              class="select select-bordered select-xs flex-1"
+              :value="knotModel"
+              :disabled="isLoading"
+              @change="switchKnotModel(($event.target as HTMLSelectElement).value)"
+            >
+              <option
+                v-for="m in knotAvailableModels"
+                :key="m.value"
+                :value="m.value"
+              >
+                {{ m.label }}
+              </option>
+            </select>
+            <button
+              class="btn btn-ghost btn-xs btn-square"
+              @click="showSettings = true; showKnotConfig = true"
+              title="Knot 配置"
+            >
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+          </template>
         </div>
         
         <!-- 输入框和发送/停止按钮 -->
@@ -748,10 +915,101 @@ watch(showSettings, (isOpen) => {
 
       <div class="alert alert-info text-sm mb-4">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <span>切换模型会清空当前对话历史</span>
+      </div>
+
+      <!-- Knot 配置区（仅选择 Knot 时显示） -->
+      <div v-if="currentModel === 'knot' || showKnotConfig" class="mb-4">
+        <div class="divider text-xs">Knot 智能体配置</div>
+
+        <div class="space-y-3">
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text text-xs font-semibold">API Token <span class="text-error">*</span></span>
+              <a href="https://knot.woa.com/settings/token" target="_blank" class="label-text-alt link link-primary text-xs">申请 Token</a>
+            </label>
+            <input
+              type="password"
+              class="input input-bordered input-sm w-full"
+              v-model="knotToken"
+              placeholder="从 knot.woa.com/settings/token 获取"
+            />
+          </div>
+
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text text-xs font-semibold">企微英文名</span>
+            </label>
+            <input
+              type="text"
+              class="input input-bordered input-sm w-full"
+              v-model="knotUser"
+              placeholder="使用团队 Token 时填写"
+            />
+            <p class="text-xs text-base-content/50 mt-1">使用个人 Token 可不填</p>
+          </div>
+
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text text-xs font-semibold">Agent ID <span class="text-error">*</span></span>
+              <a href="https://knot.woa.com/agent/workspace" target="_blank" class="label-text-alt link link-primary text-xs">查看智能体</a>
+            </label>
+            <input
+              type="text"
+              class="input input-bordered input-sm w-full"
+              v-model="knotAgentId"
+              placeholder="智能体 ID"
+            />
+          </div>
+
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text text-xs font-semibold">AI 模型</span>
+            </label>
+            <select
+              class="select select-bordered select-sm w-full"
+              v-model="knotModel"
+              @change="switchKnotModel(knotModel)"
+            >
+              <option
+                v-for="m in knotAvailableModels"
+                :key="m.value"
+                :value="m.value"
+              >
+                {{ m.label }}
+              </option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2 mt-2">
+            <button
+              class="btn btn-sm btn-primary"
+              :disabled="knotSaving || !knotToken.trim() || !knotAgentId.trim()"
+              @click="saveKnotConfig"
+            >
+              <span v-if="knotSaving" class="loading loading-spinner loading-xs"></span>
+              <span v-else>保存配置</span>
+            </button>
+            <span v-if="knotConfigured" class="badge badge-success badge-sm gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              已配置
+            </span>
+          </div>
+
+          <div v-if="knotSaveResult" class="mt-2">
+            <div
+              class="alert alert-sm py-2"
+              :class="knotSaveResult.success ? 'alert-success' : 'alert-error'"
+            >
+              <span class="text-xs">{{ knotSaveResult.message }}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Token 使用统计 -->

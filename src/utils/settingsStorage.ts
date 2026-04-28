@@ -14,6 +14,13 @@ export interface RecentFileItem {
   lastOpenedAt: number  // 时间戳
 }
 
+export interface KnotSettings {
+  apiToken: string      // x-knot-api-token
+  apiUser: string       // 企微英文名
+  agentId: string       // 智能体 ID
+  model: string         // 子模型名称
+}
+
 export interface AppSettings {
   theme: string
   showOnlyAtomicFields: boolean
@@ -24,6 +31,8 @@ export interface AppSettings {
   // P4V 设置
   p4: P4Settings
   p4CheckoutPromptEnabled: boolean  // 是否提示 checkout
+  // Knot AI 设置
+  knot: KnotSettings
   // 最近打开文件历史
   recentFiles: RecentFileItem[]
   // 原子游乐场相关
@@ -54,6 +63,13 @@ const DEFAULT_SETTINGS: AppSettings = {
     client: ''
   },
   p4CheckoutPromptEnabled: true,
+  // Knot AI 默认设置
+  knot: {
+    apiToken: '',
+    apiUser: '',
+    agentId: '',
+    model: 'deepseek-v3.1'
+  },
   recentFiles: [],
   // 原子游乐场相关
   activeMainTab: 'config',
@@ -77,6 +93,7 @@ export function loadSettingsFromStorage(): AppSettings {
         autoSaveInterval: settings.autoSaveInterval ?? DEFAULT_SETTINGS.autoSaveInterval,
         p4: settings.p4 ?? DEFAULT_SETTINGS.p4,
         p4CheckoutPromptEnabled: settings.p4CheckoutPromptEnabled ?? DEFAULT_SETTINGS.p4CheckoutPromptEnabled,
+        knot: settings.knot ?? DEFAULT_SETTINGS.knot,
         recentFiles: settings.recentFiles ?? DEFAULT_SETTINGS.recentFiles,
         activeMainTab: settings.activeMainTab ?? DEFAULT_SETTINGS.activeMainTab,
         codeEditorContent: settings.codeEditorContent ?? DEFAULT_SETTINGS.codeEditorContent

@@ -1474,6 +1474,7 @@ function getCurrentSettingsForSave() {
     autoSaveInterval: autoSaveInterval.value,
     p4: p4Settings.value,
     p4CheckoutPromptEnabled: p4CheckoutPromptEnabled.value,
+    knot: existingSettings.knot, // 保留现有的 Knot AI 配置（token/user/model）
     recentFiles: existingSettings.recentFiles, // 保留现有的最近文件列表
     activeMainTab: activeMainTab.value,
     codeEditorContent: codeEditorInput.value

@@ -412,19 +412,28 @@ async function loadKnotConfig() {
         knotToken.value = settings.knot.apiToken;
         knotUser.value = settings.knot.apiUser || '';
         knotModel.value = settings.knot.model || 'deepseek-v3.1';
-        knotConfigured.value = !!settings.knot.apiToken;
 
-        // 如果已有配置，自动注入到主进程
-        if (knotConfigured.value) {
-          await (window as any).aiBridge?.configureKnot({
-            apiToken: knotToken.value,
-            apiUser: knotUser.value,
-            model: knotModel.value
-          });
+        // 自动注入到主进程并检查结果
+        const result = await (window as any).aiBridge?.configureKnot({
+          apiToken: knotToken.value,
+          apiUser: knotUser.value,
+          model: knotModel.value
+        });
+
+        if (result?.success) {
+          knotConfigured.value = true;
+          // 同步设置全局 AI 已配置状态
+          if (currentModel.value === 'knot') {
+            isConfigured.value = true;
+          }
+        } else {
+          knotConfigured.value = false;
         }
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    knotConfigured.value = false;
+  }
 }
 
 /** 复制消息内容 */
@@ -544,7 +553,7 @@ onMounted(async () => {
   }
 
   // 加载 Knot 持久化配置
-  loadKnotConfig();
+  await loadKnotConfig();
 });
 
 onUnmounted(() => {

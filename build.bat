@@ -30,7 +30,7 @@ if exist release\1.0.0 (
 REM 开始打包
 echo.
 echo [3/4] 正在打包应用...
-cd /d g:\workspace\MHAtomExcelTool
+cd /d C:\Users\bondhao\Downloads\AtomExcelTool-master\AtomExcelTool-master
 call npm run app:build
 
 REM 检查打包结果
@@ -41,13 +41,13 @@ if exist release\1.0.0 (
   echo ========================================
   echo     ✓ 打包成功！
   echo ========================================
-  echo 输出位置: g:\workspace\MHAtomExcelTool\release\1.0.0
+  echo 输出位置: C:\Users\bondhao\Downloads\AtomExcelTool-master\AtomExcelTool-master\release\1.0.0
   echo.
   
   REM 复制文件到目标目录
   echo [5/6] 正在复制文件到目标目录...
-  set SOURCE_DIR=g:\workspace\MHAtomExcelTool\release\1.0.0\win-unpacked
-  set TARGET_DIR=K:\MHA_Client_main\MHAGame\Tools\MHAtomExcelTool
+  set SOURCE_DIR=C:\Users\bondhao\Downloads\AtomExcelTool-master\AtomExcelTool-master\release\1.0.0\win-unpacked
+  set TARGET_DIR=D:\xgWS\MHAGame\Tools\MHAtomExcelTool
   
   REM 清理目标目录（保留 config 目录）
   echo.

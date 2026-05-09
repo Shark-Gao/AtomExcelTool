@@ -17,7 +17,6 @@ export interface RecentFileItem {
 export interface KnotSettings {
   apiToken: string      // x-knot-api-token
   apiUser: string       // 企微英文名
-  agentId: string       // 智能体 ID
   model: string         // 子模型名称
 }
 
@@ -67,7 +66,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   knot: {
     apiToken: '',
     apiUser: '',
-    agentId: '',
     model: 'deepseek-v3.1'
   },
   recentFiles: [],

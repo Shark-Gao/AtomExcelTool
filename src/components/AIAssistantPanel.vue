@@ -63,20 +63,11 @@ const minPanelWidth = 320;  // 最小宽度
 const isResizing = ref(false);
 const resizeHandleRef = ref<HTMLElement | null>(null);
 
-// API 配置（混元 + Knot）
-const currentModel = ref<'hunyuan' | 'knot'>('hunyuan');
-const availableModels = ref<string[]>(['hunyuan', 'knot']);
+// API 配置（Knot）
+const currentModel = ref<'knot'>('knot');
+const availableModels = ref<string[]>(['knot']);
 const modelLabels: Record<string, string> = {
-  hunyuan: '混元 Hy3 Preview（免费）',
   knot: 'Knot 智能体（需配置 Token）'
-};
-
-// 思考模式控制
-const reasoningEffort = ref('no_think');
-const reasoningLabels: Record<string, string> = {
-  no_think: '快速',
-  low: '轻度',
-  high: '深度'
 };
 
 // Token 使用统计
@@ -92,7 +83,6 @@ const tokenUsage = ref<TokenUsageData | null>(null);
 const showKnotConfig = ref(false);
 const knotToken = ref('');
 const knotUser = ref('');
-const knotAgentId = ref('');
 const knotModel = ref('deepseek-v3.1');
 const knotConfigured = ref(false);
 const knotSaving = ref(false);
@@ -108,7 +98,7 @@ const knotAvailableModels = ref<Array<{ value: string; label: string }>>([
   { value: 'claude-4.6-opus', label: 'Claude 4.6 Opus' },
   { value: 'claude-4.6-opus-1m-context', label: 'Claude 4.6 Opus (1M)' },
   { value: 'gpt-5.4', label: 'GPT 5.4' },
-  { value: 'hy3-preview', label: '混元 Hy3 Preview' },
+  { value: 'hy3-preview', label: 'Hy3 Preview' },
 ]);
 
 // 流式输出控制
@@ -337,17 +327,9 @@ async function switchModel(modelType: string) {
       return;
     }
 
-    const result = await (window as any).aiBridge?.switchModel(modelType);
-    if (result?.success) {
-      currentModel.value = modelType as 'hunyuan' | 'knot';
-      // 如果返回 needsConfig，说明 knot 还没配置
-      if (result.needsConfig) {
-        showKnotConfig.value = true;
-        return;
-      }
-      // 清空对话历史，因为切换了模型
-      clearChat();
-    }
+    currentModel.value = modelType as 'knot';
+    // 清空对话历史，因为切换了模型
+    clearChat();
   } catch (error) {
     console.error('切换模型失败:', error);
   }
@@ -355,8 +337,8 @@ async function switchModel(modelType: string) {
 
 /** 保存 Knot 配置 */
 async function saveKnotConfig() {
-  if (!knotToken.value.trim() || !knotAgentId.value.trim()) {
-    knotSaveResult.value = { success: false, message: 'API Token 和 Agent ID 不能为空' };
+  if (!knotToken.value.trim()) {
+    knotSaveResult.value = { success: false, message: 'API Token 不能为空' };
     return;
   }
 
@@ -367,7 +349,6 @@ async function saveKnotConfig() {
     const result = await (window as any).aiBridge?.configureKnot({
       apiToken: knotToken.value.trim(),
       apiUser: knotUser.value.trim(),
-      agentId: knotAgentId.value.trim(),
       model: knotModel.value
     });
 
@@ -382,15 +363,13 @@ async function saveKnotConfig() {
         settings.knot = {
           apiToken: knotToken.value.trim(),
           apiUser: knotUser.value.trim(),
-          agentId: knotAgentId.value.trim(),
           model: knotModel.value
         };
         localStorage.setItem('mhatomexceltool_settings', JSON.stringify(settings));
       } catch { /* ignore */ }
 
-      // 如果当前选择的是 knot，切换到它
+      // 配置成功后标记已配置
       if (currentModel.value === 'knot') {
-        await (window as any).aiBridge?.switchModel('knot');
         isConfigured.value = true;
         clearChat();
       }
@@ -432,38 +411,20 @@ async function loadKnotConfig() {
       if (settings.knot?.apiToken) {
         knotToken.value = settings.knot.apiToken;
         knotUser.value = settings.knot.apiUser || '';
-        knotAgentId.value = settings.knot.agentId || '';
         knotModel.value = settings.knot.model || 'deepseek-v3.1';
-        knotConfigured.value = !!(settings.knot.apiToken && settings.knot.agentId);
+        knotConfigured.value = !!settings.knot.apiToken;
 
         // 如果已有配置，自动注入到主进程
         if (knotConfigured.value) {
           await (window as any).aiBridge?.configureKnot({
             apiToken: knotToken.value,
             apiUser: knotUser.value,
-            agentId: knotAgentId.value,
             model: knotModel.value
           });
         }
       }
     }
   } catch { /* ignore */ }
-}
-
-/** 切换思考模式 */
-async function switchReasoningEffort(level: string) {
-  const oldLevel = reasoningEffort.value;
-  reasoningEffort.value = level;
-  try {
-    const result = await window.aiBridge?.setReasoningEffort(level);
-    if (!result?.success) {
-      reasoningEffort.value = oldLevel;
-      console.error('设置思考模式失败:', result?.error);
-    }
-  } catch (error) {
-    reasoningEffort.value = oldLevel;
-    console.error('设置思考模式失败:', error);
-  }
 }
 
 /** 复制消息内容 */
@@ -561,14 +522,6 @@ function handleWindowResize() {
 
 // ============ 生命周期 ============
 
-/** 加载思考模式状态 */
-async function loadReasoningEffort() {
-  const result = await window.aiBridge?.getReasoningEffort();
-  if (result?.success) {
-    reasoningEffort.value = result.level;
-  }
-}
-
 onMounted(async () => {
   // 监听窗口大小变化
   window.addEventListener('resize', handleWindowResize);
@@ -589,9 +542,6 @@ onMounted(async () => {
   if (builtinResult?.availableModels) {
     availableModels.value = builtinResult.availableModels;
   }
-
-  // 获取思考模式状态
-  loadReasoningEffort();
 
   // 加载 Knot 持久化配置
   loadKnotConfig();
@@ -805,20 +755,6 @@ watch(showSettings, (isOpen) => {
               {{ modelLabels[model] || model }}
             </option>
           </select>
-          <!-- 混元模型：显示思考模式选择 -->
-          <template v-if="currentModel === 'hunyuan'">
-            <span class="text-xs text-base-content/60 whitespace-nowrap">思考:</span>
-            <select
-              class="select select-bordered select-xs w-1/4 min-w-0"
-              :value="reasoningEffort"
-              :disabled="isLoading"
-              @change="switchReasoningEffort(($event.target as HTMLSelectElement).value)"
-            >
-              <option value="no_think">{{ reasoningLabels.no_think }}</option>
-              <option value="low">{{ reasoningLabels.low }}</option>
-              <option value="high">{{ reasoningLabels.high }}</option>
-            </select>
-          </template>
           <!-- Knot 模型：显示子模型选择 + 配置按钮 -->
           <template v-if="currentModel === 'knot'">
             <select
@@ -954,19 +890,6 @@ watch(showSettings, (isOpen) => {
 
           <div class="form-control">
             <label class="label py-1">
-              <span class="label-text text-xs font-semibold">Agent ID <span class="text-error">*</span></span>
-              <a href="https://knot.woa.com/agent/workspace" target="_blank" class="label-text-alt link link-primary text-xs">查看智能体</a>
-            </label>
-            <input
-              type="text"
-              class="input input-bordered input-sm w-full"
-              v-model="knotAgentId"
-              placeholder="智能体 ID"
-            />
-          </div>
-
-          <div class="form-control">
-            <label class="label py-1">
               <span class="label-text text-xs font-semibold">AI 模型</span>
             </label>
             <select
@@ -987,7 +910,7 @@ watch(showSettings, (isOpen) => {
           <div class="flex items-center gap-2 mt-2">
             <button
               class="btn btn-sm btn-primary"
-              :disabled="knotSaving || !knotToken.trim() || !knotAgentId.trim()"
+              :disabled="knotSaving || !knotToken.trim()"
               @click="saveKnotConfig"
             >
               <span v-if="knotSaving" class="loading loading-spinner loading-xs"></span>

@@ -12,10 +12,7 @@ import {DelegateMetadataGenerator} from './DelegateMetadataGenerator';
 import { deParseJsonToExpression } from './DeParseJsonToExpression';
 import { AtomFieldsConfigLoader } from './AtomFieldsConfigLoader';
 import { LogManager } from './LogManager';
-import { initHunyuanService, getHunyuanService, HunyuanConfig } from './HunyuanService';
-import { initKnotService, getKnotService, KnotConfig, KNOT_AVAILABLE_MODELS } from './KnotService';
-// DeepSeek 已下架，保留 import 以备后续恢复
-// import { initDeepSeekService, getDeepSeekService, DeepSeekConfig } from './DeepSeekService';
+import { initKnotService, getKnotService, KnotConfig, KNOT_AVAILABLE_MODELS, KNOT_SHARED_AGENT_ID } from './KnotService';
 import { initP4Service, getP4Config, isP4Configured, testP4Connection, isFileUnderP4, checkoutFile, getFileStatus, P4Config, checkExeUpdateWithoutConfig, openCmdForP4Sync, getFileChangeDescriptions, syncConfigOnStartup } from './P4Service';
 import { reportLaunch, reportClose, reportOpenExcel, reportSaveExcel, reportSaveExcelAs, reportAIChat, reportOpenCodeEditor, reportAction, reportEvent } from './UsageReporter';
 // import { runAllTests } from './DeParseJsonToExpression.test';
@@ -27,7 +24,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 // AI 服务相关变量（需要在 delegate:get-metadata 之前声明）
 let aiConfigured = false;
-let aiConfig: { model: string } = { model: 'hy3-preview' };
+let aiConfig: { model: string } = { model: 'deepseek-v3.1' };
 let cachedAtomMetadata: any[] | null = null;
 
 // 在应用启动时立即初始化日志系统
@@ -1208,159 +1205,32 @@ ipcMain.handle('config:save-atom-fields-config', async (_event, config: any) => 
 
 // ============ AI 助手相关 IPC 处理器 ============
 
-// 模型配置（混元 + Knot）
-type AIModelType = 'hunyuan' | 'knot';
-
-interface HunyuanModelConfig {
-  type: 'hunyuan';
-  apiKey: string;
-  apiHost: string;
-  model: string;
-}
-
+// 模型配置（Knot）
 interface KnotModelConfig {
   type: 'knot';
   apiToken: string;
   apiUser: string;
-  agentId: string;
   model: string;
 }
 
-type ModelConfig = HunyuanModelConfig | KnotModelConfig;
-
-const MODEL_CONFIGS: Record<AIModelType, ModelConfig> = {
-  hunyuan: {
-    type: 'hunyuan',
-    apiKey: '9a0d84de-caed-4048-9c3e-c7ec16ea8a1d',
-    apiHost: 'api.taiji.woa.com',
-    model: 'hy3-preview'
-  },
-  knot: {
-    type: 'knot',
-    apiToken: '',   // 用户自行配置
-    apiUser: '',    // 用户自行配置
-    agentId: '',    // 用户自行配置
-    model: 'deepseek-v3.1'
-  }
+let knotModelConfig: KnotModelConfig = {
+  type: 'knot',
+  apiToken: '',   // 用户自行配置
+  apiUser: '',    // 用户自行配置
+  model: 'deepseek-v3.1'
 };
 
-// 当前选择的模型（DeepSeek 已下架，默认混元）
-let currentModelType: AIModelType = 'hunyuan';
-
-// 应用启动时自动初始化 AI 服务（默认混元）
-console.log('[AI] Auto-initializing with default model:', currentModelType);
-try {
-    const defaultConfig = MODEL_CONFIGS.hunyuan;
-    if (defaultConfig.type === 'hunyuan') {
-        initHunyuanService({
-            apiKey: defaultConfig.apiKey,
-            apiHost: defaultConfig.apiHost,
-            model: defaultConfig.model
-        });
-        aiConfigured = true;
-        aiConfig = { model: defaultConfig.model };
-        console.log('[AI] Service initialized with model:', defaultConfig.model);
-    }
-} catch (error) {
-    console.error('[AI] Auto-init failed:', error);
-}
+// 应用启动时不自动初始化 AI 服务（Knot 需要用户配置 token）
+console.log('[AI] Knot service waiting for user configuration');
 
 // 获取内置配置状态
 ipcMain.handle('ai:get-builtin-config', async () => {
     return {
         hasBuiltinConfig: true,
-        currentModel: currentModelType,
-        availableModels: Object.keys(MODEL_CONFIGS),
+        currentModel: 'knot',
+        availableModels: ['knot'],
         knotModels: KNOT_AVAILABLE_MODELS
     };
-});
-
-// 切换模型（支持混元 + Knot）
-ipcMain.handle('ai:switch-model', async (_event, modelType: string) => {
-    try {
-        if (!MODEL_CONFIGS[modelType as AIModelType]) {
-            return { success: false, error: `不支持的模型类型: ${modelType}` };
-        }
-
-        console.log('[ai:switch-model] Switching to model:', modelType);
-        currentModelType = modelType as AIModelType;
-        const config = MODEL_CONFIGS[currentModelType];
-
-        if (config.type === 'hunyuan') {
-            const service = initHunyuanService({
-                apiKey: config.apiKey,
-                apiHost: config.apiHost,
-                model: config.model
-            });
-
-            // 如果已有缓存的 metadata，直接注入知识库
-            if (cachedAtomMetadata && cachedAtomMetadata.length > 0) {
-                service.initializeWithAtomKnowledge(cachedAtomMetadata);
-                console.log('[ai:switch-model] Knowledge base initialized with cached metadata');
-            }
-
-            aiConfigured = true;
-            aiConfig = { model: config.model };
-        } else if (config.type === 'knot') {
-            // Knot 需要用户配置 token，检查是否已配置
-            if (!config.apiToken || !config.agentId) {
-                console.log('[ai:switch-model] Knot not configured yet, waiting for user config');
-                aiConfigured = false;
-                aiConfig = { model: config.model };
-                return { success: true, model: config.model, needsConfig: true };
-            }
-            const service = initKnotService({
-                apiToken: config.apiToken,
-                apiUser: config.apiUser,
-                agentId: config.agentId,
-                model: config.model
-            });
-
-            // 注入原子知识库（和混元一样）
-            if (cachedAtomMetadata && cachedAtomMetadata.length > 0) {
-                service.initializeWithAtomKnowledge(cachedAtomMetadata);
-                console.log('[ai:switch-model] Knot knowledge base initialized with cached metadata');
-            }
-
-            aiConfigured = true;
-            aiConfig = { model: config.model };
-        }
-
-        console.log('[ai:switch-model] Model switched successfully to:', config.model);
-        return { success: true, model: config.model };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : '切换模型失败';
-        console.error('[ai:switch-model] Error:', message);
-        return { success: false, error: message };
-    }
-});
-
-// 配置 AI 服务（保留兼容性，但不再需要手动配置）
-ipcMain.handle('ai:configure', async (_event, config: { apiKey: string; apiHost?: string; model?: string }) => {
-    try {
-        console.log('[ai:configure] Configuring AI service...');
-        const hunyuanConfig: HunyuanConfig = {
-            apiKey: config.apiKey,
-            apiHost: config.apiHost || 'api.taiji.woa.com',
-            model: config.model || 'hy3-preview'
-        };
-        const service = initHunyuanService(hunyuanConfig);
-        
-        // 如果已有缓存的 metadata，直接注入知识库
-        if (cachedAtomMetadata && cachedAtomMetadata.length > 0) {
-            service.initializeWithAtomKnowledge(cachedAtomMetadata);
-            console.log('[ai:configure] Knowledge base initialized with cached metadata');
-        }
-        
-        aiConfigured = true;
-        aiConfig = { model: hunyuanConfig.model! };
-        console.log('[ai:configure] AI service configured successfully');
-        return { success: true };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'AI 配置失败';
-        console.error('[ai:configure] Error:', message);
-        return { success: false, error: message };
-    }
 });
 
 // 获取 AI 服务状态
@@ -1371,68 +1241,31 @@ ipcMain.handle('ai:get-status', async () => {
     };
 });
 
-// 设置思考模式
-ipcMain.handle('ai:set-reasoning-effort', async (_event, level: string) => {
-    try {
-        const service = getHunyuanService();
-        if (!service) {
-            return { success: false, error: 'AI 服务未配置' };
-        }
-        const validLevels = ['no_think', 'low', 'high'];
-        if (!validLevels.includes(level)) {
-            return { success: false, error: `无效的思考模式: ${level}` };
-        }
-        service.setReasoningEffort(level as any);
-        console.log('[ai:set-reasoning-effort] Set to:', level);
-        return { success: true, level };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : '设置失败';
-        return { success: false, error: message };
-    }
-});
-
-// 获取深度思考等级
-ipcMain.handle('ai:get-reasoning-effort', async () => {
-    const service = getHunyuanService();
-    return {
-        success: true,
-        level: service?.getReasoningEffort() || 'no_think'
-    };
-});
-
-// 获取当前 AI 服务实例（混元 或 Knot）
+// 获取当前 AI 服务实例（Knot）
 function getCurrentAIService() {
-    if (currentModelType === 'knot') {
-        return getKnotService();
-    }
-    return getHunyuanService();
+    return getKnotService();
 }
 
 // ============ Knot 配置相关 IPC ============
 
 // 配置 Knot 服务
-ipcMain.handle('ai:configure-knot', async (_event, config: { apiToken: string; apiUser: string; agentId: string; model?: string }) => {
+ipcMain.handle('ai:configure-knot', async (_event, config: { apiToken: string; apiUser: string; model?: string }) => {
     try {
         console.log('[ai:configure-knot] Configuring Knot service...');
-        console.log('[ai:configure-knot] agentId:', config.agentId, 'model:', config.model, 'user:', config.apiUser);
+        console.log('[ai:configure-knot] model:', config.model, 'user:', config.apiUser);
 
-        // ===== 正常配置流程 =====
-
-        // 更新 MODEL_CONFIGS 中的 knot 配置
-        const knotConfig = MODEL_CONFIGS.knot as KnotModelConfig;
-        knotConfig.apiToken = config.apiToken;
-        knotConfig.apiUser = config.apiUser;
-        knotConfig.agentId = config.agentId;
+        // 更新 knot 配置
+        knotModelConfig.apiToken = config.apiToken;
+        knotModelConfig.apiUser = config.apiUser;
         if (config.model) {
-            knotConfig.model = config.model;
+            knotModelConfig.model = config.model;
         }
 
-        // 初始化 Knot 服务
+        // 初始化 Knot 服务（agentId 已硬编码在 KnotService 中）
         const service = initKnotService({
             apiToken: config.apiToken,
             apiUser: config.apiUser,
-            agentId: config.agentId,
-            model: config.model || knotConfig.model
+            model: config.model || knotModelConfig.model
         });
 
         // 注入原子知识库
@@ -1441,14 +1274,12 @@ ipcMain.handle('ai:configure-knot', async (_event, config: { apiToken: string; a
             console.log('[ai:configure-knot] Knowledge base initialized with', cachedAtomMetadata.length, 'atoms');
         }
 
-        // 如果当前选择的就是 knot，标记为已配置
-        if (currentModelType === 'knot') {
-            aiConfigured = true;
-            aiConfig = { model: knotConfig.model };
-        }
+        // 标记为已配置
+        aiConfigured = true;
+        aiConfig = { model: knotModelConfig.model };
 
-        console.log('[ai:configure-knot] Knot service configured successfully, model:', knotConfig.model);
-        return { success: true, model: knotConfig.model };
+        console.log('[ai:configure-knot] Knot service configured successfully, model:', knotModelConfig.model);
+        return { success: true, model: knotModelConfig.model };
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Knot 配置失败';
         console.error('[ai:configure-knot] Error:', message);
@@ -1458,13 +1289,11 @@ ipcMain.handle('ai:configure-knot', async (_event, config: { apiToken: string; a
 
 // 获取 Knot 配置状态
 ipcMain.handle('ai:get-knot-config', async () => {
-    const knotConfig = MODEL_CONFIGS.knot as KnotModelConfig;
     return {
-        configured: !!(knotConfig.apiToken && knotConfig.agentId),
-        apiUser: knotConfig.apiUser,
-        agentId: knotConfig.agentId,
-        model: knotConfig.model,
-        hasToken: !!knotConfig.apiToken,  // 不返回 token 明文
+        configured: !!knotModelConfig.apiToken,
+        apiUser: knotModelConfig.apiUser,
+        model: knotModelConfig.model,
+        hasToken: !!knotModelConfig.apiToken,
         availableModels: KNOT_AVAILABLE_MODELS
     };
 });
@@ -1472,17 +1301,14 @@ ipcMain.handle('ai:get-knot-config', async () => {
 // 设置 Knot 子模型
 ipcMain.handle('ai:set-knot-model', async (_event, model: string) => {
     try {
-        const knotConfig = MODEL_CONFIGS.knot as KnotModelConfig;
-        knotConfig.model = model;
+        knotModelConfig.model = model;
 
         const service = getKnotService();
         if (service) {
             service.setModel(model);
         }
 
-        if (currentModelType === 'knot') {
-            aiConfig = { model };
-        }
+        aiConfig = { model };
 
         console.log('[ai:set-knot-model] Knot model set to:', model);
         return { success: true, model };
@@ -1520,7 +1346,7 @@ ipcMain.handle('ai:chat', async (_event, payload: { message: string; currentAtom
         }
         console.log('[ai:chat] Sending message:', payload.message.substring(0, 50) + '...');
         // 上报 AI 问答操作
-        reportAIChat(currentModelType);
+        reportAIChat('knot');
         const response = await service.chat(payload.message, { currentAtom: payload.currentAtom });
         console.log('[ai:chat] Response received');
         return {
@@ -1548,7 +1374,7 @@ ipcMain.on('ai:chat-stream', async (event, payload: { message: string; currentAt
         }
         console.log('[ai:chat-stream] Starting stream for:', payload.message.substring(0, 50) + '...');
         // 上报 AI 问答操作（stream 类型）
-        reportAIChat(currentModelType, { stream: true });
+        reportAIChat('knot', { stream: true });
         for await (const chunk of service.chatStream(payload.message, { currentAtom: payload.currentAtom })) {
             event.reply('ai:chat-stream-chunk', {
                 requestId: payload.requestId,
@@ -1593,7 +1419,7 @@ ipcMain.handle('ai:get-usage', async () => {
             success: true,
             usage,
             estimate,
-            modelType: currentModelType
+            modelType: 'knot'
         };
     } catch (error) {
         const message = error instanceof Error ? error.message : '获取统计失败';

@@ -2,7 +2,7 @@
  * Knot AI 服务（AG-UI 协议）
  * 通过公司 Knot 智能体网关调用多种 AI 模型
  *
- * 与混元服务的关键差异：
+ * 关键特性：
  * - 认证：x-knot-api-token + x-knot-api-user（用户自行配置）
  * - 对话历史：服务端通过 conversation_id 管理，客户端不需要发 messages 数组
  * - 响应格式：AG-UI 事件协议（TEXT_MESSAGE_CONTENT 等），非 OpenAI 兼容格式
@@ -25,10 +25,12 @@ import { tmpdir } from 'os';
 
 // ============ 类型定义 ============
 
+// 团队共用的 agentId（所有人使用同一个智能体，通过不同 token 区分身份）
+export const KNOT_SHARED_AGENT_ID = '93e45e8e5f9642b88d1b0fe3259bdfb0';
+
 export interface KnotConfig {
-  apiToken: string;   // 用户的个人/团队 token（从 https://knot.woa.com/settings/token 申请）
+  apiToken: string;   // 用户的个人 token（从 https://knot.woa.com/settings/token 申请）
   apiUser: string;    // 企微英文名
-  agentId: string;    // 智能体 ID
   model?: string;     // 模型名称，默认 deepseek-v3.1
 }
 
@@ -44,7 +46,7 @@ export const KNOT_AVAILABLE_MODELS = [
   { value: 'claude-4.6-opus', label: 'Claude 4.6 Opus' },
   { value: 'claude-4.6-opus-1m-context', label: 'Claude 4.6 Opus (1M)' },
   { value: 'gpt-5.4', label: 'GPT 5.4' },
-  { value: 'hy3-preview', label: '混元 Hy3 Preview' },
+  { value: 'hy3-preview', label: 'Hy3 Preview' },
 ];
 
 // ============ AG-UI 事件类型 ============
@@ -89,7 +91,7 @@ export class KnotService extends BaseAIService {
       model: 'deepseek-v3.1',
       ...config,
     };
-    console.log('[KnotService] Initialized with model:', this.config.model, 'agentId:', this.config.agentId);
+    console.log('[KnotService] Initialized with model:', this.config.model);
   }
 
   /**
@@ -140,7 +142,7 @@ export class KnotService extends BaseAIService {
    * - --noproxy 避免代理干扰
    */
   protected async *callAPIStream(messages: ChatMessage[]): AsyncGenerator<StreamChunk> {
-    const { apiToken, apiUser, agentId, model } = this.config;
+    const { apiToken, apiUser, model } = this.config;
 
     // 从 messages 中取最后一条 user 消息作为 input
     const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
@@ -179,7 +181,7 @@ export class KnotService extends BaseAIService {
       }
     };
 
-    const url = `https://knot.woa.com/apigw/api/v1/agents/agui/${agentId}`;
+    const url = `https://knot.woa.com/apigw/api/v1/agents/agui/${KNOT_SHARED_AGENT_ID}`;
 
     console.log('[KnotAPI AG-UI] Request:', url);
     console.log('[KnotAPI AG-UI] Model:', model);

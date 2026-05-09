@@ -161,14 +161,10 @@ declare global {
   }
 
   interface AIBridge {
-    /** 配置 AI 服务 */
-    configure: (config: { apiKey: string; apiHost?: string; model?: string }) => Promise<{ success: boolean; error?: string }>
     /** 获取 AI 服务状态 */
     getStatus: () => Promise<{ configured: boolean; config?: { model: string } }>
     /** 获取内置配置状态 */
     getBuiltinConfig: () => Promise<{ hasBuiltinConfig: boolean; currentModel?: string; availableModels?: string[] }>
-    /** 切换模型 */
-    switchModel: (modelType: string) => Promise<{ success: boolean; model?: string; error?: string }>
     /** 初始化原子知识库 */
     initKnowledge: (metadata: ClassMetadata[]) => Promise<{ success: boolean; error?: string }>
     /** 发送聊天消息 */
@@ -200,10 +196,6 @@ declare global {
     }>
     /** 重置 Token 统计 */
     resetUsage: () => Promise<{ success: boolean }>
-    /** 设置深度思考等级 */
-    setReasoningEffort: (level: string) => Promise<{ success: boolean; level?: string; error?: string }>
-    /** 获取深度思考等级 */
-    getReasoningEffort: () => Promise<{ success: boolean; level: string }>
   }
 
   // ============ 使用统计上报相关类型 ============

@@ -256,17 +256,13 @@ contextBridge.exposeInMainWorld('p4Bridge', {
 
 // ============ AI 助手 Bridge ============
 contextBridge.exposeInMainWorld('aiBridge', {
-    /** 配置 AI 服务 */
-    configure: (config: { apiKey: string; apiHost?: string; model?: string }) =>
-        ipcRenderer.invoke('ai:configure', config) as Promise<{ success: boolean; error?: string }>,
-    
     /** 获取 AI 服务状态 */
     getStatus: () =>
         ipcRenderer.invoke('ai:get-status') as Promise<{
             configured: boolean;
             config?: { model: string };
         }>,
-    
+
     /** 获取内置配置状态 */
     getBuiltinConfig: () =>
         ipcRenderer.invoke('ai:get-builtin-config') as Promise<{
@@ -274,14 +270,6 @@ contextBridge.exposeInMainWorld('aiBridge', {
             currentModel?: string;
             availableModels?: string[];
             knotModels?: Array<{ value: string; label: string }>;
-        }>,
-    
-    /** 切换模型 */
-    switchModel: (modelType: string) =>
-        ipcRenderer.invoke('ai:switch-model', modelType) as Promise<{
-            success: boolean;
-            model?: string;
-            error?: string;
         }>,
     
     /** 初始化原子知识库 */
@@ -349,16 +337,8 @@ contextBridge.exposeInMainWorld('aiBridge', {
     resetUsage: () =>
         ipcRenderer.invoke('ai:reset-usage') as Promise<{ success: boolean }>,
     
-    /** 设置深度思考等级 */
-    setReasoningEffort: (level: string) =>
-        ipcRenderer.invoke('ai:set-reasoning-effort', level) as Promise<{ success: boolean; level?: string; error?: string }>,
-    
-    /** 获取深度思考等级 */
-    getReasoningEffort: () =>
-        ipcRenderer.invoke('ai:get-reasoning-effort') as Promise<{ success: boolean; level: string }>,
-
     /** 配置 Knot 服务 */
-    configureKnot: (config: { apiToken: string; apiUser: string; agentId: string; model?: string }) =>
+    configureKnot: (config: { apiToken: string; apiUser: string; model?: string }) =>
         ipcRenderer.invoke('ai:configure-knot', config) as Promise<{ success: boolean; model?: string; error?: string }>,
 
     /** 获取 Knot 配置状态 */
@@ -366,7 +346,6 @@ contextBridge.exposeInMainWorld('aiBridge', {
         ipcRenderer.invoke('ai:get-knot-config') as Promise<{
             configured: boolean;
             apiUser: string;
-            agentId: string;
             model: string;
             hasToken: boolean;
             availableModels: Array<{ value: string; label: string }>;

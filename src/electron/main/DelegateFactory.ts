@@ -1,4 +1,4 @@
-import { ClassMetadata, getFieldMetaTypeList, resolveFieldMetaTypeByValue } from "../../types/MetaDefine";
+import { ClassMetadata, FieldMeta, BaseClassType, getFieldMetaTypeList, resolveFieldMetaTypeByValue, isBaseClassNative } from "../../types/MetaDefine";
 
 export interface DelegateMetadataRegistry {
   byClassName: Record<string, ClassMetadata>;
@@ -88,9 +88,11 @@ export class DelegateFactory {
         const arrayValues: any[] = [];
         while (paramIndex < params.length) {
           const param = params[paramIndex];
-          const processedParam = field.baseClass 
+          const processedParam = field.baseClass
             ? this.processParamByBaseClass(param, field.baseClass)
             : param;
+          // 校验数组元素类型
+          this.validateParamType(field, processedParam, meta, paramIndex);
           arrayValues.push(processedParam);
           paramIndex++;
         }
@@ -105,17 +107,95 @@ export class DelegateFactory {
       } else {
         let paramValue = params[paramIndex];
         const resolvedType = resolveFieldMetaTypeByValue(field, paramValue);
-        
+
         if (field.baseClass && resolvedType === 'object') {
           paramValue = this.processParamByBaseClass(paramValue, field.baseClass);
         }
-        
+
+        // 校验参数类型
+        this.validateParamType(field, paramValue, meta, paramIndex);
+
         matched.set(field.key, paramValue);
         paramIndex++;
       }
     }
 
     return matched;
+  }
+
+  /**
+   * 校验参数类型是否与字段期望的类型匹配
+   *
+   * 检查维度：
+   * 1. 原生类型（string/number/boolean）：typeof 直接比对
+   * 2. 委托类型（NumberValueDelegate/BoolValueDelegate/ActionDelegate 等）：
+   *    通过参数对象的 _ClassName 反查其 baseClass，与字段期望的 baseClass 比对
+   * 3. 枚举值（有 options 时）：检查值是否在允许列表中
+   */
+  private static validateParamType(
+    field: FieldMeta,
+    paramValue: any,
+    meta: ClassMetadata,
+    paramIndex: number
+  ): void {
+    // 无类型约束的字段跳过
+    if (!field.baseClass) {
+      return;
+    }
+
+    // null/undefined 跳过（由参数数量检查兜底）
+    if (paramValue === null || paramValue === undefined) {
+      return;
+    }
+
+    // === 1. 原生类型检查 ===
+    if (isBaseClassNative(field.baseClass)) {
+      const actualType = typeof paramValue;
+      // 对象类型的委托值（如 NumberValueConst 实例）传给 number 位也合法
+      // 因为 processParamByBaseClass 可能没转换成功，但原始 number/string/boolean 不匹配就报错
+      if (actualType !== 'object' && actualType !== field.baseClass) {
+        throw new Error(
+          `[${meta.className}] 参数 "${field.key}"(第${paramIndex + 1}个) 期望类型 "${field.baseClass}"，实际传入类型 "${actualType}"`
+        );
+      }
+      return;
+    }
+
+    // === 2. 委托类型检查 ===
+    // 只对对象类型参数做委托基类校验
+    if (typeof paramValue === 'object' && paramValue !== null && paramValue._ClassName) {
+      const paramMeta = this.metadataRegistry.byClassName[paramValue._ClassName];
+      if (paramMeta && paramMeta.baseClass) {
+        const expectedBaseClass = field.baseClass as BaseClassType;
+        const actualBaseClass = paramMeta.baseClass;
+
+        if (actualBaseClass !== expectedBaseClass) {
+          // 获取可读名称
+          const paramDisplayName = paramMeta.funcName || paramMeta.className;
+          throw new Error(
+            `[${meta.className}] 参数 "${field.key}"(第${paramIndex + 1}个) 期望类型 "${expectedBaseClass}"，` +
+            `实际传入 "${paramDisplayName}" 的类型为 "${actualBaseClass}"`
+          );
+        }
+      }
+    }
+
+    // === 3. 枚举值检查 ===
+    if (field.options && field.options.length > 0 && typeof paramValue === 'string') {
+      const validValues = field.options.map(o => String(o.value));
+      if (!validValues.includes(paramValue)) {
+        // 如果字段支持可编辑（selectEditable），仅输出警告不阻断
+        if ((field as any).selectEditable) {
+          console.warn(
+            `[${meta.className}] 参数 "${field.key}"(第${paramIndex + 1}个) 值 "${paramValue}" 不在预设选项中: [${validValues.slice(0, 5).join(', ')}${validValues.length > 5 ? '...' : ''}]`
+          );
+        } else {
+          throw new Error(
+            `[${meta.className}] 参数 "${field.key}"(第${paramIndex + 1}个) 值 "${paramValue}" 不在允许的选项中: [${validValues.slice(0, 10).join(', ')}${validValues.length > 10 ? '...' : ''}]`
+          );
+        }
+      }
+    }
   }
 
   /**

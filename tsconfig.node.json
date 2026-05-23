@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+     "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "outDir": "dist/app",
+    "composite": true,
+  },
+  "include": ["vite.config.ts"]
+}

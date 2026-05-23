@@ -1,0 +1,9 @@
+---
+description: 
+alwaysApply: false
+enabled: true
+updatedAt: 2025-12-30T03:14:23.029Z
+provider: 
+---
+
+以外部命令行的形式，管理员运行根目录下的 build.bat 自动打包，不在IDE里打包

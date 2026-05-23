@@ -1,0 +1,1 @@
+已经完成 delegateBridge 元数据加载流程，classRegistry/subclassOptions 都基于主进程返回值刷新完毕。

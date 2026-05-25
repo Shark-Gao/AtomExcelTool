@@ -415,6 +415,7 @@ let autoSaveTimer: ReturnType<typeof setInterval> | null = null
 const lastAutoSaveTime = ref<Date | null>(null)
 const autoSaveEnabled = ref(initialSettings.autoSaveEnabled)
 const autoSaveInterval = ref(initialSettings.autoSaveInterval)
+let isManuallySaving = false  // 手动保存流程进行中标记，阻止自动保存
 
 // P4V 相关
 const p4Settings = ref(initialSettings.p4)
@@ -544,6 +545,19 @@ const validationResult = reactive<ValidationResult>({
   totalFields: 0,
   errorCount: 0,
   errors: []
+})
+
+// 保存前校验确认弹窗状态
+const saveValidationState = reactive<{
+  isOpen: boolean
+  errors: Array<{ rowName: string; fieldName: string; error: string; content?: string; remark?: string }>
+  ignoredKeys: Set<string>  // 当前 modal 会话中的忽略标记（"rowName::fieldName"）
+  resolve: ((shouldSave: boolean) => void) | null
+}>({
+  isOpen: false,
+  errors: [],
+  ignoredKeys: new Set(),
+  resolve: null
 })
 
 let externalExcelListenerDisposer: (() => void) | null = null
@@ -1477,7 +1491,8 @@ function getCurrentSettingsForSave() {
     knot: existingSettings.knot, // 保留现有的 Knot AI 配置（token/user/model）
     recentFiles: existingSettings.recentFiles, // 保留现有的最近文件列表
     activeMainTab: activeMainTab.value,
-    codeEditorContent: codeEditorInput.value
+    codeEditorContent: codeEditorInput.value,
+    validationIgnoredErrors: existingSettings.validationIgnoredErrors // 保留忽略列表
   }
 }
 
@@ -3135,6 +3150,158 @@ async function checkAllAtomicFieldsValidation() {
   }
 }
 
+/**
+ * 保存前校验：遍历所有行的原子字段，解析检查是否有错误
+ */
+async function validateBeforeSave(): Promise<Array<{ rowName: string; fieldName: string; error: string; content?: string; remark?: string }>> {
+  const errors: Array<{ rowName: string; fieldName: string; error: string; content?: string; remark?: string }> = []
+  const delegateBridge = window.delegateBridge
+  if (!delegateBridge) return errors
+
+  const columnNames = Object.keys(columnWidths)
+  const atomicFieldCache = new Map<string, boolean>()
+
+  // 筛选出原子字段
+  const atomicColumns: string[] = []
+  for (const col of columnNames) {
+    let isAtomic = atomicFieldCache.get(col)
+    if (isAtomic === undefined) {
+      isAtomic = await isAtomicFieldAsync(col, sheetName.value, openedFilePath.value || undefined)
+      atomicFieldCache.set(col, isAtomic)
+    }
+    if (isAtomic) atomicColumns.push(col)
+  }
+
+  if (atomicColumns.length === 0) return errors
+
+  // 找到 Remark 列名
+  const remarkCol = remarkFieldName.value || ''
+
+  // 遍历所有行的原子字段做解析校验
+  for (const [rowName, record] of Object.entries(rowNameToRecord)) {
+    for (const fieldName of atomicColumns) {
+      const rawValue = record[fieldName]
+      if (!rawValue || typeof rawValue !== 'string' || !rawValue.trim()) continue
+
+      try {
+        const result = await delegateBridge.parseConditionField({
+          fieldName,
+          rawValue,
+          sheetName: sheetName.value,
+          fileName: openedFilePath.value || undefined
+        })
+        if (!result.ok) {
+          errors.push({
+            rowName,
+            fieldName,
+            error: result.error || '解析失败',
+            content: rawValue.length > 80 ? rawValue.substring(0, 80) + '...' : rawValue,
+            remark: remarkCol ? (record[remarkCol] || '').trim() : ''
+          })
+        }
+      } catch (e) {
+        errors.push({
+          rowName,
+          fieldName,
+          error: e instanceof Error ? e.message : '未知错误',
+          content: rawValue.length > 80 ? rawValue.substring(0, 80) + '...' : rawValue,
+          remark: remarkCol ? (record[remarkCol] || '').trim() : ''
+        })
+      }
+    }
+  }
+
+  return errors
+}
+
+/**
+ * 弹出保存前校验确认弹窗，等待用户选择
+ */
+function showSaveValidationConfirm(errors: typeof saveValidationState.errors): Promise<boolean> {
+  return new Promise((resolve) => {
+    saveValidationState.errors = errors
+    // 从持久化设置中加载忽略列表
+    const settings = loadSettingsFromStorage()
+    saveValidationState.ignoredKeys = new Set(settings.validationIgnoredErrors || [])
+    saveValidationState.resolve = resolve
+    saveValidationState.isOpen = true
+  })
+}
+
+/**
+ * 切换某条错误的忽略状态（立即持久化）
+ */
+function toggleValidationIgnore(rowName: string, fieldName: string) {
+  const key = `${rowName}::${fieldName}`
+  if (saveValidationState.ignoredKeys.has(key)) {
+    saveValidationState.ignoredKeys.delete(key)
+  } else {
+    saveValidationState.ignoredKeys.add(key)
+  }
+  // 立即持久化
+  const settings = loadSettingsFromStorage()
+  settings.validationIgnoredErrors = Array.from(saveValidationState.ignoredKeys)
+  saveSettingsToStorage(settings)
+}
+
+/**
+ * 清空所有忽略项（立即持久化）
+ */
+function clearAllValidationIgnores() {
+  saveValidationState.ignoredKeys.clear()
+  // 立即持久化
+  const settings = loadSettingsFromStorage()
+  settings.validationIgnoredErrors = []
+  saveSettingsToStorage(settings)
+}
+
+/**
+ * 判断某条错误是否被忽略
+ */
+function isValidationErrorIgnored(rowName: string, fieldName: string): boolean {
+  return saveValidationState.ignoredKeys.has(`${rowName}::${fieldName}`)
+}
+
+/**
+ * 用户在保存校验弹窗中做出选择
+ */
+function handleSaveValidationConfirm(shouldSave: boolean) {
+  saveValidationState.isOpen = false
+  if (saveValidationState.resolve) {
+    saveValidationState.resolve(shouldSave)
+    saveValidationState.resolve = null
+  }
+}
+
+/**
+ * 打开忽略项管理界面：执行校验并强制显示 modal（即使全部已忽略）
+ */
+async function openValidationIgnoreManager() {
+  if (!window.delegateBridge) return
+
+  errorMessage.value = ""
+  showProgress('正在检查原子字段...', 'processing', 10)
+  const validationErrors = await validateBeforeSave()
+  hideProgress()
+
+  if (validationErrors.length === 0) {
+    showSuccessMessage('所有原子字段校验通过，无异常！')
+    return
+  }
+
+  // 排序：未忽略的在前，已忽略的在后
+  const settings = loadSettingsFromStorage()
+  const ignoredSet = new Set(settings.validationIgnoredErrors || [])
+  const sortedErrors = [...validationErrors].sort((a, b) => {
+    const aIgnored = ignoredSet.has(`${a.rowName}::${a.fieldName}`) ? 1 : 0
+    const bIgnored = ignoredSet.has(`${b.rowName}::${b.fieldName}`) ? 1 : 0
+    return aIgnored - bIgnored
+  })
+
+  // 强制弹出 modal（不执行保存，只管理忽略列表）
+  await showSaveValidationConfirm(sortedErrors)
+}
+
 async function saveWorkbookToDisk() {
   // 先保存当前编辑数据
   saveEditableRecord();
@@ -3147,7 +3314,41 @@ async function saveWorkbookToDisk() {
     await saveWorkbookAs()
     return
   }
-  
+
+  // 标记手动保存流程开始，阻止自动保存
+  isManuallySaving = true
+
+  // ===== 保存前校验：检查原子字段解析错误 =====
+  errorMessage.value = "";
+  showProgress('正在检查原子字段...', 'processing', 10)
+  const validationErrors = await validateBeforeSave()
+  hideProgress()
+
+  if (validationErrors.length > 0) {
+    // 检查是否所有错误都已被忽略
+    const settings = loadSettingsFromStorage()
+    const ignoredSet = new Set(settings.validationIgnoredErrors || [])
+    const hasNewErrors = validationErrors.some(
+      err => !ignoredSet.has(`${err.rowName}::${err.fieldName}`)
+    )
+
+    if (hasNewErrors) {
+      // 有新的未忽略错误，弹出 modal（未忽略的排前面，已忽略的排后面）
+      const sortedErrors = [...validationErrors].sort((a, b) => {
+        const aIgnored = ignoredSet.has(`${a.rowName}::${a.fieldName}`) ? 1 : 0
+        const bIgnored = ignoredSet.has(`${b.rowName}::${b.fieldName}`) ? 1 : 0
+        return aIgnored - bIgnored
+      })
+      const shouldContinue = await showSaveValidationConfirm(sortedErrors)
+      if (!shouldContinue) {
+        isManuallySaving = false
+        return
+      }
+    }
+    // 如果所有错误都已被忽略，直接跳过 modal 继续保存
+  }
+  // ===== 校验结束 =====
+
   errorMessage.value = "";
   showProgress('正在保存...', 'saving', 10)
   
@@ -3170,12 +3371,14 @@ async function saveWorkbookToDisk() {
     updateProgress(100)
     hideProgress()
     showSuccessMessage('保存成功！')
-    
+
     // 标记当前标签页为已保存
     markCurrentTabSaved()
   } catch (error) {
     hideProgress()
     errorMessage.value = error instanceof Error ? error.message : '保存 Excel 时失败。'
+  } finally {
+    isManuallySaving = false
   }
 }
 
@@ -3232,6 +3435,9 @@ async function autoSave() {
   
   // 如果正在显示进度条（用户正在手动操作），跳过自动保存
   if (isProgressVisible.value) return
+
+  // 如果正在手动保存流程中（含校验弹窗等待），跳过自动保存
+  if (isManuallySaving) return
 
   try {
     // 先保存当前编辑数据
@@ -3532,6 +3738,12 @@ function handleP4DisablePrompt() {
             </div>
             <button class="btn join-item" :disabled="!Object.keys(rowNameToRecord).length" @click="saveWorkbookToDisk" title="保存 (Ctrl+S)">保存</button>
             <button class="btn join-item" :disabled="!Object.keys(rowNameToRecord).length" @click="saveWorkbookAs" title="另存为 (Ctrl+Shift+S)">另存为</button>
+            <button
+              class="btn join-item btn-ghost text-xs"
+              :disabled="!Object.keys(rowNameToRecord).length"
+              @click="openValidationIgnoreManager"
+              title="管理已忽略的原子校验错误"
+            >⚠️ 忽略项</button>
             </div>
             <!-- Claude Internal 按钮 -->
             <button 
@@ -4450,6 +4662,80 @@ function handleP4DisablePrompt() {
       :result="validationResult"
       @update:isOpen="validationResult.isOpen = $event"
     />
+
+    <!-- 保存前校验确认弹窗 -->
+    <div v-if="saveValidationState.isOpen" class="modal modal-open">
+      <div class="modal-box max-w-3xl max-h-[80vh] flex flex-col">
+        <button
+          class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+          @click="handleSaveValidationConfirm(false)"
+        >
+          ✕
+        </button>
+
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-bold text-lg text-warning flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            原子字段存在问题
+          </h3>
+          <button
+            v-if="saveValidationState.ignoredKeys.size > 0"
+            class="btn btn-xs btn-ghost text-base-content/50"
+            @click="clearAllValidationIgnores"
+            title="清空所有忽略项"
+          >
+            清空忽略列表
+          </button>
+        </div>
+        <p class="text-sm text-base-content/70 mb-4">
+          检测到 <span class="font-bold text-warning">{{ saveValidationState.errors.length }}</span> 个原子字段存在解析错误。勾选左侧复选框可忽略已知问题，下次保存将自动跳过。
+        </p>
+
+        <!-- 错误列表 -->
+        <div class="flex-1 overflow-y-auto space-y-2 max-h-[400px] pr-1">
+          <div
+            v-for="(err, index) in saveValidationState.errors"
+            :key="index"
+            class="rounded-lg border px-3 py-2 shadow-sm transition-opacity duration-200"
+            :class="isValidationErrorIgnored(err.rowName, err.fieldName) ? 'border-base-300 bg-base-200 opacity-40' : 'border-warning/30 bg-warning/10'"
+          >
+            <div class="flex items-start gap-3">
+              <!-- 忽略 checkbox -->
+              <label class="cursor-pointer flex items-center mt-0.5 shrink-0" title="勾选忽略此条">
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm checkbox-warning"
+                  :checked="isValidationErrorIgnored(err.rowName, err.fieldName)"
+                  @change="toggleValidationIgnore(err.rowName, err.fieldName)"
+                />
+              </label>
+              <!-- 错误信息 -->
+              <div class="flex-1 min-w-0" :class="isValidationErrorIgnored(err.rowName, err.fieldName) ? 'line-through decoration-base-content/30' : ''">
+                <div class="font-semibold text-sm">{{ err.rowName }} / {{ err.fieldName }}</div>
+                <div v-if="err.remark" class="text-xs mt-0.5 text-base-content/50 italic">
+                  📝 {{ err.remark }}
+                </div>
+                <div class="text-xs mt-1 text-error">{{ err.error }}</div>
+                <div v-if="err.content" class="text-xs mt-1 font-mono opacity-60 break-all">
+                  {{ err.content }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 底部按钮 -->
+        <div class="modal-action mt-4">
+          <button class="btn" @click="handleSaveValidationConfirm(false)">取消保存</button>
+          <button class="btn btn-warning" @click="handleSaveValidationConfirm(true)">仍然保存</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="handleSaveValidationConfirm(false)"></button>
+      </form>
+    </div>
 
     <!-- Skeleton 加载界面 -->
     <SkeletonLoader :is-visible="isSkeletonVisible" />

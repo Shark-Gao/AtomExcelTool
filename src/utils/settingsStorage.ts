@@ -37,6 +37,8 @@ export interface AppSettings {
   // 原子游乐场相关
   activeMainTab: 'config' | 'playground'  // 当前选中的主标签
   codeEditorContent: string  // 代码编辑器内容
+  // 保存校验忽略列表（格式: "rowName::fieldName"）
+  validationIgnoredErrors: string[]
 }
 
 const SETTINGS_STORAGE_KEY = 'mhatomexceltool_settings'
@@ -71,7 +73,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   recentFiles: [],
   // 原子游乐场相关
   activeMainTab: 'config',
-  codeEditorContent: DEFAULT_CODE_EDITOR_CONTENT
+  codeEditorContent: DEFAULT_CODE_EDITOR_CONTENT,
+  // 保存校验忽略列表
+  validationIgnoredErrors: []
 }
 
 /**
@@ -94,7 +98,8 @@ export function loadSettingsFromStorage(): AppSettings {
         knot: settings.knot ?? DEFAULT_SETTINGS.knot,
         recentFiles: settings.recentFiles ?? DEFAULT_SETTINGS.recentFiles,
         activeMainTab: settings.activeMainTab ?? DEFAULT_SETTINGS.activeMainTab,
-        codeEditorContent: settings.codeEditorContent ?? DEFAULT_SETTINGS.codeEditorContent
+        codeEditorContent: settings.codeEditorContent ?? DEFAULT_SETTINGS.codeEditorContent,
+        validationIgnoredErrors: settings.validationIgnoredErrors ?? DEFAULT_SETTINGS.validationIgnoredErrors
       }
     }
   } catch (error) {

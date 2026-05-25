@@ -1105,6 +1105,29 @@ ipcMain.handle('delegate:parse-condition-field', async (_event, payload: { field
 
         const loader = AtomFieldsConfigLoader.getInstance();
         const fieldRuleInfo = loader.getFieldRuleInfo(payload.fieldName, payload.sheetName, payload.fileName);
+
+        // TaskDelegate 类型字段：分号分隔的多条表达式逐条独立解析
+        // 这与游戏运行时行为一致（GenerateCustomTasks 逐条 for 循环解析）
+        // 不应包装为 CombineActions，因为 CombineActions 只接受 ActionDelegate
+        const isTaskField = fieldRuleInfo.baseClasses.includes('TaskDelegate');
+        if (isTaskField && fieldRuleInfo.allowCombination && payload.rawValue.includes(';')) {
+            const segments = payload.rawValue
+                .split(';')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+
+            const parsedResults: any[] = [];
+            for (const segment of segments) {
+                const parsed = FAtomExpressionParser.main(segment);
+                if (!parsed) {
+                    return { ok: false, error: `字段 ${payload.fieldName} 子表达式解析失败: ${segment}` };
+                }
+                parsedResults.push(parsed);
+            }
+            return { ok: true, parsed: parsedResults.length === 1 ? parsedResults[0] : parsedResults };
+        }
+
+        // 非 TaskDelegate 字段：走原逻辑（ActionDelegate 等用 CombineActions 包装）
         const { expression: expressionToParse } = preprocessCombinationExpression(payload.rawValue, fieldRuleInfo.allowCombination);
 
         const parsed = FAtomExpressionParser.main(expressionToParse);

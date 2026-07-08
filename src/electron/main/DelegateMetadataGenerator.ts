@@ -20,6 +20,21 @@ type FieldTypeInfo = {
  */
 export class DelegateMetadataGenerator {
   /**
+   * 参数被显式声明为「具体委托子类」时，需要把下拉候选锁定到该子类的特殊映射。
+   * key   = 子类名（出现在参数 TypeNodeText / TypeString 里的字面文本）
+   * value = 该子类所属的 baseClass（必须与推断出的 baseClass 一致才生效，防止误命中）
+   *
+   * 背景：TS AST 分析会把 NumberValueConstDelegate 这类子类的 AtomType 塌缩成基类
+   * （EAtomType.Number），导致下拉按基类分桶后列出整桶原子，误导策划。
+   * 但参数的声明文本（TypeNodeText）保留了具体子类名，据此收窄候选。
+   * 只针对已知的两个 Const 子类做特殊处理，不做通用规则，后续需要再逐个添加。
+   */
+  private static readonly EXACT_SUBCLASS_RULES: Record<string, BaseClassType> = {
+    NumberValueConstDelegate: 'NumberValueDelegate',
+    BoolValueConstDelegate: 'BoolValueDelegate',
+  };
+
+  /**
    * 判断类型是否为Delegate类型
    */
   private static isDelegateType(type: any): boolean {
@@ -550,6 +565,24 @@ export class DelegateMetadataGenerator {
 
     if (typeResult.selectEditable) {
       fieldMeta.selectEditable = true;
+    }
+
+    // 检测参数是否被显式声明为「具体委托子类」（如 NumberValueConstDelegate）。
+    // AtomType 已把子类塌缩成基类，只能从声明文本（TypeNodeText，回退 TypeString）里识别。
+    // 命中且与推断出的 baseClass 一致时，写入 exactClass，供 UI 把下拉候选锁定到该子类。
+    if (fieldMeta.baseClass) {
+      const declaredText = param.TypeNodeText ?? param.TypeString ?? '';
+      for (const [subClass, ownerBaseClass] of Object.entries(DelegateMetadataGenerator.EXACT_SUBCLASS_RULES)) {
+        if (ownerBaseClass !== fieldMeta.baseClass) {
+          continue;
+        }
+        // 用单词边界匹配，避免子串误命中
+        const pattern = new RegExp(`(?<![A-Za-z0-9_])${subClass}(?![A-Za-z0-9_])`);
+        if (pattern.test(declaredText)) {
+          fieldMeta.exactClass = subClass;
+          break;
+        }
+      }
     }
 
     fieldMeta.isRest = param.bRest;

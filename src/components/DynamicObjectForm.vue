@@ -530,6 +530,22 @@ function getSubclassOptions(baseClass: string | undefined): FieldOption[] {
   return result
 }
 
+/**
+ * 按字段元数据获取下拉候选。
+ * 若字段声明为具体委托子类（fieldMeta.exactClass，如 NumberValueConstDelegate），
+ * 则把候选收窄到该子类本身，避免列出整个 baseClass 桶误导策划；
+ * 否则回退到按 baseClass 取全部候选。
+ */
+function getSubclassOptionsForField(fieldMeta: FieldMeta): FieldOption[] {
+  const all = getSubclassOptions(fieldMeta.baseClass)
+  if (fieldMeta.exactClass) {
+    const narrowed = all.filter((opt) => opt.value === fieldMeta.exactClass)
+    // 兜底：万一该子类不在候选池里（元数据缺失），退回全量，避免下拉变空不可选
+    return narrowed.length ? narrowed : all
+  }
+  return all
+}
+
 function hasFieldsForClass(className: string | undefined): boolean {
   if (!className) {
     return false
@@ -969,9 +985,9 @@ function revertAllFieldsToDefault() {
                 ></div>
                 <div class="flex-1 min-w-0 flex items-center gap-1 pl-1">
                   <SearchableAtomSelect
-                    v-if="getSubclassOptions(fieldMeta.baseClass).length && !readonly"
+                    v-if="getSubclassOptionsForField(fieldMeta).length && !readonly"
                     :model-value="((localValue[fieldKey] as Record<string, unknown> | undefined)?._ClassName as string) ?? ''"
-                    :options="getSubclassOptions(fieldMeta.baseClass)"
+                    :options="getSubclassOptionsForField(fieldMeta)"
                     :registry="registry"
                     :base-class="fieldMeta.baseClass"
                     empty-label="None"
@@ -1128,9 +1144,9 @@ function revertAllFieldsToDefault() {
                         >
                           <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/50">
                             <SearchableAtomSelect
-                              v-if="getSubclassOptions(fieldMeta.baseClass).length && !readonly"
+                              v-if="getSubclassOptionsForField(fieldMeta).length && !readonly"
                               model-value=""
-                              :options="getSubclassOptions(fieldMeta.baseClass)"
+                              :options="getSubclassOptionsForField(fieldMeta)"
                               :registry="registry"
                               :base-class="fieldMeta.baseClass"
                               empty-label="请选择类型"

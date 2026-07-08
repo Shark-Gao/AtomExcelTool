@@ -43,6 +43,14 @@ export interface FieldMeta {
   type: FieldType | FieldType[];
   description?: string;
   baseClass?: BaseClassType;
+  /**
+   * 参数被显式声明为某个委托子类时（而非基类）锁定的具体类名。
+   * 例：参数类型写成 NumberValueConstDelegate（而不是基类 NumberValueDelegate）时，
+   * exactClass = 'NumberValueConstDelegate'，下拉菜单只允许选择该子类，
+   * 避免把整个 baseClass 桶里的原子都列出来误导策划。
+   * baseClass 仍保留（用于 normalize、常量快捷录入等），exactClass 仅用于收窄下拉候选。
+   */
+  exactClass?: string;
   elementType?: ElementTypeInfo; // 数组元素的类型信息
   options?: Array<{ label: string; value: any }>;
   isOptional?: boolean;

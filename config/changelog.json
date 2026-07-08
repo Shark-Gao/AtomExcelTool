@@ -1,6 +1,16 @@
 {
   "changelog": [
     {
+      "version": "2.3.1",
+      "date": "2026-07-08",
+      "changes": [
+        "✨ 参数声明为具体委托子类（如 NumberValueConstDelegate、BoolValueConstDelegate）时，下拉候选自动收窄到该子类，避免列出整个 baseClass 桶误导策划",
+        "✨ FieldMeta 新增 exactClass 字段，用于锁定具体子类下拉候选范围（baseClass 仍保留供 normalize / 常量快捷录入使用）",
+        "🔧 DelegateMetadataGenerator 从参数声明文本（TypeNodeText / TypeString）识别 Const 子类，使用单词边界匹配防止子串误命中",
+        "🔧 动态表单新增 getSubclassOptionsForField，命中 exactClass 时收窄候选，若候选池缺失则兜底回退全量避免下拉变空"
+      ]
+    },
+    {
       "version": "2.3.0",
       "date": "2026-05-09",
       "changes": [

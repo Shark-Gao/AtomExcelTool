@@ -18,7 +18,7 @@
 		"description": "检查PreBeginAbilityTag/BeginAbilityTag/EndAbilityTag事件中，触发的技能是否是AbilityGroup的技能",
 		"category": "技能相关",
 		"richDescription": "检查技能事件中触发的技能是否属于{0}对应的AbilityGroup（非SkillGroup，慎用）",
-		"author": "unknown",
+		"author": "emiljqchen",
 		"baseClass": "BoolValueDelegate"
 	},
 	"BoolTriggerValueCheckIsQuestRunningDelegate": {
@@ -142,6 +142,17 @@
 		"author": "jiannanchao",
 		"baseClass": "EventDelegateEx"
 	},
+	"AdventurerStatusEffectEventDelegate": {
+		"className": "AdventurerStatusEffectEventDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "冒险家异常状态变化事件",
+		"description": "监听指定Actor的异常状态施加/移除事件",
+		"category": "战斗事件",
+		"richDescription": "监听 {0} 目标的异常状态变化, 方向 {1} (0=全部,1=仅施加,2=仅移除), 监控异常类型 {2} (空=全部)",
+		"author": "jiannanchao",
+		"baseClass": "EventDelegateEx"
+	},
 	"EventCommonForwarderDelegate": {
 		"className": "EventCommonForwarderDelegate",
 		"isDelegate": true,
@@ -151,6 +162,72 @@
 		"category": "系统事件",
 		"richDescription": "转发名称为{0}的通用系统事件",
 		"author": "unknown",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCombatForwarderPreAffinityBySkillSlot": {
+		"className": "EventCombatForwarderPreAffinityBySkillSlot",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "会心前技能槽位事件",
+		"description": "仅在指定技能槽位的技能进行会心判定前触发",
+		"category": "战斗事件",
+		"richDescription": "仅在技能来自任一指定槽位时触发PreAffinityBySkillSlot事件",
+		"author": "sharkgao",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCombatForwarderPreAffinityByAbilityTag": {
+		"className": "EventCombatForwarderPreAffinityByAbilityTag",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "会心前技能标签事件",
+		"description": "仅在指定技能标签的技能进行会心判定前触发",
+		"category": "战斗事件",
+		"richDescription": "仅在技能包含任一指定标签时触发PreAffinityByAbilityTag事件",
+		"author": "sharkgao",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCombatForwarderPostReceiveDamageAsAttackerBySkillSlot": {
+		"className": "EventCombatForwarderPostReceiveDamageAsAttackerBySkillSlot",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "攻方受击后技能槽位事件",
+		"description": "仅在指定技能槽位的技能造成伤害后触发",
+		"category": "战斗事件",
+		"richDescription": "仅在技能来自任一指定槽位时触发PostReceiveDamageAsAttackerBySkillSlot事件",
+		"author": "sharkgao",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCombatForwarderPostReceiveDamageAsAttackerByAbilityTag": {
+		"className": "EventCombatForwarderPostReceiveDamageAsAttackerByAbilityTag",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "攻方受击后技能标签事件",
+		"description": "仅在指定技能标签的技能造成伤害后触发",
+		"category": "战斗事件",
+		"richDescription": "仅在技能包含任一指定标签时触发PostReceiveDamageAsAttackerByAbilityTag事件",
+		"author": "sharkgao",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCombatForwarderPreAffinityByShuzhiTag": {
+		"className": "EventCombatForwarderPreAffinityByShuzhiTag",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "会心前数值标签事件",
+		"description": "仅在指定冒险家数值标签的技能进行会心判定前触发",
+		"category": "战斗事件",
+		"richDescription": "仅在技能带有任一指定数值标签时触发PreAffinityByShuzhiTag事件",
+		"author": "sharkgao",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCombatForwarderPostReceiveDamageAsAttackerByShuzhiTag": {
+		"className": "EventCombatForwarderPostReceiveDamageAsAttackerByShuzhiTag",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "攻方受击后数值标签事件",
+		"description": "仅在指定冒险家数值标签的技能造成伤害后触发",
+		"category": "战斗事件",
+		"richDescription": "仅在技能带有任一指定数值标签时触发PostReceiveDamageAsAttackerByShuzhiTag事件",
+		"author": "sharkgao",
 		"baseClass": "EventDelegateEx"
 	},
 	"EventCommonForwarderPreAffinity": {
@@ -329,37 +406,268 @@
 		"author": "unknown",
 		"baseClass": "EventDelegateEx"
 	},
-	"EventCommonForwarderPreBeginAbilityTag": {
-		"className": "EventCommonForwarderPreBeginAbilityTag",
+	"EventAbilityPhaseForwarderPreBeginAbilityByTag": {
+		"className": "EventAbilityPhaseForwarderPreBeginAbilityByTag",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "技能开始前事件",
-		"description": "技能在开始前触发的事件",
+		"displayName": "指定技能标签开始前事件",
+		"description": "仅在包含任一指定技能标签的技能开始前触发",
 		"category": "技能事件",
-		"richDescription": "技能执行流程中，在开始前触发的PreBeginAbilityTag事件",
+		"richDescription": "仅在技能包含任一指定标签时触发PreBeginAbilityByTag事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderPreBeginAbilityByTagExcept": {
+		"className": "EventAbilityPhaseForwarderPreBeginAbilityByTagExcept",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "排除指定技能标签开始前事件",
+		"description": "仅在不包含任一指定技能标签的技能开始前触发",
+		"category": "技能事件",
+		"richDescription": "仅在技能不包含任一指定标签时触发PreBeginAbilityByTagExcept事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderPreBeginAbilityBySlotExcept": {
+		"className": "EventAbilityPhaseForwarderPreBeginAbilityBySlotExcept",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "排除指定技能槽位开始前事件",
+		"description": "仅在不来自任一指定技能槽位的技能开始前触发",
+		"category": "技能事件",
+		"richDescription": "仅在技能不来自任一指定槽位时触发PreBeginAbilityBySlotExcept事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderPreBeginAbilityByBuff": {
+		"className": "EventAbilityPhaseForwarderPreBeginAbilityByBuff",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "拥有指定Buff的技能开始前事件",
+		"description": "仅在当前对象拥有指定Buff时，技能开始前触发",
+		"category": "技能事件",
+		"richDescription": "仅在当前对象拥有任一指定Buff时触发PreBeginAbilityByBuff事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderPreBeginAbilityByBuffExcept": {
+		"className": "EventAbilityPhaseForwarderPreBeginAbilityByBuffExcept",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "不持有指定Buff的技能开始前事件",
+		"description": "仅在当前对象不持有指定Buff时，技能开始前触发",
+		"category": "技能事件",
+		"richDescription": "仅在当前对象不持有任一指定Buff时触发PreBeginAbilityByBuffExcept事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderPreBeginAbilityByGroup": {
+		"className": "EventAbilityPhaseForwarderPreBeginAbilityByGroup",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "指定技能组开始前事件",
+		"description": "仅在属于任一指定技能组（AbilityGroup）的技能开始前触发",
+		"category": "技能事件",
+		"richDescription": "仅在技能属于任一指定技能组时触发PreBeginAbilityByGroup事件",
+		"author": "kiritoxia",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderBeginAbilityByTag": {
+		"className": "EventAbilityPhaseForwarderBeginAbilityByTag",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "指定技能标签开始事件",
+		"description": "仅在包含任一指定技能标签的技能开始时触发",
+		"category": "技能事件",
+		"richDescription": "仅在技能包含任一指定标签时触发BeginAbilityByTag事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderBeginAbilityByTagExcept": {
+		"className": "EventAbilityPhaseForwarderBeginAbilityByTagExcept",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "排除指定技能标签开始事件",
+		"description": "仅在不包含任一指定技能标签的技能开始时触发",
+		"category": "技能事件",
+		"richDescription": "仅在技能不包含任一指定标签时触发BeginAbilityByTagExcept事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderBeginAbilityBySlotExcept": {
+		"className": "EventAbilityPhaseForwarderBeginAbilityBySlotExcept",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "排除指定技能槽位开始事件",
+		"description": "仅在不来自任一指定技能槽位的技能开始时触发",
+		"category": "技能事件",
+		"richDescription": "仅在技能不来自任一指定槽位时触发BeginAbilityBySlotExcept事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderBeginAbilityByBuff": {
+		"className": "EventAbilityPhaseForwarderBeginAbilityByBuff",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "拥有指定Buff的技能开始事件",
+		"description": "仅在当前对象拥有指定Buff时，技能开始时触发",
+		"category": "技能事件",
+		"richDescription": "仅在当前对象拥有任一指定Buff时触发BeginAbilityByBuff事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderBeginAbilityByBuffExcept": {
+		"className": "EventAbilityPhaseForwarderBeginAbilityByBuffExcept",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "不持有指定Buff的技能开始事件",
+		"description": "仅在当前对象不持有指定Buff时，技能开始时触发",
+		"category": "技能事件",
+		"richDescription": "仅在当前对象不持有任一指定Buff时触发BeginAbilityByBuffExcept事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderBeginAbilityByShuzhiTag": {
+		"className": "EventAbilityPhaseForwarderBeginAbilityByShuzhiTag",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "指定冒险家数值标签技能开始事件",
+		"description": "仅在带有任一指定冒险家数值标签（AdventureShuzhiTag）的技能开始时触发；每个参数写 N （技能数值标签，PlayerSkillBaseCfg 静态配置及Buff动态附加），参数之间为或关系",
+		"category": "技能事件",
+		"richDescription": "仅在技能带有任一指定数值标签时触发BeginAbilityByShuzhiTag事件",
+		"author": "kiritoxia",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderPreBeginAbilityBySlot": {
+		"className": "EventAbilityPhaseForwarderPreBeginAbilityBySlot",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "指定技能槽位开始前事件",
+		"description": "仅在来自任一指定技能槽位的技能开始前触发",
+		"category": "技能事件",
+		"richDescription": "仅在技能来自任一指定槽位时触发PreBeginAbilityBySlot事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderBeginAbilityBySlot": {
+		"className": "EventAbilityPhaseForwarderBeginAbilityBySlot",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "指定技能槽位开始事件",
+		"description": "仅在来自任一指定技能槽位的技能开始时触发",
+		"category": "技能事件",
+		"richDescription": "仅在技能来自任一指定槽位时触发BeginAbilityBySlot事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderBeginAbilityByCategory": {
+		"className": "EventAbilityPhaseForwarderBeginAbilityByCategory",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "指定技能分类开始事件",
+		"description": "仅在技能匹配任一指定技能分类时开始触发",
+		"category": "技能事件",
+		"richDescription": "仅在技能属于任一指定分类时触发BeginAbilityByCategory事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderBeginAbilityByWeapon": {
+		"className": "EventAbilityPhaseForwarderBeginAbilityByWeapon",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "指定武器类型技能开始事件",
+		"description": "仅在角色当前装备任一指定武器类型时，技能开始触发；每个参数写 ENMWeaponType 的数字值（大剑1/太刀2/单手剑3/双剑4/大锤5/狩猎笛6/长枪7/铳枪8/斩击斧9/盾斧10/操虫棍11/轻弩12/重弩13/弓14），参数之间为或关系",
+		"category": "技能事件",
+		"richDescription": "仅在角色装备任一指定武器类型时触发BeginAbilityByWeapon事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCommonForwarderSlipTrigger": {
+		"className": "EventCommonForwarderSlipTrigger",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "开始滑铲事件",
+		"description": "开始滑铲",
+		"category": "技能事件",
+		"richDescription": "开始滑铲",
 		"author": "unknown",
 		"baseClass": "EventDelegateEx"
 	},
-	"EventCommonForwarderBeginAbilityTag": {
-		"className": "EventCommonForwarderBeginAbilityTag",
+	"EventAbilityPhaseForwarderEndAbilityByTag": {
+		"className": "EventAbilityPhaseForwarderEndAbilityByTag",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "技能开始时事件",
-		"description": "技能在开始时触发的事件",
+		"displayName": "指定技能标签结束事件",
+		"description": "仅在包含任一指定技能标签的技能结束时触发",
 		"category": "技能事件",
-		"richDescription": "技能执行流程中，在开始时触发的BeginAbilityTag事件",
-		"author": "unknown",
+		"richDescription": "仅在技能包含任一指定标签时触发EndAbilityByTag事件",
+		"author": "codex",
 		"baseClass": "EventDelegateEx"
 	},
-	"EventCommonForwarderEndAbilityTag": {
-		"className": "EventCommonForwarderEndAbilityTag",
+	"EventAbilityPhaseForwarderEndAbilityByTagExcept": {
+		"className": "EventAbilityPhaseForwarderEndAbilityByTagExcept",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "技能结束时事件",
-		"description": "技能在结束时触发的事件",
+		"displayName": "排除指定技能标签结束事件",
+		"description": "仅在不包含任一指定技能标签的技能结束时触发",
 		"category": "技能事件",
-		"richDescription": "技能执行流程中，在结束时触发的EndAbilityTag事件",
-		"author": "unknown",
+		"richDescription": "仅在技能不包含任一指定标签时触发EndAbilityByTagExcept事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderEndAbilityBySlotExcept": {
+		"className": "EventAbilityPhaseForwarderEndAbilityBySlotExcept",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "排除指定技能槽位结束事件",
+		"description": "仅在不来自任一指定技能槽位的技能结束时触发",
+		"category": "技能事件",
+		"richDescription": "仅在技能不来自任一指定槽位时触发EndAbilityBySlotExcept事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderEndAbilityByBuff": {
+		"className": "EventAbilityPhaseForwarderEndAbilityByBuff",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "拥有指定Buff的技能结束事件",
+		"description": "仅在当前对象拥有指定Buff时，技能结束时触发",
+		"category": "技能事件",
+		"richDescription": "仅在当前对象拥有任一指定Buff时触发EndAbilityByBuff事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderEndAbilityByBuffExcept": {
+		"className": "EventAbilityPhaseForwarderEndAbilityByBuffExcept",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "不持有指定Buff的技能结束事件",
+		"description": "仅在当前对象不持有指定Buff时，技能结束时触发",
+		"category": "技能事件",
+		"richDescription": "仅在当前对象不持有任一指定Buff时触发EndAbilityByBuffExcept事件",
+		"author": "codex",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderEndAbilityByShuzhiTag": {
+		"className": "EventAbilityPhaseForwarderEndAbilityByShuzhiTag",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "指定冒险家数值标签技能结束事件",
+		"description": "仅在带有任一指定冒险家数值标签（AdventureShuzhiTag）的技能结束时触发；每个参数写 N （技能数值标签，PlayerSkillBaseCfg 静态配置及Buff动态附加），参数之间为或关系",
+		"category": "技能事件",
+		"richDescription": "仅在技能带有任一指定数值标签时触发EndAbilityByShuzhiTag事件",
+		"author": "kiritoxia",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventAbilityPhaseForwarderEndAbilityBySlot": {
+		"className": "EventAbilityPhaseForwarderEndAbilityBySlot",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "指定技能槽位结束事件",
+		"description": "仅在来自任一指定技能槽位的技能结束时触发",
+		"category": "技能事件",
+		"richDescription": "仅在技能来自任一指定槽位时触发EndAbilityBySlot事件",
+		"author": "codex",
 		"baseClass": "EventDelegateEx"
 	},
 	"EventCommonForwarderFurinkazanAdvanced": {
@@ -384,6 +692,73 @@
 		"author": "unknown",
 		"baseClass": "EventDelegateEx"
 	},
+	"EventCommonForwarderTriggerFollowUpAttack": {
+		"className": "EventCommonForwarderTriggerFollowUpAttack",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "触发追击攻击事件",
+		"description": "收到追击攻击事件时触发，可配合FollowUpAttackByBuffHitConfigId执行追击",
+		"category": "战斗事件",
+		"richDescription": "收到FTriggerFollowUpAttackEvent时触发追击攻击事件",
+		"author": "weigangxu",
+		"triggerSide": "Server",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCommonForwarderNotNetOwnedClientReceiveDamage": {
+		"className": "EventCommonForwarderNotNetOwnedClientReceiveDamage",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "NotNetOwned客户端受击事件",
+		"description": "NotNetOwned客户端受击时触发的事件",
+		"category": "战斗事件",
+		"richDescription": "NotNetOwned客户端受击时触发的FNotNetOwnedClientReceiveDamage事件",
+		"author": "weigangxu",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCommonForwarderPetCastSkill": {
+		"className": "EventCommonForwarderPetCastSkill",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "随从放技能事件",
+		"description": "随从释放技能时触发的事件",
+		"category": "战斗事件",
+		"richDescription": "随从释放技能时触发的OnPetCastSkill事件",
+		"author": "jigxwang",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCommonForwarderCaxeChargePhials": {
+		"className": "EventCommonForwarderCaxeChargePhials",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "盾斧充瓶事件",
+		"description": "盾斧充瓶时触发的事件",
+		"category": "武器相关",
+		"richDescription": "当盾斧充瓶时触发，可通过GetCaxeChargePhialsNum获取本次充瓶数量",
+		"author": "kiritoxia",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCommonForwarderCaxeDualChargePhials": {
+		"className": "EventCommonForwarderCaxeDualChargePhials",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "盾斧双瓶充能事件",
+		"description": "盾斧双瓶充能明细变化时触发的事件",
+		"category": "武器相关",
+		"richDescription": "当盾斧双瓶充能明细变化时触发，可通过GetCaxeChargePhialsNum、GetCaxeChargePhialsANum、GetCaxeChargePhialsBNum获取本次充能数量",
+		"author": "kiritoxia",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCommonForwarderDraRefreshCharacters": {
+		"className": "EventCommonForwarderDraRefreshCharacters",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "DRA角色刷新事件",
+		"description": "DRA角色刷新完成时触发的事件",
+		"category": "系统事件",
+		"richDescription": "DRA角色刷新完成后触发的DraRefreshCharacters事件",
+		"author": "unknown",
+		"baseClass": "EventDelegateEx"
+	},
 	"EventCombineSkillConditionalRecharge": {
 		"className": "EventCombineSkillConditionalRecharge",
 		"isDelegate": true,
@@ -392,6 +767,28 @@
 		"description": "角色在满足特定条件时，会给自己以及1带3时的AI产生一次充能，CombineSkillCfg中的Energe功能",
 		"category": "战斗事件",
 		"richDescription": "1带3AI特殊充能",
+		"author": "sharkgao",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCommonForwarderPlayerSuperArmorHitSuccessClient": {
+		"className": "EventCommonForwarderPlayerSuperArmorHitSuccessClient",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "冒险家霸体受击成功事件",
+		"description": "冒险家霸体持续过程中受到攻击且霸体受击成功时触发",
+		"category": "战斗事件",
+		"richDescription": "冒险家霸体受击成功时触发事件",
+		"author": "sharkgao",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventCommonForwarderPlayerSuperArmorHitSuccessServer": {
+		"className": "EventCommonForwarderPlayerSuperArmorHitSuccessServer",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "冒险家霸体受击成功服务端事件",
+		"description": "冒险家霸体持续过程中受到攻击且霸体受击成功时在服务端触发",
+		"category": "战斗事件",
+		"richDescription": "冒险家霸体受击成功时在服务端触发事件",
 		"author": "sharkgao",
 		"baseClass": "EventDelegateEx"
 	},
@@ -417,14 +814,25 @@
 		"author": "unknown",
 		"baseClass": "EventDelegateEx"
 	},
+	"EventMonsterBuffStateFinished": {
+		"className": "EventMonsterBuffStateFinished",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "怪物BuffState结束事件",
+		"description": "怪物指定BuffState结束时触发的事件",
+		"category": "怪物事件",
+		"richDescription": "当怪物BuffStateId为{0}的BuffState结束时触发事件",
+		"author": "unknown",
+		"baseClass": "EventDelegateEx"
+	},
 	"EventOnPlayerBeHit": {
 		"className": "EventOnPlayerBeHit",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "角色被击飞事件",
-		"description": "角色被击飞时触发的事件",
+		"displayName": "角色受击事件",
+		"description": "角色受到指定类型攻击时触发的事件",
 		"category": "战斗事件",
-		"richDescription": "当角色被击飞时触发事件，受击StrengthType为ZhuangFeiXiao，ZhuangFeiDa，ZhuangFeiXiangShang其中之一",
+		"richDescription": "当角色被击时触发事件，受击StrengthType在{0}中时触发",
 		"author": "unknown",
 		"baseClass": "EventDelegateEx"
 	},
@@ -447,18 +855,20 @@
 		"description": "获取重弩攻击中的弹药信息（第几发、弹夹容量等）",
 		"category": "武器相关",
 		"richDescription": "获取重弩攻击中{0}类型（1=第几发，2=弹夹容量，3=剩余总弹药，4=弹药上限）的弹药信息",
-		"author": "unknown",
+		"author": "emiljqchen",
+		"triggerSide": "Server",
 		"baseClass": "NumberValueDelegate"
 	},
 	"NumberValueBowgunAmmoType": {
 		"className": "NumberValueBowgunAmmoType",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "获取弩炮弹药类型",
-		"description": "获取弩炮当前装填的弹药类型（普通/强力等）",
+		"displayName": "获取重弩的弹药大类",
+		"description": "获取重弩的弹药大类",
 		"category": "武器相关",
-		"richDescription": "获取弩炮当前装填的{0}类型（-1=当前装填，0=普通弹药，1=强力弹药）弹药类型",
-		"author": "unknown",
+		"richDescription": "获取重弩{0}槽位上的弹药大类，-1=当前装填，0=普通弹药，1=强力弹药）",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
 		"baseClass": "NumberValueDelegate"
 	},
 	"NumberValueBuffBuffStackByBuffId": {
@@ -470,6 +880,7 @@
 		"category": "Buff相关",
 		"richDescription": "获取{0}目标身上{1}号Buff的总叠加层数（不区分来源）",
 		"author": "unknown",
+		"triggerSide": "Both",
 		"baseClass": "NumberValueDelegate"
 	},
 	"NumberValueGetDistDelegate": {
@@ -509,10 +920,10 @@
 		"className": "NumberValueAttributeScalingByCombatPetAscensionPhase",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "获取战宠特训数值",
-		"description": "根据战宠特训等级获取AttributeScalingByPlayerSkillGroupLevel配表中的数值",
-		"category": "宠物相关",
-		"richDescription": "根据战宠当前特训等级，获取配表中{0}行对应的数值（0级对应第一列）",
+		"displayName": "获取随从特训数值",
+		"description": "根据随从特训等级获取AttributeScalingByPlayerSkillGroupLevel配表中的数值",
+		"category": "随从相关",
+		"richDescription": "根据随从当前特训等级，获取配表中{0}行对应的数值 (0级对应第一列)",
 		"author": "unknown",
 		"baseClass": "NumberValueDelegate"
 	},
@@ -590,7 +1001,8 @@
 		"description": "获取当前Buff的第i个自定义值，不存在时返回0",
 		"category": "Buff相关",
 		"richDescription": "获取当前Buff第{0}个（0-based）自定义值，不存在则返回0",
-		"author": "unknown",
+		"author": "emiljqchen",
+		"triggerSide": "Both",
 		"baseClass": "NumberValueDelegate"
 	},
 	"NumberValueSatiationDelegate": {
@@ -608,11 +1020,33 @@
 		"className": "NumberValueCombatPetTowerNumDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "获取战宠塔数量",
-		"description": "获取当前战宠塔的数量",
-		"category": "宠物相关",
-		"richDescription": "获取当前场景中战宠塔的数量",
+		"displayName": "获取随从塔数量",
+		"description": "获取当前随从塔的数量",
+		"category": "随从相关",
+		"richDescription": "获取当前场景中随从塔的数量",
 		"author": "unknown",
+		"baseClass": "NumberValueDelegate"
+	},
+	"NumberValueCombatPetTowerNumByMACIdDelegate": {
+		"className": "NumberValueCombatPetTowerNumByMACIdDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "按MACId获取随从塔数量",
+		"description": "获取指定MACId的随从塔在场上的数量",
+		"category": "随从相关",
+		"richDescription": "获取当前场景中MACId为{0}的随从塔数量",
+		"author": "unknown",
+		"baseClass": "NumberValueDelegate"
+	},
+	"NumberValuePetBuildingNumByClassificationDelegate": {
+		"className": "NumberValuePetBuildingNumByClassificationDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "按分类获取随从建造物数量",
+		"description": "获取指定分类的随从建造物数量",
+		"category": "随从相关",
+		"richDescription": "获取当前场景中分类为{0}的随从建造物数量，包括已存在和正在建造的建造物",
+		"author": "edwardynsun",
 		"baseClass": "NumberValueDelegate"
 	},
 	"NumberValueSkillGroupIDDelegate": {
@@ -689,7 +1123,8 @@
 		"description": "获取指定目标源于指定来源的Buff最长剩余持续时间",
 		"category": "Buff相关",
 		"richDescription": "获取{1}目标身上，源于{2}的{0}号Buff所有实例中最长剩余持续时间",
-		"author": "unknown",
+		"author": "emiljqchen",
+		"triggerSide": "Server",
 		"baseClass": "NumberValueDelegate"
 	},
 	"NumberValueSurroundingMonsterNumDelegate": {
@@ -744,6 +1179,17 @@
 		"description": "获取当前增益所有者的指定属性值",
 		"category": "属性相关",
 		"richDescription": "获取当前增益所有者的{0}属性值",
+		"author": "unknown",
+		"baseClass": "NumberValueDelegate"
+	},
+	"NumberValueAttributeFactorDelegate": {
+		"className": "NumberValueAttributeFactorDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取属性因子值",
+		"description": "获取属性因子值",
+		"category": "属性相关",
+		"richDescription": "获取{1}身上属性因子{0}的值",
 		"author": "unknown",
 		"baseClass": "NumberValueDelegate"
 	},
@@ -865,10 +1311,10 @@
 		"className": "NumberValuePetMasterJustAttackedDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物主人攻击判断",
-		"description": "判断宠物主人是否刚刚攻击过，并返回对应数值",
-		"category": "宠物相关",
-		"richDescription": "若宠物主人刚刚攻击过则返回{0}，否则返回{1}",
+		"displayName": "随从主人攻击判断",
+		"description": "判断随从主人是否刚刚攻击过，并返回对应数值",
+		"category": "随从相关",
+		"richDescription": "若随从主人刚刚攻击过则返回{0}，否则返回{1}",
 		"author": "unknown",
 		"baseClass": "NumberValueDelegate"
 	},
@@ -876,10 +1322,10 @@
 		"className": "NumberValuePetTargetMonsterInDisadvantageTimes",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物目标劣势次数",
-		"description": "获取宠物目标怪物处于劣势状态的次数",
-		"category": "宠物相关",
-		"richDescription": "获取宠物当前目标怪物处于劣势状态的次数",
+		"displayName": "随从目标劣势次数",
+		"description": "获取随从目标怪物处于劣势状态的次数",
+		"category": "随从相关",
+		"richDescription": "获取随从当前目标怪物处于劣势状态的次数",
 		"author": "unknown",
 		"baseClass": "NumberValueDelegate"
 	},
@@ -914,6 +1360,44 @@
 		"category": "战斗相关",
 		"richDescription": "获取当前场景中最近怪物攻击碰撞的距离",
 		"author": "unknown",
+		"baseClass": "NumberValueDelegate"
+	},
+	"NumberValueGetAttackMotionValue": {
+		"className": "NumberValueGetAttackMotionValue",
+		"isDelegate": true,
+		"fields": {
+			"0": {
+				"key": "DamageCategory",
+				"label": "动作值类别",
+				"type": "select",
+				"options": [
+					{
+						"label": "物理",
+						"value": "Physical"
+					},
+					{
+						"label": "元素",
+						"value": "Elemental"
+					},
+					{
+						"label": "异常",
+						"value": "StatusEffect"
+					}
+				],
+				"description": "物理/元素/异常"
+			},
+			"1": {
+				"key": "StatusEffectType",
+				"label": "元素/异常类型（Physical时忽略）",
+				"type": "string",
+				"description": "Elemental: Fire/Water/Thunder/Ice/Dragon; StatusEffect: Poison/DeadlyPoison/Paralysis/Sleep/Stun/Blast/Bleeding/Effluvium/Exhaust/Fire/Water/Thunder/Ice/Dragon"
+			}
+		},
+		"displayName": "获取攻击动作值",
+		"description": "获取当次攻击的物理/元素/异常动作值（原始值，小数，100%=1.0）",
+		"category": "战斗相关",
+		"richDescription": "获取当次攻击的{0}动作值，元素/异常时指定类型{1}",
+		"author": "weigangxu",
 		"baseClass": "NumberValueDelegate"
 	},
 	"NumberValueAAINextDamageTime": {
@@ -968,7 +1452,8 @@
 		"description": "获取0号重弩当前弹药的最大攻击距离",
 		"category": "武器相关",
 		"richDescription": "获取0号重弩当前使用弹药的最大攻击距离（其他重弩用GetAttr）",
-		"author": "unknown",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
 		"baseClass": "NumberValueDelegate"
 	},
 	"NumberValueGetKeyPressedTime": {
@@ -1023,29 +1508,32 @@
 		"description": "获取0号重弩当前使用的弹药类型",
 		"category": "武器相关",
 		"richDescription": "获取0号重弩当前使用的弹药类型（0=通常，1=技能，2=奥义）",
-		"author": "unknown",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
 		"baseClass": "NumberValueDelegate"
 	},
 	"NumberValueGetHbgCurrentBulletNum": {
 		"className": "NumberValueGetHbgCurrentBulletNum",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "重弩当前弹药数",
+		"displayName": "[仅Final可用]重弩当前弹药数",
 		"description": "获取0号重弩指定类型弹药的剩余数量",
 		"category": "武器相关",
-		"richDescription": "获取0号重弩{0}类型（Skill=技能，Final=特殊）弹药的剩余数量",
-		"author": "unknown",
+		"richDescription": "获取0号重弩Final类型弹药的剩余数量",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
 		"baseClass": "NumberValueDelegate"
 	},
 	"NumberValueGetHbgMaxBulletNum": {
 		"className": "NumberValueGetHbgMaxBulletNum",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "重弩最大弹药数",
+		"displayName": "[仅Final可用]重弩最大弹药数",
 		"description": "获取0号重弩指定类型弹药的最大数量",
 		"category": "武器相关",
-		"richDescription": "获取0号重弩{0}类型（Skill=技能，Final=特殊）弹药的最大数量",
-		"author": "unknown",
+		"richDescription": "获取0号重弩Final类型的弹药的最大数量",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
 		"baseClass": "NumberValueDelegate"
 	},
 	"NumberValueGetItsStrategyActionItemNum": {
@@ -1125,17 +1613,6 @@
 		"author": "unknown",
 		"baseClass": "NumberValueDelegate"
 	},
-	"NumberValueGetAffinityDelegate": {
-		"className": "NumberValueGetAffinityDelegate",
-		"isDelegate": true,
-		"fields": {},
-		"displayName": "获取AI好感度",
-		"description": "返回当前冒险家AI的好感度等级（测试功能）",
-		"category": "AI冒险家相关",
-		"richDescription": "返回当前冒险家AI的好感度等级（测试版本，可能变更）",
-		"author": "unknown",
-		"baseClass": "NumberValueDelegate"
-	},
 	"NumberTriggerValueAAIGetTimeSinceLastUseDelegate": {
 		"className": "NumberTriggerValueAAIGetTimeSinceLastUseDelegate",
 		"isDelegate": true,
@@ -1211,6 +1688,15 @@
 		"category": "基础类型",
 		"richDescription": "创建一个值为{0}（true/false）的固定布尔值委托",
 		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"BoolValueIsStrikingFromBehindDelegate": {
+		"className": "BoolValueIsStrikingFromBehindDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "背后偷袭",
+		"description": "判断两个Actor的位置状态是否满足背后偷袭",
+		"category": "Combat",
 		"baseClass": "BoolValueDelegate"
 	},
 	"BoolValueCheckWeatherDelegate": {
@@ -1389,6 +1875,39 @@
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
+	"BoolValueCheckAdventureTypeTag": {
+		"className": "BoolValueCheckAdventureTypeTag",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查冒险家类型标签",
+		"description": "判断指定目标冒险家是否拥有指定的类型标签（AdventurerSkillCfg.TypeTags）",
+		"category": "角色相关",
+		"richDescription": "判断{0}目标的冒险家技能配置中是否包含类型标签{1}",
+		"author": "guangyuhe",
+		"baseClass": "BoolValueDelegate"
+	},
+	"BoolValueCheckAdventurerDamageType": {
+		"className": "BoolValueCheckAdventurerDamageType",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查冒险家原始伤害属性",
+		"description": "判断指定冒险家的原始配置伤害属性",
+		"category": "角色相关",
+		"richDescription": "判断{0}冒险家的原始伤害属性是否为{1}",
+		"author": "kiritoxia",
+		"baseClass": "BoolValueDelegate"
+	},
+	"BoolValueCheckAdventurerFinalDamageType": {
+		"className": "BoolValueCheckAdventurerFinalDamageType",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查冒险家实际伤害属性",
+		"description": "判断指定冒险家的实际生效伤害属性",
+		"category": "角色相关",
+		"richDescription": "判断{0}冒险家的实际生效伤害属性是否为{1}",
+		"author": "kiritoxia",
+		"baseClass": "BoolValueDelegate"
+	},
 	"NumberTriggerValueTeamAdventureTypeNums": {
 		"className": "NumberTriggerValueTeamAdventureTypeNums",
 		"isDelegate": true,
@@ -1411,58 +1930,14 @@
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
-	"BoolTriggerValueMonsterHitTeammate": {
-		"className": "BoolTriggerValueMonsterHitTeammate",
-		"isDelegate": true,
-		"fields": {},
-		"displayName": "怪物攻击队友判断",
-		"description": "判断怪物是否攻击了队友",
-		"category": "共斗相关",
-		"richDescription": "判断当前怪物是否攻击了小队中的队友",
-		"author": "unknown",
-		"baseClass": "BoolValueDelegate"
-	},
-	"BoolTriggerValueMonsterBeInBigStiffness": {
-		"className": "BoolTriggerValueMonsterBeInBigStiffness",
-		"isDelegate": true,
-		"fields": {},
-		"displayName": "怪物大硬直判断",
-		"description": "判断怪物是否处于大硬直状态",
-		"category": "共斗相关",
-		"richDescription": "判断当前怪物是否处于大硬直状态",
-		"author": "unknown",
-		"baseClass": "BoolValueDelegate"
-	},
-	"BoolTriggerValueTeammateReleaseGP": {
-		"className": "BoolTriggerValueTeammateReleaseGP",
-		"isDelegate": true,
-		"fields": {},
-		"displayName": "队友释放GP判断",
-		"description": "判断队友是否释放了GP（防御反击）技能",
-		"category": "共斗相关",
-		"richDescription": "判断小队中是否有队友释放了GP（防御反击）技能",
-		"author": "unknown",
-		"baseClass": "BoolValueDelegate"
-	},
-	"BoolTriggerValueTeammateReleaseFinalSkill": {
-		"className": "BoolTriggerValueTeammateReleaseFinalSkill",
-		"isDelegate": true,
-		"fields": {},
-		"displayName": "队友释放大招判断",
-		"description": "判断队友是否释放了大招（FinalSkill）",
-		"category": "共斗相关",
-		"richDescription": "判断小队中是否有队友释放了大招（FinalSkill）",
-		"author": "unknown",
-		"baseClass": "BoolValueDelegate"
-	},
 	"BoolTriggerValuePetMasterAct": {
 		"className": "BoolTriggerValuePetMasterAct",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物主人动作判断",
-		"description": "判断宠物主人是否执行了指定类型的动作",
-		"category": "宠物相关",
-		"richDescription": "判断宠物主人是否执行了{0}类型的动作",
+		"displayName": "随从主人动作判断",
+		"description": "判断随从主人是否执行了指定类型的动作",
+		"category": "随从相关",
+		"richDescription": "判断随从主人是否执行了{0}类型的动作",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1470,10 +1945,10 @@
 		"className": "BoolTriggerValuePetMasterHitMonster",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物主人击中怪物判断",
-		"description": "判断宠物主人是否以指定伤害类型击中怪物指定次数",
-		"category": "宠物相关",
-		"richDescription": "判断宠物主人是否以{0}伤害类型击中怪物{1}次",
+		"displayName": "随从主人击中怪物判断",
+		"description": "判断随从主人是否以指定伤害类型击中怪物指定次数",
+		"category": "随从相关",
+		"richDescription": "判断随从主人是否以{0}伤害类型击中怪物{1}次",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1515,7 +1990,7 @@
 		"isDelegate": true,
 		"fields": {},
 		"displayName": "检查怪物Buff状态",
-		"description": "检查指定目标是否处于某个怪物Buff的指定阶段",
+		"description": "检查指定目标是否处于某个怪物Buff的指���阶段",
 		"category": "怪物相关",
 		"richDescription": "检查{0}目标是否处于{1}怪物Buff的{2}阶段（默认InEffect）",
 		"author": "unknown",
@@ -1559,9 +2034,9 @@
 		"isDelegate": true,
 		"fields": {},
 		"displayName": "目标类型判断基类",
-		"description": "判断目标是否属于角色、宠物、怪物中的指定类型",
+		"description": "判断目标是否属于角色、随从、怪物中的指定类型",
 		"category": "基础判断",
-		"richDescription": "判断{0}目标是否为{1}（角色）/{2}（宠物）/{3}（怪物）",
+		"richDescription": "判断{0}目标是否为{1}（角色）/{2}（随从）/{3}（怪物）",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1580,10 +2055,10 @@
 		"className": "BoolValueIsPet",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "是否为宠物",
-		"description": "判断指定目标是否是宠物",
-		"category": "宠物相关",
-		"richDescription": "判断{0}目标是否为宠物",
+		"displayName": "是否为随从",
+		"description": "判断指定目标是否是随从",
+		"category": "随从相关",
+		"richDescription": "判断{0}目标是否为随从",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1723,10 +2198,10 @@
 		"className": "BoolValuePetSkillCDDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物技能冷却判断",
-		"description": "判断指定ID的宠物技能是否冷却完毕",
-		"category": "宠物相关",
-		"richDescription": "判断ID为{0}的宠物技能是否冷却完毕",
+		"displayName": "随从技能冷却判断",
+		"description": "判断指定ID的随从技能是否冷却完毕",
+		"category": "随从相关",
+		"richDescription": "判断ID为{0}的随从技能是否冷却完毕",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1734,10 +2209,10 @@
 		"className": "BoolValuePetSkillEnergyDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物技能能量判断",
-		"description": "判断指定ID的宠物技能是否满足能量要求",
-		"category": "宠物相关",
-		"richDescription": "判断ID为{0}的宠物技能是否满足能量要求",
+		"displayName": "随从技能能量判断",
+		"description": "判断指定ID的随从技能是否满足能量要求",
+		"category": "随从相关",
+		"richDescription": "判断ID为{0}的随从技能是否满足能量要求",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1745,10 +2220,10 @@
 		"className": "BoolValuePetSkillPriorityDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物技能优先级判断",
-		"description": "判断指定ID的宠物技能是否满足优先级要求",
-		"category": "宠物相关",
-		"richDescription": "判断ID为{0}的宠物技能是否满足优先级要求",
+		"displayName": "随从技能优先级判断",
+		"description": "判断指定ID的随从技能是否满足优先级要求",
+		"category": "随从相关",
+		"richDescription": "判断ID为{0}的随从技能是否满足优先级要求",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1756,10 +2231,10 @@
 		"className": "BoolValuePetCheckControllerFlagDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物控制器标记判断",
-		"description": "判断宠物控制器是否包含指定标记",
-		"category": "宠物相关",
-		"richDescription": "判断宠物控制器是否包含{0}对应的标记",
+		"displayName": "随从控制器标记判断",
+		"description": "判断随从控制器是否包含指定标记",
+		"category": "随从相关",
+		"richDescription": "判断随从控制器是否包含{0}对应的标记",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1789,10 +2264,10 @@
 		"className": "BoolValuePetMasterWeaponTypeDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物主人武器类型判断",
-		"description": "判断宠物主人的武器类型是否在指定列表中",
-		"category": "宠物相关",
-		"richDescription": "判断宠物主人的武器类型是否为{0}等指定类型之一",
+		"displayName": "随从主人武器类型判断",
+		"description": "判断随从主人的武器类型是否在指定列表中",
+		"category": "随从相关",
+		"richDescription": "判断随从主人的武器类型是否为{0}等指定类型之一",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1800,21 +2275,32 @@
 		"className": "BoolValuePetIsFreeDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物空闲状态判断",
-		"description": "判断指定ID的宠物是否处于空闲状态",
-		"category": "宠物相关",
-		"richDescription": "判断ID为{0}的宠物是否处于空闲状态",
+		"displayName": "随从空闲状态判断",
+		"description": "判断指定ID的随从是否处于空闲状态",
+		"category": "随从相关",
+		"richDescription": "判断ID为{0}的随从是否处于空闲状态",
 		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"BoolValueCheckPetSpecialSkillDelegate": {
+		"className": "BoolValueCheckPetSpecialSkillDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "随从技能槽位判断",
+		"description": "判断当前随从技能是否来自指定的随从技能槽位（如PetFinalSkill奥义）",
+		"category": "随从相关",
+		"richDescription": "判断当前随从技能是否为奥义",
+		"author": "jigxwang",
 		"baseClass": "BoolValueDelegate"
 	},
 	"BoolValuePetIsFlyingDelegate": {
 		"className": "BoolValuePetIsFlyingDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物飞行状态判断",
-		"description": "判断宠物是否处于自主飞行状态（区分玩家/AI控制）",
-		"category": "宠物相关",
-		"richDescription": "判断宠物是否处于自主飞行状态（True=玩家控制，False=AI控制）",
+		"displayName": "随从飞行状态判断",
+		"description": "判断随从是否处于自主飞行状态（区分玩家/AI控制）",
+		"category": "随从相关",
+		"richDescription": "判断随从是否处于自主飞行状态（True=玩家控制，False=AI控制）",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1844,10 +2330,10 @@
 		"className": "BoolValuePetHasHelpTargetDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物帮助目标判断",
-		"description": "判断宠物是否有指定类型的帮助目标",
-		"category": "宠物相关",
-		"richDescription": "判断宠物是否有{0}类型的帮助目标",
+		"displayName": "随从帮助目标判断",
+		"description": "判断随从是否有指定类型的帮助目标",
+		"category": "随从相关",
+		"richDescription": "判断随从是否有{0}类型的帮助目标",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1855,10 +2341,10 @@
 		"className": "BoolValuePetCheckAndSetHealTargetDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物治疗目标设置",
-		"description": "检查并设置宠物的治疗目标（基于主人和队友血量百分比）",
-		"category": "宠物相关",
-		"richDescription": "当主人血量≤{0}%或队友血量≤{1}%且距离≤{2}时，设置宠物治疗目标",
+		"displayName": "随从治疗目标设置",
+		"description": "检查并设置随从的治疗目标（基于主人和队友血量百分比）",
+		"category": "随从相关",
+		"richDescription": "当主人血量≤{0}%或队友血量≤{1}%且距离≤{2}时，设置随从治疗目标",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1866,10 +2352,10 @@
 		"className": "BoolValuePetHasSkillDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物技能拥有判断",
-		"description": "判断当前宠物是否携带有指定ID的技能",
-		"category": "宠物相关",
-		"richDescription": "判断当前宠物（或冒险家出战宠物）是否携带有ID为{0}的技能",
+		"displayName": "随从技能拥有判断",
+		"description": "判断当前随从是否携带有指定ID的技能",
+		"category": "随从相关",
+		"richDescription": "判断当前随从（或冒险家出战随从）是否携带有ID为{0}的技能",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1877,10 +2363,10 @@
 		"className": "BoolValuePetMasterCanBird",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物主人变鸟判断",
-		"description": "判断宠物主人是否可以变鸟",
-		"category": "宠物相关",
-		"richDescription": "判断宠物主人是否处于可以变鸟的状态",
+		"displayName": "随从主人变鸟判断",
+		"description": "判断随从主人是否可以变鸟",
+		"category": "随从相关",
+		"richDescription": "判断随从主人是否处于可以变鸟的状态",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -1900,9 +2386,9 @@
 		"isDelegate": true,
 		"fields": {},
 		"displayName": "角色任意异常判断",
-		"description": "判断角色是否处于任意一种属性异常状态",
+		"description": "判断角色是否处于任意一种属性异常状态或指定属性异常状态",
 		"category": "角色相关",
-		"richDescription": "判断当前角色是否处于任意一种属性异常状态",
+		"richDescription": "判断{0}是否处于{1}指定属性异常状态（Poison/Fire等）,如果Actor参数不填表示self，如果异常参数不填参数判断是否处于任意一种属性异常状态【注意：如果要填异常参数，则Actor参数必须填】",
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -2027,6 +2513,30 @@
 		"author": "unknown",
 		"baseClass": "NumberValueDelegate"
 	},
+	"NumberValueRandomIntDelegate": {
+		"className": "NumberValueRandomIntDelegate",
+		"isDelegate": true,
+		"fields": {
+			"0": {
+				"key": "Min",
+				"label": "Min",
+				"type": "string",
+				"description": "随机整数的最小值（含）"
+			},
+			"1": {
+				"key": "Max",
+				"label": "Max",
+				"type": "string",
+				"description": "随机整数的最大值（含）"
+			}
+		},
+		"displayName": "随机整数生成",
+		"description": "生成[Min, Max]闭区间内的随机整数（均匀分布）",
+		"category": "数学计算",
+		"richDescription": "生成[{0}, {1}]范围内的随机整数",
+		"author": "unknown",
+		"baseClass": "NumberValueDelegate"
+	},
 	"BoolValuesBinaryOperatorOnBoolDelegate": {
 		"className": "BoolValuesBinaryOperatorOnBoolDelegate",
 		"isDelegate": true,
@@ -2083,6 +2593,17 @@
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
+	"CheckHitPointHasSummonNearBy_BoolValueDelegate": {
+		"className": "CheckHitPointHasSummonNearBy_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查命中点附近是否有召唤物",
+		"description": "读取攻击参数中的bHitPointHasSummonNearBy值，判断命中点附近是否有召唤物",
+		"category": "战斗相关",
+		"richDescription": "判断命中点附近是否有召唤物",
+		"author": "weigangxu",
+		"baseClass": "BoolValueDelegate"
+	},
 	"BoolValueNotDelegate": {
 		"className": "BoolValueNotDelegate",
 		"isDelegate": true,
@@ -2135,6 +2656,17 @@
 		"description": "检查环境中是否有指定冒险家数值标签的技能",
 		"category": "技能相关",
 		"richDescription": "检查环境中（攻击/技能事件等）是否有{0}数值标签的技能",
+		"author": "linengzeng",
+		"baseClass": "BoolValueDelegate"
+	},
+	"BoolValueCheckSkillShuzhiTagBeforeAttack": {
+		"className": "BoolValueCheckSkillShuzhiTagBeforeAttack",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查攻击(hit)数值标签",
+		"description": "检查环境中是否有攻击(hit)数值标签",
+		"category": "战斗相关",
+		"richDescription": "检查环境中（攻击）是否有{0}数值标签的技能",
 		"author": "linengzeng",
 		"baseClass": "BoolValueDelegate"
 	},
@@ -2226,28 +2758,6 @@
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
-	"BoolValueCheckEMTeamIndexDelegate": {
-		"className": "BoolValueCheckEMTeamIndexDelegate",
-		"isDelegate": true,
-		"fields": {},
-		"displayName": "怪物队伍索引判断",
-		"description": "判断怪物所属的队伍索引是否为指定值",
-		"category": "怪物相关",
-		"richDescription": "判断当前怪物所属的队伍索引是否为{0}",
-		"author": "unknown",
-		"baseClass": "BoolValueDelegate"
-	},
-	"BoolValueCheckEMStageIdDelegate": {
-		"className": "BoolValueCheckEMStageIdDelegate",
-		"isDelegate": true,
-		"fields": {},
-		"displayName": "怪物阶段ID判断",
-		"description": "判断怪物当前所处的阶段ID是否为指定值",
-		"category": "怪物相关",
-		"richDescription": "判断当前怪物所处的阶段ID是否为{0}",
-		"author": "unknown",
-		"baseClass": "BoolValueDelegate"
-	},
 	"BoolValueAAIMonsterInStiffnessTypeDelegate": {
 		"className": "BoolValueAAIMonsterInStiffnessTypeDelegate",
 		"isDelegate": true,
@@ -2310,8 +2820,19 @@
 		"displayName": "AI敌对法术场判断",
 		"description": "查询冒险家AI是否处于敌对法术场中",
 		"category": "AI冒险家相关",
-		"richDescription": "查询冒险家AI是否处于敌对法术场中（仅AI用）",
+		"richDescription": "查询冒险家AI是否处于敌对法术场中仅AI用.{0}为检查类型,0为都检查,1为检查是否在天气区域里,2为检查是否处于敌对法术场",
 		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"BoolValueAAIHasPlayerRequest": {
+		"className": "BoolValueAAIHasPlayerRequest",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "AI玩家请求判断",
+		"description": "查询冒险家AI是否有指定类型的玩家请求待处理（如陷阱触发）",
+		"category": "AI冒险家相关",
+		"richDescription": "查询冒险家AI是否有类型为{0}的玩家请求待处理（1=UseTrap）（仅AI用）",
+		"author": "zhuojundai",
 		"baseClass": "BoolValueDelegate"
 	},
 	"BoolTriggerValueCheckEMTargetHealDelegate": {
@@ -2501,6 +3022,17 @@
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
+	"BoolValueCheckActorInPhotoWindowDelegate": {
+		"className": "BoolValueCheckActorInPhotoWindowDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "拍照表演命中窗口判断",
+		"description": "判断指定 Actor 是否正处于 ANS_WildPhotoWindow 覆盖的动作区间",
+		"category": "拍照相关",
+		"richDescription": "判断{0}是否正处于 ANS_WildPhotoWindow 覆盖的动作区间（WildPhotoSubsystem.IsActorInPhotoWindow 精确判定，多只同种怪并存时可点对点区分镜头内/外）",
+		"author": "jianyefu",
+		"baseClass": "BoolValueDelegate"
+	},
 	"BoolValueCheckHasSkillSplineDelegate": {
 		"className": "BoolValueCheckHasSkillSplineDelegate",
 		"isDelegate": true,
@@ -2589,6 +3121,17 @@
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
+	"BoolValueCheckIsBaselineTestAIModeDelegate": {
+		"className": "BoolValueCheckIsBaselineTestAIModeDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "是否处于平衡测试AI模式",
+		"description": "检测当前是否处于BaseLineTest + AI测试模式，非平衡环境返回false（仅AI用）",
+		"category": "AI冒险家相关",
+		"richDescription": "检测当前是否处于平衡测试AI模式（BaseLineTest && TestWay==AI，仅AI用）",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
 	"BoolValueNeedDodge": {
 		"className": "BoolValueNeedDodge",
 		"isDelegate": true,
@@ -2666,6 +3209,28 @@
 		"author": "unknown",
 		"baseClass": "TaskDelegate"
 	},
+	"BuffOnPlayerControlledCharacterTaskDelegate": {
+		"className": "BuffOnPlayerControlledCharacterTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "主控冒险家Buff施加",
+		"description": "给玩家主控的冒险家施加指定ID的Buff",
+		"category": "小队相关",
+		"richDescription": "给玩家主控的冒险家施加ID为{0}的Buff(仅服务端), Buff生命周期跟随该Task",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"ApplyBuffOnAttributeChangeTaskDelegate": {
+		"className": "ApplyBuffOnAttributeChangeTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "属性变化时施加Buff层数",
+		"description": "监视AbilityCaster指定属性, 变化量向下取整后每1层施加一层Buff",
+		"category": "Buff相关",
+		"richDescription": "监视属性[{0}], 变化量为正时向下取整, 每1层施加一层ID为{1}的Buff (仅服务端)",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
 	"CoopCombatPursuitSkillSwitchTaskDelegate": {
 		"className": "CoopCombatPursuitSkillSwitchTaskDelegate",
 		"isDelegate": true,
@@ -2721,6 +3286,17 @@
 		"author": "unknown",
 		"baseClass": "TaskDelegate"
 	},
+	"CharacterMovementSpeedModificationAndChangeRateTaskDelegate": {
+		"className": "CharacterMovementSpeedModificationAndChangeRateTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "修改角色移动速度",
+		"description": "修改角色指定移动模式的速度和加速度（万分比）",
+		"category": "角色相关",
+		"richDescription": "修改{0}移动模式（Walk/Sprint等）的速度{1}万分比、加速度{2}万分比",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
 	"EMModificationSightPerceptionDelegate": {
 		"className": "EMModificationSightPerceptionDelegate",
 		"isDelegate": true,
@@ -2761,8 +3337,30 @@
 		"displayName": "条件控制Buff",
 		"description": "根据条件控制Buff的施加/移除（参考精神抖擞）",
 		"category": "Buff相关",
-		"richDescription": "当{1}条件满足{2}秒时施加{0}号Buff；条件不满足时{3}秒后移除Buff",
+		"richDescription": "当{1}条件满足{2}秒时施加{0}号Buff；条件不满足时{3}秒后移除Buff，支持指定移除原因ID：{4}，目前预留了1-5的数字，对应CustomReason1-5",
 		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"ManELongRecoverMaxHealthTaskDelegate": {
+		"className": "ManELongRecoverMaxHealthTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "蛮鳄龙恢复最大生命值",
+		"description": "蛮鳄龙恢复最大生命值",
+		"category": "Buff相关",
+		"richDescription": "蛮鳄龙恢复最大生命值",
+		"author": "birdlin",
+		"baseClass": "TaskDelegate"
+	},
+	"ManELongSlowRecoverHealthTaskDelegate": {
+		"className": "ManELongSlowRecoverHealthTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "蛮鳄龙缓慢恢复生命值",
+		"description": "蛮鳄龙缓慢恢复生命值",
+		"category": "Buff相关",
+		"richDescription": "蛮鳄龙缓慢恢复生命值",
+		"author": "birdlin",
 		"baseClass": "TaskDelegate"
 	},
 	"DynamicDurationTaskDelegate": {
@@ -2797,6 +3395,61 @@
 		"richDescription": "给影子分身施加{0}等多个Buff，子Buff随分身消亡而消亡（仅服务端）",
 		"author": "unknown",
 		"baseClass": "TaskDelegate"
+	},
+	"ArashiAbilityTaskBeHelpDelegate": {
+		"className": "ArashiAbilityTaskBeHelpDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "被救助Buff",
+		"description": "给角色施加被救助Buff",
+		"category": "Buff相关",
+		"richDescription": "给角色施加被救助Buff（仅服务端）",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"ArashiAbilityTaskExtraAdventureShuzhiTagOnBuffDelegate": {
+		"className": "ArashiAbilityTaskExtraAdventureShuzhiTagOnBuffDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "为指定技能附加AdventureShuzhiTag",
+		"description": "Buff持有期间，给指定技能（AbilityConfigID）额外附加一个AdventureShuzhiTag；OnTaskEnd时移除",
+		"category": "Buff相关",
+		"richDescription": "在Buff期间为技能{0}附加AdventureShuzhiTag={1}（仅服务端）",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"ReduceStatusEffectBuildUpTaskDelegate": {
+		"className": "ReduceStatusEffectBuildUpTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "降低异常状态累积值Task",
+		"description": "Buff持续期间按间隔降低指定异常状态累积值",
+		"category": "Buff相关",
+		"richDescription": "每{1}秒降低{0}异常状态累积值{2}点",
+		"author": "jiannanchao",
+		"baseClass": "TaskDelegate"
+	},
+	"ModifyStatusEffectNegatedProbabilityDelegate": {
+		"className": "ModifyStatusEffectNegatedProbabilityDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "修改异常状态否定概率Task",
+		"description": "在持续期间内增加或减少指定异常状态的否定概率",
+		"category": "Buff相关",
+		"richDescription": "对{0}异常状态的否定概率增加{1}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"SetHitPointHasSummonNearBy_ActionDelegate": {
+		"className": "SetHitPointHasSummonNearBy_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "设置命中点附近是否有召唤物",
+		"description": "设置攻击参数中的bHitPointHasSummonNearBy值，用于标记命中点附近是否有召唤物",
+		"category": "战斗相关",
+		"richDescription": "设置命中点附近是否有召唤物为{0}",
+		"author": "weigangxu",
+		"baseClass": "ActionDelegate"
 	},
 	"ActionReviveCharacterDeathDelegate": {
 		"className": "ActionReviveCharacterDeathDelegate",
@@ -2978,10 +3631,10 @@
 		"className": "PetMasterActConsumeDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物主人动作消耗",
-		"description": "消耗宠物主人指定类型动作的计数",
-		"category": "宠物相关",
-		"richDescription": "消耗宠物主人{0}类型动作的计数（配合PetMasterAct判断使用）",
+		"displayName": "随从主人动作消耗",
+		"description": "消耗随从主人指定类型动作的计数",
+		"category": "随从相关",
+		"richDescription": "消耗随从主人{0}类型动作的计数（配合PetMasterAct判断使用）",
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
@@ -2989,10 +3642,10 @@
 		"className": "PetMasterHitMonsterConsumeDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物主人击怪消耗",
-		"description": "消耗宠物主人指定伤害类型击怪的计数",
-		"category": "宠物相关",
-		"richDescription": "消耗宠物主人{0}伤害类型击中怪物的计数（配合PetMasterHitMonster判断使用）",
+		"displayName": "随从主人击怪消耗",
+		"description": "消耗随从主人指定伤害类型击怪的计数",
+		"category": "随从相关",
+		"richDescription": "消耗随从主人{0}伤害类型击中怪物的计数（配合PetMasterHitMonster判断使用）",
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
@@ -3005,6 +3658,17 @@
 		"category": "战斗相关",
 		"richDescription": "对{0}类型战斗资源进行{1}数值的增减（{2}等标签过滤生效范围）",
 		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"ActionModifyCombatResourceChangeOnce": {
+		"className": "ActionModifyCombatResourceChangeOnce",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "下一次战斗资源变化修改",
+		"description": "仅修改下一次匹配的战斗资源变化",
+		"category": "战斗相关",
+		"richDescription": "下一次{0}战斗资源变化，加法{1}，乘法{2}（{3}等标签过滤）",
+		"author": "kiritoxia",
 		"baseClass": "ActionDelegate"
 	},
 	"ActionRefreshBuffFromMeDelegate": {
@@ -3029,25 +3693,36 @@
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
-	"ActionDispelCertainCharacterStatusEffectDelegate": {
-		"className": "ActionDispelCertainCharacterStatusEffectDelegate",
+	"ActionDispelCertainCharacterStatusEffect": {
+		"className": "ActionDispelCertainCharacterStatusEffect",
 		"isDelegate": true,
 		"fields": {},
 		"displayName": "驱散指定异常",
-		"description": "驱散目标指定类型的属性异常，支持重置累积值",
+		"description": "驱散目标指定类型的属性异常, 支持重置累积值",
 		"category": "角色相关",
-		"richDescription": "驱散{0}目标的{1}异常（Poison/Fire等），{2}（true/false）重置异常累积值",
-		"author": "unknown",
+		"richDescription": "驱散{0}目标的{1}异常, {2} (true/false) 重置异常累积值",
+		"author": "jiannanchao",
+		"baseClass": "ActionDelegate"
+	},
+	"ActionInterruptSleepStatusEffect": {
+		"className": "ActionInterruptSleepStatusEffect",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "元气饮料",
+		"description": "元气饮料",
+		"category": "角色相关",
+		"richDescription": "{0}喝元气饮料",
+		"author": "jiannanchao",
 		"baseClass": "ActionDelegate"
 	},
 	"ActionAddCombatPetEnergyDelegate": {
 		"className": "ActionAddCombatPetEnergyDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "增加战宠能量",
-		"description": "给指定角色增加战宠大招能量（能量存储在角色身上）",
-		"category": "宠物相关",
-		"richDescription": "给{0}角色增加{1}点战宠大招能量（战宠能量存储在角色身上）",
+		"displayName": "增加随从能量",
+		"description": "给指定角色增加随从大招能量（能量存储在角色身上）",
+		"category": "随从相关",
+		"richDescription": "给{0}角色增加{1}点随从大招能量（随从能量存储在角色身上）",
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
@@ -3238,36 +3913,25 @@
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
-	"ActionChangeAbilityCoolDownDelegate": {
-		"className": "ActionChangeAbilityCoolDownDelegate",
+	"ActionClearRelevantAbilityCD": {
+		"className": "ActionClearRelevantAbilityCD",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "修改技能冷却",
-		"description": "修改指定技能的冷却时间（增加/设置）",
-		"category": "技能相关",
-		"richDescription": "对{0}技能的冷却时间进行{2}操作（0=设置，1=加固定值，2=加百分比）{1}",
+		"displayName": "清理技能相关所有CD逻辑",
+		"description": "清理技能相关所有CD逻辑",
+		"category": "技能释放条件",
+		"richDescription": "清理技能相关所有CD逻辑",
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
-	"ActionAddAbilityCoolDown": {
-		"className": "ActionAddAbilityCoolDown",
+	"ActionClearCombineSkillCD": {
+		"className": "ActionClearCombineSkillCD",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "增加技能冷却",
-		"description": "增加指定技能的冷却时间（固定值/百分比）",
-		"category": "技能相关",
-		"richDescription": "给{0}技能增加{1}冷却时间，{2}（true=百分比，false=固定值）",
-		"author": "unknown",
-		"baseClass": "ActionDelegate"
-	},
-	"ActionSetAbilityCoolDown": {
-		"className": "ActionSetAbilityCoolDown",
-		"isDelegate": true,
-		"fields": {},
-		"displayName": "设置技能冷却",
-		"description": "直接设置指定技能的冷却时间",
-		"category": "技能相关",
-		"richDescription": "将{0}技能的冷却时间设置为{1}",
+		"displayName": "清理共鸣奥义CD",
+		"description": "清理共鸣奥义技能相关所有CD逻辑",
+		"category": "技能释放条件",
+		"richDescription": "清理共鸣奥义技能相关所有CD逻辑",
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
@@ -3426,10 +4090,10 @@
 		"className": "ActionAAIPetFollow",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "AI宠物跟随",
-		"description": "控制AI宠物跟随指定类型目标",
+		"displayName": "AI随从跟随",
+		"description": "控制AI随从跟随指定类型目标",
 		"category": "AI冒险家相关",
-		"richDescription": "控制AI宠物跟随{0}类型目标（如Self/Enemy），{1}（true/false）包含宠物主人",
+		"richDescription": "控制AI随从跟随{0}类型目标（如Self/Enemy），{1}（true/false）包含随从主人",
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
@@ -3452,7 +4116,7 @@
 		"description": "获取攻击事件中的目标Actor（受击方）",
 		"category": "战斗相关",
 		"richDescription": "获取当前攻击事件中的受击目标Actor",
-		"author": "unknown",
+		"author": "sharkgao",
 		"baseClass": "ActorValueDelegate"
 	},
 	"ActorValueAttackSource": {
@@ -3463,7 +4127,7 @@
 		"description": "获取攻击事件中的攻击来源Actor（攻方）",
 		"category": "战斗相关",
 		"richDescription": "获取当前攻击事件中的攻击来源Actor",
-		"author": "unknown",
+		"author": "sharkgao",
 		"baseClass": "ActorValueDelegate"
 	},
 	"ActorValueLockTarget": {
@@ -3495,7 +4159,7 @@
 		"displayName": "获取Buff上下文中触发Event的Monster",
 		"description": "获取Buff上下文中触发Event的Monster",
 		"category": "怪物相关",
-		"richDescription": "获取Buff上下文中触发Event的Monster。目前支持的事件：OnAggroMonsterTumble, OnAggroMonsterStatus",
+		"richDescription": "获取Buff上下文中触发Event的Monster。目前支持的事件：OnAggroMonsterTumble, OnAggroMonsterStatus（支持BuffState开始/结束）",
 		"author": "emiljqchen",
 		"baseClass": "ActorValueDelegate"
 	},
@@ -3536,11 +4200,11 @@
 		"className": "ActorValueAttackTarget",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "触发者自身Actor",
-		"description": "获取当前Buff/事件的触发者自身Actor",
+		"displayName": "获取攻击目标",
+		"description": "获取当前Buff/事件的目标Actor",
 		"category": "角色相关",
-		"richDescription": "获取当前Buff或事件的触发者自身Actor（如Buff所有者）",
-		"author": "unknown",
+		"richDescription": "获取当前Buff/事件的目标Actor（如攻击目标）",
+		"author": "sharkgao",
 		"baseClass": "ActorValueDelegate"
 	},
 	"ActorValueTriggerOwnerDelegate": {
@@ -3569,10 +4233,10 @@
 		"className": "ActorValueGetPetTargetDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物目标Actor",
-		"description": "获取宠物下一次技能的目标Actor",
-		"category": "宠物相关",
-		"richDescription": "获取当前宠物下一次释放技能的目标Actor",
+		"displayName": "随从目标Actor",
+		"description": "获取随从下一次技能的目标Actor",
+		"category": "随从相关",
+		"richDescription": "获取当前随从下一次释放技能的目标Actor",
 		"author": "unknown",
 		"baseClass": "ActorValueDelegate"
 	},
@@ -3580,10 +4244,10 @@
 		"className": "ActorValueGetPetDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "宠物Actor获取",
-		"description": "获取当前角色的宠物Actor",
-		"category": "宠物相关",
-		"richDescription": "获取当前角色所拥有的宠物Actor",
+		"displayName": "随从Actor获取",
+		"description": "获取当前角色的随从Actor",
+		"category": "随从相关",
+		"richDescription": "获取当前角色所拥有的随从Actor",
 		"author": "unknown",
 		"baseClass": "ActorValueDelegate"
 	},
@@ -3614,11 +4278,32 @@
 		"isDelegate": true,
 		"fields": {},
 		"displayName": "主人Actor获取",
-		"description": "获取指定目标的主人Actor（如宠物主人）",
+		"description": "获取指定目标的主人Actor（如随从主人）",
 		"category": "角色相关",
-		"richDescription": "获取{0}目标的主人Actor（如宠物的所属角色、AI冒险家的所属角色）",
+		"richDescription": "获取{0}目标的主人Actor（如随从的所属角色、AI冒险家的所属角色）",
 		"author": "unknown",
 		"baseClass": "ActorValueDelegate"
+	},
+	"ActorValueGetSourceSummon": {
+		"className": "ActorValueGetSourceSummon",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取SourceSummon",
+		"description": "通过技能CustomValue获取SourceSummon(召唤物来源)Actor",
+		"category": "通用相关",
+		"richDescription": "从当前技能的AbilityContext.CustomValue中读取Key为\"SourceSummon\"的Actor值",
+		"author": "unknown",
+		"baseClass": "ActorValueDelegate"
+	},
+	"VectorValueGetActorLocation": {
+		"className": "VectorValueGetActorLocation",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取Actor坐标",
+		"description": "获取指定Actor的世界坐标(Location)",
+		"category": "通用相关",
+		"richDescription": "获取{0}目标的世界坐标(Location)，未指定目标时默认取事件的Owner",
+		"author": "unknown"
 	},
 	"ActorValueAAIGetEnemy": {
 		"className": "ActorValueAAIGetEnemy",
@@ -3646,10 +4331,10 @@
 		"className": "ActionAddPetStaminDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "增加宠物耐力",
-		"description": "增加当前宠物的耐力值（仅Buff所有者为宠物时生效）",
-		"category": "宠物相关",
-		"richDescription": "给当前宠物（Buff所有者）增加{0}点耐力（非宠物会报错）",
+		"displayName": "增加随从耐力",
+		"description": "增加当前随从的耐力值（仅Buff所有者为随从时生效）",
+		"category": "随从相关",
+		"richDescription": "给当前随从（Buff所有者）增加{0}点耐力（非随从会报错）",
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
@@ -3695,6 +4380,7 @@
 		"category": "Buff相关",
 		"richDescription": "移除{1}层{0}号Buff(不能用于各层独立计时的Buff)",
 		"author": "emiljqchen",
+		"triggerSide": "Server",
 		"baseClass": "ActionDelegate"
 	},
 	"CustomActionDealDamageDelegate": {
@@ -3704,8 +4390,28 @@
 		"displayName": "施加伤害",
 		"description": "向目标施加伤害（支持DoT、血量损失等类型）",
 		"category": "战斗相关",
-		"richDescription": "向目标施加伤害：{0}（true=DoT），{1}（true=血量损失），基础伤害{2}，骨骼{3}",
+		"richDescription": "向目标施加伤害：{0}（true=DoT），{1}（true=血量损失），基础伤害{2}，骨骼{3}，骨骼Index{4}（与骨骼名互斥，优先骨骼名）",
 		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"FollowUpAttackByBuffHitConfigId": {
+		"className": "FollowUpAttackByBuffHitConfigId",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "直接伤害追击",
+		"category": "战斗",
+		"richDescription": "按{0}号BuffHit配置向目标施加伤害, 是否使用动态动作值{1}, 动态动作值为{2}",
+		"author": "jiannanchao",
+		"baseClass": "ActionDelegate"
+	},
+	"FollowUpAttackHpLoss": {
+		"className": "FollowUpAttackHpLoss",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "血量损失追击",
+		"category": "战斗",
+		"richDescription": "血量损失{0}",
+		"author": "jiannanchao",
 		"baseClass": "ActionDelegate"
 	},
 	"CustomActionDealDamageByBuffHitConfigID": {
@@ -3783,6 +4489,28 @@
 		"category": "战斗相关",
 		"richDescription": "修改攻击跳字样式：{0}类型（0=颜色，1=描边，2=标记），值为{1}（对应样式枚举）",
 		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"CustomActionModifyAttackAdventurerSkillDamageDelegate": {
+		"className": "CustomActionModifyAttackAdventurerSkillDamageDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "伤害乘区修饰",
+		"description": "修饰冒险家技能增伤乘区",
+		"category": "战斗数值",
+		"richDescription": "冒险家技能增伤乘区增加 {0}",
+		"author": "jiannanchao",
+		"baseClass": "ActionDelegate"
+	},
+	"CustomActionModifyAttackAdventurerDamageDealingDelegate": {
+		"className": "CustomActionModifyAttackAdventurerDamageDealingDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "伤害乘区修饰",
+		"description": "修饰冒险家增伤乘区",
+		"category": "战斗数值",
+		"richDescription": "冒险家增伤乘区增加 {0}",
+		"author": "jiannanchao",
 		"baseClass": "ActionDelegate"
 	},
 	"CustomActionModifyAttackAttributeModifierDelegate": {
@@ -3881,7 +4609,7 @@
 		"description": "修改攻击流程中攻方的属性因子（伤害结算用）",
 		"category": "战斗相关",
 		"richDescription": "修改攻方的{0}属性因子，修改值{1}（仅伤害计算事件）",
-		"author": "unknown",
+		"author": "jiannanchao",
 		"baseClass": "ActionDelegate"
 	},
 	"CustomActionModifyVictimAttributeFactor": {
@@ -3947,6 +4675,17 @@
 		"description": "增加当次攻击的部位破坏值（加算+乘算）",
 		"category": "战斗相关",
 		"richDescription": "增加当次攻击的部位破坏值：{0}加算值 + 基础值×{1}%（万分比，先加后乘，仅伤害计算事件）",
+		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"CustomActionReducePetSpecialSkillCDDelegate": {
+		"className": "CustomActionReducePetSpecialSkillCDDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "减少自身随从奥义CD",
+		"description": "减少 Buff 携带者所携带随从的奥义（Skill6）剩余 CD（按总 CD 万分比 + 固定毫秒）",
+		"category": "随从相关",
+		"richDescription": "减少自身随从奥义剩余 CD：总 CD × {0}/10000 + {1} 毫秒",
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
@@ -4159,6 +4898,336 @@
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
+	"ParticleEffectTaskDelegate": {
+		"className": "ParticleEffectTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "粒子特效Task",
+		"description": "播放粒子特效的Task",
+		"category": "特效相关",
+		"richDescription": "播放{0}粒子特效，挂载到{2}插槽，位置{3}，旋转{4}，缩放{5}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"ContinuousSpikeTalentDelegate": {
+		"className": "ContinuousSpikeTalentDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "持续尖刺天赋Task",
+		"description": "持续尖刺天赋的Task",
+		"category": "Buff相关",
+		"richDescription": "持续尖刺天赋Task，配置ID{0}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"EventControlledBuffTaskDelegate": {
+		"className": "EventControlledBuffTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "事件控制Buff Task",
+		"description": "由事件控制的Buff Task",
+		"category": "Buff相关",
+		"richDescription": "事件控制的Buff Task，Buff ID{0}，事件{1}，阈值时间{2}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"RedHealthRelievingPausingTaskDelegate": {
+		"className": "RedHealthRelievingPausingTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "暂停红血回复Task",
+		"description": "暂停红血回复的Task",
+		"category": "角色相关",
+		"richDescription": "暂停红血回复",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"MonsterParticleEffectTaskDelegate": {
+		"className": "MonsterParticleEffectTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "怪物粒子特效Task",
+		"description": "怪物粒子特效的Task",
+		"category": "怪物相关",
+		"richDescription": "播放怪物粒子特效，Tag{0}，结束时停止{1}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"ActivateAkEventTaskDelegate": {
+		"className": "ActivateAkEventTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "激活Ak事件Task",
+		"description": "激活Ak音效事件的Task",
+		"category": "音效相关",
+		"richDescription": "激活{0}音效事件",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"TaskTakeActionExDelegate": {
+		"className": "TaskTakeActionExDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "扩展动作Task",
+		"description": "在Task生命周期内执行动作",
+		"category": "基础动作",
+		"richDescription": "开始动作{0}，Tick动作{1}，结束动作{2}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"ActionOverTimeTaskDelegate": {
+		"className": "ActionOverTimeTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "定时动作Task",
+		"description": "定时执行动作的Task",
+		"category": "基础动作",
+		"richDescription": "每{0}秒执行{1}动作",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"BowgunModifyAmmoRechargeSpeedTaskDelegate": {
+		"className": "BowgunModifyAmmoRechargeSpeedTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "[仅Final可用]弩枪弹药充能速度Task",
+		"description": "修改重弩Skill3的弹药充能速度",
+		"category": "武器相关",
+		"richDescription": "{0}重弩Skill3的弹药充能速度加成",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"EventActionExTaskDelegate": {
+		"className": "EventActionExTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "事件动作Task",
+		"description": "事件触发时执行动作的Task",
+		"category": "基础动作",
+		"richDescription": "当{0}事件触发时执行{1}动作",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"ApplyBuffOnMasterCharacterTaskDelegate": {
+		"className": "ApplyBuffOnMasterCharacterTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "主人角色施加BuffTask",
+		"description": "向主人角色施加Buff的Task",
+		"category": "Buff相关",
+		"richDescription": "向主人角色施加{0}号Buff",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"CombatResourceChangeModificationTaskDelegate": {
+		"className": "CombatResourceChangeModificationTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "战斗资源变化修改Task",
+		"description": "修改战斗资源变化的Task",
+		"category": "属性相关",
+		"richDescription": "修改{0}战斗资源变化，加法{1}，乘法{2}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"AdventurerSkillDamageBuffDelegate": {
+		"className": "AdventurerSkillDamageBuffDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "冒险家技能伤害BuffTask",
+		"description": "冒险家技能伤害的Buff Task",
+		"category": "Buff相关",
+		"richDescription": "冒险家{0}技能伤害Buff，数值{1}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"EventCommonForwarderOnInteract": {
+		"className": "EventCommonForwarderOnInteract",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "玩家交互场景机关事件",
+		"description": "玩家与场景机关（采集点、炮台等）交互完成时触发",
+		"category": "交互事件",
+		"richDescription": "当玩家完成与场景机关的交互时触发此事件，可通过 Payload 获取 InteractID",
+		"author": "unknown",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventOnUseItemDelegate": {
+		"className": "EventOnUseItemDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "使用指定道具事件",
+		"description": "当玩家真实使用了指定道具时触发,支持按道具ID或道具类型ID过滤,若要按照道具ID过滤,填itemid;若要按照道具类型ID过滤,填typeid",
+		"category": "基础事件",
+		"richDescription": "当玩家成功使用道具，且匹配模式为{0}、目标ID为{1}时触发，延迟{2}秒",
+		"author": "jigxwang",
+		"baseClass": "EventDelegateEx"
+	},
+	"EventOnMovementDistanceDelegate": {
+		"className": "EventOnMovementDistanceDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "限时移动距离事件",
+		"description": "在指定时间窗口内，角色2D平面累计移动路程达到指定距离时触发",
+		"category": "基础事件",
+		"richDescription": "当角色在{0}秒内累计移动路程达到{1}米时触发事件",
+		"author": "jigxwang",
+		"baseClass": "EventDelegateEx"
+	},
+	"AdventurerMeleeWeaponStatusEffectInflictionProbabilityBuffDelegate": {
+		"className": "AdventurerMeleeWeaponStatusEffectInflictionProbabilityBuffDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "冒险家近战异常概率BuffTask",
+		"description": "冒险家近战武器异常状态施加概率Buff",
+		"category": "Buff相关",
+		"richDescription": "冒险家{0}异常施加概率Buff，数值{1}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"AdventurerDamageDealingBuffDelegate": {
+		"className": "AdventurerDamageDealingBuffDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "冒险家伤害输出Buff Task",
+		"description": "冒险家伤害输出的Buff Task",
+		"category": "Buff相关",
+		"richDescription": "冒险家伤害输出Buff，来源{0}，元素{1}，数值{2}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"AdventurerDamageDealingBuff": {
+		"className": "AdventurerDamageDealingBuff",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "冒险家伤害输出Buff",
+		"description": "冒险家伤害输出Buff简化版",
+		"category": "Buff相关",
+		"richDescription": "冒险家伤害输出Buff，来源{0}，数值{1}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"AddAttributeTaskFixedAtBeginning": {
+		"className": "AddAttributeTaskFixedAtBeginning",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "开始时以固定数值修饰属性",
+		"description": "开始时以固定数值修饰属性",
+		"category": "属性相关",
+		"richDescription": "以 {1} 的值来修饰属性因子 {0}",
+		"author": "jiannanchao",
+		"baseClass": "TaskDelegate"
+	},
+	"ModifyTemperatureTaskDelegate": {
+		"className": "ModifyTemperatureTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "修饰角色的温度",
+		"description": "修饰角色的温度",
+		"category": "生存相关",
+		"richDescription": "以 {1} 的值来修饰属性因子 {0}",
+		"author": "jiannanchao",
+		"baseClass": "TaskDelegate"
+	},
+	"AddFieldDurationModifierTaskDelegate": {
+		"className": "AddFieldDurationModifierTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "添加场地持续时间修改Task",
+		"description": "添加场地持续时间修改器的Task",
+		"category": "场地相关",
+		"richDescription": "为{0}号场地添加{1}秒持续时间",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"CombatResourceConsumptionBuildUpOrRestorationTaskDelegate": {
+		"className": "CombatResourceConsumptionBuildUpOrRestorationTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "战斗资源消耗累积或恢复Task",
+		"description": "战斗资源消耗累积或恢复的Task",
+		"category": "属性相关",
+		"richDescription": "{0}战斗资源累积/恢复{1}，间隔{2}秒",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"HandleDefaultSuccActionDelegate": {
+		"className": "HandleDefaultSuccActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "默认成功处理Action",
+		"description": "默认成功处理的Action",
+		"category": "基础动作",
+		"richDescription": "默认成功处理Action",
+		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"SendAdventurerTipsEventActionDelegate": {
+		"className": "SendAdventurerTipsEventActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "冒险家tips事件",
+		"description": "冒险家tips事件",
+		"category": "通用",
+		"richDescription": "AdventurerTipsID是对应AdventurerTipsTriggerSystemConfig表内的结构",
+		"author": "nackhuang",
+		"baseClass": "ActionDelegate"
+	},
+	"SendTutorialTipsUnlockEventActionDelegate": {
+		"className": "SendTutorialTipsUnlockEventActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "发送教程解锁提示Action",
+		"description": "发送教程解锁提示事件的Action",
+		"category": "通用",
+		"richDescription": "发送{0}教程解锁提示，延迟{1}秒",
+		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"OpenRedLightPopupActionDelegate": {
+		"className": "OpenRedLightPopupActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "打开红光预警窗Action",
+		"description": "打开红光（攻击预警）弹窗（内部含未来不再提示/今日已弹的门禁判断）",
+		"category": "教程",
+		"richDescription": "打开红光预警弹窗",
+		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"CheckConditionTickActionDelegate": {
+		"className": "CheckConditionTickActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测条件Tick Action",
+		"description": "定时检测条件并执行动作",
+		"category": "基础动作",
+		"richDescription": "每{3}秒检测条件，成功{0}，最多{4}秒",
+		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"BoolValueCheckAttackerAdventureDelegate": {
+		"className": "BoolValueCheckAttackerAdventureDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查攻击者冒险家",
+		"description": "检查攻击者是否为指定冒险家",
+		"category": "战斗相关",
+		"richDescription": "检查攻击者是否为{0}号冒险家，武器类型{1}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"BoolValueCheckAttackerHitTargetBodyPartDelegate": {
+		"className": "BoolValueCheckAttackerHitTargetBodyPartDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查攻击者命中部位",
+		"description": "检查攻击者是否命中指定部位",
+		"category": "战斗相关",
+		"richDescription": "检查攻击者是否命中{0}部位",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
 	"ChangeMonsterStiffnessDuration_ActionDelegate": {
 		"className": "ChangeMonsterStiffnessDuration_ActionDelegate",
 		"isDelegate": true,
@@ -4170,6 +5239,1655 @@
 		"author": "unknown",
 		"baseClass": "ActionDelegate"
 	},
+	"MonsterLockHealth_ActionDelegate": {
+		"className": "MonsterLockHealth_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "怪物锁血",
+		"description": "锁定/解锁怪物血量，bLock为true时锁血，为false时解锁",
+		"category": "怪物相关",
+		"richDescription": "怪物锁血: {0}",
+		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"AtomCheckAnyGuideRunning_BoolValueDelegate": {
+		"className": "AtomCheckAnyGuideRunning_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {
+			"0": {
+				"key": "GuideID",
+				"label": "GuideID",
+				"type": "string",
+				"description": "检测指定GuideID是否正在运行，不填则检测是否有引导在运行"
+			}
+		},
+		"displayName": "CheckAnyGuideRunning",
+		"description": "检测是否有引导正在进行",
+		"category": "世界活动",
+		"richDescription": "检测是否有引导正在进行",
+		"author": "kimisouyang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"AtomCheckSceneType_BoolValueDelegate": {
+		"className": "AtomCheckSceneType_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {
+			"0": {
+				"key": "SceneType",
+				"label": "SceneType",
+				"type": "string",
+				"description": "参考api.ENMSceneSubType"
+			}
+		},
+		"displayName": "CheckSceneType",
+		"description": "检测是否处于指定场景",
+		"category": "世界活动",
+		"richDescription": "检测是否处于指定场景",
+		"author": "kimisouyang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"AtomCheckSettingAttackWarnOpen_BoolValueDelegate": {
+		"className": "AtomCheckSettingAttackWarnOpen_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "CheckSettingAttackWarnOpen",
+		"description": "检测设置系统怪物预警是否开启",
+		"category": "世界活动",
+		"richDescription": "检测设置系统怪物预警是否开启",
+		"author": "kimisouyang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"OpenSingleWorldTeammateCombineSkillShotSetting_BoolValueDelegate": {
+		"className": "OpenSingleWorldTeammateCombineSkillShotSetting_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "开启单人模式下队友奥义特写",
+		"description": "用于判断是否开启单人模式下队友奥义特写",
+		"category": "冒险家",
+		"richDescription": "用于判断是否开启单人模式下队友奥义特写",
+		"author": "bondhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"AtomCheckQuestIsFinished_BoolValueDelegate": {
+		"className": "AtomCheckQuestIsFinished_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "CheckQuestIsFinished",
+		"description": "检测大世界指定任务是否完成",
+		"category": "世界活动",
+		"richDescription": "检测大世界指定任务是否完成",
+		"author": "kimisouyang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"EquippedWeaponHasDamageType_BoolValueDelegate": {
+		"className": "EquippedWeaponHasDamageType_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "当前装备的武器是否有属性",
+		"description": "当前装备的武器是否有属性（水，火，龙等）",
+		"category": "武器相关",
+		"richDescription": "当前装备的武器是否有属性（水，火，龙等）",
+		"author": "nackhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CS_TemperatureTypeChanged_EventDelegateEx": {
+		"className": "CS_TemperatureTypeChanged_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "环境温度变化事件",
+		"description": "当环境温度产生变化时触发事件",
+		"category": "Player",
+		"richDescription": "当环境温度产生变化时触发事件",
+		"author": "naraseli",
+		"triggerSide": "Both",
+		"baseClass": "EventDelegateEx"
+	},
+	"GetAmbientTemperature_NumberValueDelegate": {
+		"className": "GetAmbientTemperature_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取当前玩家所处的环境温度",
+		"description": "获取当前玩家所处的环境的温度值",
+		"category": "Player",
+		"richDescription": "获取当前玩家所处的环境的温度值",
+		"author": "naraseli",
+		"baseClass": "NumberValueDelegate"
+	},
+	"HammerSteamPressurize_ActionDelegate": {
+		"className": "HammerSteamPressurize_ActionDelegate",
+		"isDelegate": true,
+		"fields": {
+			"0": {
+				"key": "EnergyToConsume",
+				"label": "消耗的能量",
+				"type": "string"
+			},
+			"1": {
+				"key": "Efficiency",
+				"label": "转换效率",
+				"type": "string",
+				"description": "转换的压力 = 消耗的能量 * 转换效率"
+			},
+			"2": {
+				"key": "bClampToAvailable",
+				"label": "是否尽力转换",
+				"type": "string",
+				"description": "当可用能量未达到目标能量时，是否允许部分转换"
+			}
+		},
+		"displayName": "骨锤龙大锤蒸气转换",
+		"description": "骨锤龙大锤蒸气转换",
+		"category": "战斗",
+		"richDescription": "骨锤龙大锤蒸气转换",
+		"author": "cevolvecui",
+		"baseClass": "ActionDelegate"
+	},
+	"C_OnCaxeModeChanged_EventDelegateEx": {
+		"className": "C_OnCaxeModeChanged_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {
+			"0": {
+				"key": "ModeChangeType",
+				"label": "形态变化方向",
+				"type": "string",
+				"description": "0为剑变斧，1为斧变剑"
+			}
+		},
+		"displayName": "盾斧形态变化事件",
+		"description": "盾斧在剑形态和斧形态之间转换时触发的事件",
+		"category": "武器相关",
+		"richDescription": "当盾斧发生{0}时触发（0=剑变斧，1=斧变剑）",
+		"author": "Kiritoxia",
+		"triggerSide": "Client",
+		"baseClass": "EventDelegateEx"
+	},
+	"FengPiaoLongGongPlayTimeOutEffect_ActionDelegate": {
+		"className": "FengPiaoLongGongPlayTimeOutEffect_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "风漂龙弓残留箭矢超时消失特效",
+		"description": "遍历目标残留标记buff读取锁定点CV，在各锁定点Spawn消失特效后Destroy所有残留箭矢",
+		"category": "战斗相关",
+		"richDescription": "读取BuffID为{0}的残留标记锁定点，播放{1}号消失特效，Destroy SummonConfigID={2}的箭矢",
+		"author": "umaruluo",
+		"baseClass": "ActionDelegate"
+	},
+	"FengPiaoLongGongDealDamageToRemainingArrow_ActionDelegate": {
+		"className": "FengPiaoLongGongDealDamageToRemainingArrow_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "风漂龙弓引爆残留箭矢",
+		"description": "遍历目标残留标记buff读取锁定点CV，Remove buff后Destroy箭矢，按间隔对各锁定点执行BuffHit伤害",
+		"category": "战斗相关",
+		"richDescription": "引爆目标身上BuffID为{0}的残留标记，Destroy SummonConfigID={1}的箭矢，按{2}号BuffHit配置以{3}秒间隔对各锁定点造成伤害",
+		"author": "umaruluo",
+		"baseClass": "ActionDelegate"
+	},
+	"CS_MonsterPartBroken_EventDelegateEx": {
+		"className": "CS_MonsterPartBroken_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {
+			"0": {
+				"key": "BodyPart",
+				"label": "部位名称",
+				"type": "string",
+				"description": "BreakablePart表中的部位名称"
+			}
+		},
+		"displayName": "龙的指定部位被破坏事件",
+		"description": "龙的指定部位被破坏时触发的双端事件",
+		"category": "怪物事件",
+		"richDescription": "当龙的{0}部位被破坏时触发事件",
+		"author": "edwardynsun",
+		"triggerSide": "Both",
+		"baseClass": "EventDelegateEx"
+	},
+	"IsBuffRemovedByReason_BoolValueDelegate": {
+		"className": "IsBuffRemovedByReason_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "判断Buff移除原因",
+		"description": "判断PreBuffRemoved事件中的移除原因是否匹配指定枚举值",
+		"category": "Buff相关",
+		"richDescription": " Buff移除原因是否为{0}",
+		"author": "umaruluo",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CS_PreBuffRemoved_EventDelegateEx": {
+		"className": "CS_PreBuffRemoved_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "Buff即将被移除事件",
+		"description": "某个Buff即将被移除前的事件，支持按BuffId过滤",
+		"category": "Buff相关",
+		"richDescription": "BuffId为{0}的Buff即将被移除时的事件",
+		"author": "umaruluo",
+		"triggerSide": "Both",
+		"baseClass": "EventDelegateEx"
+	},
+	"CollectSkillHitToCustomValue_TaskDelegate": {
+		"className": "CollectSkillHitToCustomValue_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "对某个技能的Hit计数并保存到CustomValue中",
+		"description": "对某个技能的Hit计数并保存到CustomValue中",
+		"category": "CustomValue相关",
+		"richDescription": "对AbilityConfigID={0}的技能中的所有打击盒命中进行计数，并保存到Key={1}的CustomValue中",
+		"author": "emiljqchen",
+		"triggerSide": "Both",
+		"baseClass": "TaskDelegate"
+	},
+	"DestroySummonsByConfigId_ActionDelegate": {
+		"className": "DestroySummonsByConfigId_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "摧毁指定ID召唤物",
+		"description": "按SummonConfigID摧毁指定召唤物，可按来源过滤",
+		"category": "召唤物相关",
+		"richDescription": "摧毁ConfigID为{0}的召唤物",
+		"author": "umaruluo",
+		"baseClass": "ActionDelegate"
+	},
+	"C_CombatResourceConsumptionBefore_EventDelegateEx": {
+		"className": "C_CombatResourceConsumptionBefore_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "战斗资源消耗前事件",
+		"description": "指定战斗资源一次性消耗计算前触发的事件",
+		"category": "战斗事件",
+		"richDescription": "{0}类型战斗资源一次性消耗计算前触发事件",
+		"author": "Kiritoxia",
+		"triggerSide": "Client",
+		"baseClass": "EventDelegateEx"
+	},
+	"HuxiaoSurroundControllerTask_TaskDelegate": {
+		"className": "HuxiaoSurroundControllerTask_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "小狐枭旋转控制task",
+		"description": "用于控制小狐枭围绕旋转的task",
+		"category": "随从相关",
+		"richDescription": "用于控制小狐枭围绕角色旋转的task，需要传入旋转半径以及围绕对象",
+		"author": "bondhao",
+		"baseClass": "TaskDelegate"
+	},
+	"CustomSroundTargetTask_TaskDelegate": {
+		"className": "CustomSroundTargetTask_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "CustomSroundTargetTask",
+		"description": "可自定义的围绕目标旋转的Task",
+		"category": "随从相关",
+		"richDescription": "可自定义的围绕目标旋转的Task需要填充：是否有入场特效、入场特效路径、是否有环绕动画、环绕动画蓝图路径、是否有退场特效、退场特效路径、环绕半径、环绕中心目标、环绕数量总数目、旋转角速度",
+		"author": "bondhao",
+		"baseClass": "TaskDelegate"
+	},
+	"GetAtkBulletConfigID_NumberValueDelegate": {
+		"className": "GetAtkBulletConfigID_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取攻击参数BulletConfigID",
+		"description": "获取当前攻击参数中的BulletConfigID",
+		"category": "战斗相关",
+		"richDescription": "返回AtkArgs.Runtime.BulletConfigID的值",
+		"author": "umaruluo",
+		"baseClass": "NumberValueDelegate"
+	},
+	"IsCurrentGunLanceClipEmpty_BoolValueDelegate": {
+		"className": "IsCurrentGunLanceClipEmpty_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "IsCurrentGunLanceClipEmpty",
+		"description": "判断铳枪弹夹是否为空",
+		"category": "冒险家",
+		"richDescription": "判断铳枪弹夹是否为空",
+		"author": "bondhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"GunLanceShouldReload_BoolValueDelegate": {
+		"className": "GunLanceShouldReload_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "GunLanceShouldReload",
+		"description": "用于判断铳枪弹药是否需要重新填装",
+		"category": "冒险家",
+		"richDescription": "用于判断铳枪弹药是否需要重新填装",
+		"author": "bondhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"MonsterUIShakeAnim_ActionDelegate": {
+		"className": "MonsterUIShakeAnim_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "怪物UI抖动",
+		"description": "怪物UI抖动",
+		"category": "怪物相关",
+		"richDescription": "怪物UI抖动",
+		"author": "jevenZhao",
+		"baseClass": "ActionDelegate"
+	},
+	"RemoveBuffOnAbilityEnd_TaskDelegate": {
+		"className": "RemoveBuffOnAbilityEnd_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "技能结束时移除Buff",
+		"description": "技能结束时直接移除当前Buff或指定ID的Buff，不经过EventConditionAction",
+		"category": "Buff相关",
+		"richDescription": "技能结束时移除{0}（Self表示当前Buff）",
+		"author": "Kiritoxia",
+		"baseClass": "TaskDelegate"
+	},
+	"ApplyBuffOnAbilityBegin_TaskDelegate": {
+		"className": "ApplyBuffOnAbilityBegin_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "技能开始时施加Buff",
+		"description": "技能开始时向指定目标施加指定Buff",
+		"category": "Buff相关",
+		"richDescription": "技能开始时向{1}目标施加{0}号Buff（仅服务端）",
+		"author": "Kiritoxia",
+		"baseClass": "TaskDelegate"
+	},
+	"ModifyCharacterAttributeOnAbilityBegin_TaskDelegate": {
+		"className": "ModifyCharacterAttributeOnAbilityBegin_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "技能开始时修改角色属性",
+		"description": "任意普通技能开始时增加当前角色的指定属性值",
+		"category": "角色相关",
+		"richDescription": "技能开始时增加当前角色{0}属性{1}（仅服务端）",
+		"author": "Kiritoxia",
+		"baseClass": "TaskDelegate"
+	},
+	"DeclareBoolCustomValueAbilityFlag_TaskDelegate": {
+		"className": "DeclareBoolCustomValueAbilityFlag_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "声明技能标记位",
+		"description": "Buff存在期间于技能释放前为该角色的技能声明一个Bool标记位；第二个参数为写入值，可填 true/false，缺省 false；第三个参数为是否按连招传递，缺省 false；第四个参数为写入概率，取 0-1 之间的小数（如 0.5 表示五成概率），缺省必定写入",
+		"category": "技能相关",
+		"richDescription": "Buff期间于技能释放前为技能声明{0}标记位（写入值{1}，缺省false；按连招传递{2}，缺省false；概率{3}，缺省必定写入）",
+		"author": "Kiritoxia",
+		"baseClass": "TaskDelegate"
+	},
+	"PreDeclareBoolCustomValueAbilityFlag_TaskDelegate": {
+		"className": "PreDeclareBoolCustomValueAbilityFlag_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "技能释放前声明技能标记位",
+		"description": "Buff存在期间在技能释放前为该角色的技能声明一个Bool标记位；第二个参数为写入值，可填 true/false，缺省 false；第三个参数为是否按连招传递，缺省 false；第四个参数为写入概率，取 0-1 之间的小数（如 0.5 表示五成概率），缺省必定写入",
+		"category": "技能相关",
+		"richDescription": "技能释放前为技能声明{0}标记位（写入值{1}，缺省false；按连招传递{2}，缺省false；概率{3}，缺省必定写入）",
+		"author": "Kiritoxia",
+		"baseClass": "TaskDelegate"
+	},
+	"BeginDeclareBoolCustomValueAbilityFlag_TaskDelegate": {
+		"className": "BeginDeclareBoolCustomValueAbilityFlag_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "技能开始时声明技能标记位",
+		"description": "Buff存在期间在技能开始时为该技能声明一个Bool标记位；第二个参数为写入值，可填 true/false，缺省 false；第三个参数为是否按连招传递，缺省 false；第四个参数为写入概率，取 0-1 之间的小数（如 0.5 表示五成概率），缺省必定写入",
+		"category": "技能相关",
+		"richDescription": "技能开始时为技能声明{0}标记位（写入值{1}，缺省false；按连招传递{2}，缺省false；概率{3}，缺省必定写入）",
+		"author": "Kiritoxia",
+		"baseClass": "TaskDelegate"
+	},
+	"EndDeclareBoolCustomValueAbilityFlag_TaskDelegate": {
+		"className": "EndDeclareBoolCustomValueAbilityFlag_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "技能结束后声明技能标记位",
+		"description": "Buff存在期间在技能结束后为该技能声明一个Bool标记位；第二个参数为写入值，可填 true/false，缺省 false；第三个参数为是否按连招传递，缺省 false；第四个参数为写入概率，取 0-1 之间的小数（如 0.5 表示五成概率），缺省必定写入",
+		"category": "技能相关",
+		"richDescription": "技能结束后为技能声明{0}标记位（写入值{1}，缺省false；按连招传递{2}，缺省false；概率{3}，缺省必定写入）",
+		"author": "Kiritoxia",
+		"baseClass": "TaskDelegate"
+	},
+	"DealDamageToLockpointPart_ActionDelegate": {
+		"className": "DealDamageToLockpointPart_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "按锁定点部位造成伤害",
+		"description": "按锁定点枚举和BuffHit配置对怪物对应部位造成伤害",
+		"category": "战斗相关",
+		"richDescription": "按锁定点枚举{0}、BuffHit配置{1}对目标施加伤害（走动作值公式，特效+音效由HitEffectType驱动）",
+		"author": "umaruluo",
+		"baseClass": "ActionDelegate"
+	},
+	"PetCheckEnemyState_BoolValueDelegate": {
+		"className": "PetCheckEnemyState_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {
+			"0": {
+				"key": "StateName",
+				"label": "状态名称",
+				"type": "string",
+				"description": "该状态名称可以在MonsterBuffStateDescription.xlsx中查询"
+			}
+		},
+		"displayName": "PetCheckEnemyState",
+		"description": "随从用来检测敌人当前处于的状态",
+		"category": "随从相关",
+		"richDescription": "随从用来检测敌人当前处于的状态,string类型为状态名称，当怪物处于对应的状态返回true",
+		"author": "bondhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CanFireDragonWyvernFire_BoolValueDelegate": {
+		"className": "CanFireDragonWyvernFire_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "CanFireDragonWyvernFire",
+		"description": "检测是否可以释放龙击弹",
+		"category": "战斗",
+		"richDescription": "检测是否可以释放龙击弹，要求龙热值与cd同时达标，支持蓄力时调用",
+		"author": "bondhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckFieldHasTracingActors_BoolValueDelegate": {
+		"className": "CheckFieldHasTracingActors_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测法术场中是否包含有效目标",
+		"description": "检测当前法术场中是否包含有效目标",
+		"category": "怪物",
+		"richDescription": "检测法术场中是否包含有效目标",
+		"author": "jevenZhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"GetCaxeChargePhialsBNum_NumberValueDelegate": {
+		"className": "GetCaxeChargePhialsBNum_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取盾斧上次充填的B瓶子数量",
+		"description": "获取盾斧上次充填的B瓶子数量",
+		"category": "武器相关",
+		"richDescription": "获取盾斧上次充填的B瓶子数量",
+		"author": "nackhuang",
+		"baseClass": "NumberValueDelegate"
+	},
+	"GetCaxeChargePhialsANum_NumberValueDelegate": {
+		"className": "GetCaxeChargePhialsANum_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取盾斧上次充填的A瓶子数量",
+		"description": "获取盾斧上次充填的A瓶子数量",
+		"category": "武器相关",
+		"richDescription": "获取盾斧上次充填的A瓶子数量",
+		"author": "nackhuang",
+		"baseClass": "NumberValueDelegate"
+	},
+	"GetCaxeChargePhialsNum_NumberValueDelegate": {
+		"className": "GetCaxeChargePhialsNum_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取盾斧上次充填的瓶子数量",
+		"description": "获取盾斧上次充填的瓶子数量",
+		"category": "武器相关",
+		"richDescription": "获取盾斧上次充填的瓶子数量",
+		"author": "nackhuang",
+		"baseClass": "NumberValueDelegate"
+	},
+	"IsNextAmmoSilver_BoolValueDelegate": {
+		"className": "IsNextAmmoSilver_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "浮空龙重弩下一发子弹是否SilverBullet",
+		"description": "返回浮空龙重弩下一发子弹是否SilverBullet，目前设计每3发普攻就发射1发强化子弹",
+		"category": "冒险家机制",
+		"richDescription": "返回浮空龙重弩下一发子弹是否SilverBullet，目前设计每3发普攻就发射1发强化子弹",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
+		"baseClass": "BoolValueDelegate"
+	},
+	"GetPhialBValue_NumberValueDelegate": {
+		"className": "GetPhialBValue_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "盾斧获取B瓶子的数量",
+		"description": "盾斧获取B瓶的数量",
+		"category": "冒险家机制",
+		"richDescription": "盾斧获取B瓶的数量",
+		"author": "nackhuang",
+		"baseClass": "NumberValueDelegate"
+	},
+	"GetPhialAValue_NumberValueDelegate": {
+		"className": "GetPhialAValue_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "盾斧获取A瓶子的数量",
+		"description": "盾斧获取A瓶子的数量",
+		"category": "冒险家机制",
+		"richDescription": "盾斧获取A瓶子的数量",
+		"author": "nackhuang",
+		"baseClass": "NumberValueDelegate"
+	},
+	"ConsumeCaxePhialsValue_ActionDelegate": {
+		"className": "ConsumeCaxePhialsValue_ActionDelegate",
+		"isDelegate": true,
+		"fields": {
+			"0": {
+				"key": "Value",
+				"label": "消耗数量",
+				"type": "string",
+				"description": "消耗数量，只可<0"
+			},
+			"1": {
+				"key": "bAddtionToBase",
+				"label": "是否按照附加值修改",
+				"type": "string",
+				"description": "true的话Value的含义就是添加，否则则是覆盖"
+			}
+		},
+		"displayName": "盾斧消耗瓶子原子，只适用双瓶冒险家",
+		"description": "盾斧消耗瓶子原子，只适用双瓶冒险家，单瓶冒险家直接修改Atrribute即可",
+		"category": "武器相关",
+		"richDescription": "盾斧消耗瓶子原子，只适用双瓶冒险家",
+		"author": "nackhuang",
+		"baseClass": "ActionDelegate"
+	},
+	"CheckSkillGroupID_BoolValueDelegate": {
+		"className": "CheckSkillGroupID_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "根据InputAction检查SkillGroupID",
+		"description": "根据InputAction检查SkillGroupID",
+		"category": "输入",
+		"richDescription": "根据InputAction检查SkillGroupID",
+		"author": "sharkgao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckHitTargetBodyPartIsInSet_BoolValueDelegate": {
+		"className": "CheckHitTargetBodyPartIsInSet_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查攻击部位是否在给定集合内",
+		"description": "检查攻击部位是否在给定集合内",
+		"category": "战斗相关",
+		"richDescription": "检查攻击部位是否在给定集合内",
+		"author": "nackhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckCaxeIsRedAxe_BoolValueDelegate": {
+		"className": "CheckCaxeIsRedAxe_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测盾斧是否处于红斧状态",
+		"description": "检测盾斧是否处于红斧状态",
+		"category": "武器相关",
+		"richDescription": "检测盾斧是否处于红斧状态",
+		"author": "nackhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"IsCaxeInAxeMode_BoolValueDelegate": {
+		"className": "IsCaxeInAxeMode_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取盾斧是否处于斧模式",
+		"description": "获取盾斧是否处于斧模式",
+		"category": "武器相关",
+		"richDescription": "获取盾斧是否处于斧模式",
+		"author": "nackhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckCaxeIsRedShield_BoolValueDelegate": {
+		"className": "CheckCaxeIsRedShield_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测当前盾斧是否处于红盾状态",
+		"description": "检测当前盾斧是否处于红盾状态",
+		"category": "武器相关",
+		"richDescription": "检测当前盾斧是否处于红盾状态",
+		"author": "nackhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"HbgShouldReload_BoolValueDelegate": {
+		"className": "HbgShouldReload_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "HbgShouldReload",
+		"description": "是否应该装填（弹夹不满且仍有多的弹药储备）",
+		"category": "武器相关",
+		"richDescription": "是否应该装填（弹夹不满且仍有多的弹药储备）",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
+		"baseClass": "BoolValueDelegate"
+	},
+	"OnMonsterStateTransfer_EventDelegateEx": {
+		"className": "OnMonsterStateTransfer_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "监听怪物BuffState或硬直",
+		"description": "监听怪物BuffState或硬直，映射AtomTransfer表",
+		"category": "怪物事件",
+		"richDescription": "监听怪物BuffState或硬直",
+		"author": "jevenZhao",
+		"triggerSide": "Server",
+		"baseClass": "EventDelegateEx"
+	},
+	"ModifyHitzoneFactors_ActionDelegate": {
+		"className": "ModifyHitzoneFactors_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "修改攻击命中肉质计算修饰因子",
+		"description": "修改攻击命中肉质计算修饰因子",
+		"category": "攻击",
+		"richDescription": "修改攻击命中肉质计算修饰因子",
+		"author": "sharkgao",
+		"baseClass": "ActionDelegate"
+	},
+	"IsAttackElementMonsterWeak_BoolValueDelegate": {
+		"className": "IsAttackElementMonsterWeak_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "是否攻击怪物弱点",
+		"description": "是否攻击怪物弱点",
+		"category": "攻击",
+		"richDescription": "是否攻击怪物弱点",
+		"author": "sharkgao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckEnterMotionState_BoolValueDelegate": {
+		"className": "CheckEnterMotionState_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "是否能进入 MotionState",
+		"description": "判断目标角色（默认 Payload Owner）是否满足进入指定 MotionState 的条件（PreCheck + 转移规则），仅查询，不会真的切换状态",
+		"category": "角色相关",
+		"richDescription": "判断{0}是否能进入 MotionState [{1}]（仅查询）",
+		"author": "auto",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckExitCurrentMotionState_BoolValueDelegate": {
+		"className": "CheckExitCurrentMotionState_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "当前 MotionState 是否满足退出条件",
+		"description": "判断目标角色（默认 Payload Owner）当前 MotionState 是否满足退出条件（要求当前 State 配置 bAutoExit 且 ExitCheck 通过），仅查询，不会真的退出",
+		"category": "角色相关",
+		"richDescription": "判断{0}当前 MotionState 是否满足退出条件（仅查询）",
+		"author": "auto",
+		"baseClass": "BoolValueDelegate"
+	},
+	"SkillConsumeHitChecker_TaskDelegate": {
+		"className": "SkillConsumeHitChecker_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "消耗资源型技能命中目标后才生效",
+		"description": "监听玩家技能释放（默认 FireAbilityEvent=BeginAbilityTag），通过 ExclusionFilter 排除（如 Dodge），若该技能配置了任一指定资源消耗（如 Stamina），按 SkillGroupID 分档启动 Duration 秒定时器；定时器期间监听 HitEvent（推荐 PreAffinity），首次命中锁定 AbilityUniqueID，后续命中只有同 SkillGroupID + 同 AbilityUniqueID 才执行 SuccessAction",
+		"category": "战斗",
+		"richDescription": "消耗资源型技能命中检测：定时{0}秒、排除{1}、释放事件{2}、命中事件{3}、命中时执行{4}、消耗类型{5}",
+		"author": "sharkgao",
+		"baseClass": "TaskDelegate"
+	},
+	"ConditionActionHitMonsterPartInSpan_ActionDelegate": {
+		"className": "ConditionActionHitMonsterPartInSpan_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "条件判断X秒内连续命中怪物同一个部位Y次",
+		"description": "条件判断X秒内连续命中怪物同一个部位Y次",
+		"category": "怪物",
+		"richDescription": "条件判断{1}秒内连续命中怪物同一个部位{0}次",
+		"author": "sharkgao",
+		"baseClass": "ActionDelegate"
+	},
+	"CheckSourceSkillConsume_BoolValueDelegate": {
+		"className": "CheckSourceSkillConsume_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "判断原始技能是否消耗过某个资源",
+		"description": "判断原始技能是否消耗过某个资源（比如Stamina、Renki）",
+		"category": "技能消耗",
+		"richDescription": "判断原始技能是否消耗过{0}",
+		"author": "sharkgao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"GetHbgClipRemain_NumberValueDelegate": {
+		"className": "GetHbgClipRemain_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "重弩当前弹夹剩余子弹数",
+		"description": "获取重弩当前弹夹剩余子弹数",
+		"category": "武器相关",
+		"richDescription": "获取重弩当前弹夹剩余子弹数",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
+		"baseClass": "NumberValueDelegate"
+	},
+	"CheckMonsterDropTail_BoolValueDelegate": {
+		"className": "CheckMonsterDropTail_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "CheckMonsterDropTail",
+		"description": "检测是否为指定怪物的断尾（支持多个ID）",
+		"category": "怪物",
+		"richDescription": "检测是否为{0}等指定怪物的断尾",
+		"author": "birdlin",
+		"baseClass": "BoolValueDelegate"
+	},
+	"ModifyTagPlayRate_ActionDelegate": {
+		"className": "ModifyTagPlayRate_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "ModifyTagPlayRate",
+		"description": "修改配置相应Tag的技能播放速度",
+		"category": "技能相关",
+		"richDescription": "修改配置相应Tag的技能播放速度，不同 ID为独立乘区，设置成0取消修改。为Tag \"{1}\" 标记的技能修改PlayRate，修改ID 为 {2}，速度*(1+{3}/10000)（是否为相对修改：{4}）",
+		"author": "cevolvecui",
+		"baseClass": "ActionDelegate"
+	},
+	"NumberSwitch_NumberValueDelegate": {
+		"className": "NumberSwitch_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "多条件数值选择",
+		"description": "按顺序依次检查条件，返回第一个满足条件对应的数值，所有条件不满足时返回默认值",
+		"category": "逻辑计算",
+		"richDescription": "依次检查Conditions等条件，返回第一个满足条件对应的数值，均不满足则返回{0}",
+		"author": "umaruluo",
+		"baseClass": "NumberValueDelegate"
+	},
+	"CheckIsRGShieldState_BoolValueDelegate": {
+		"className": "CheckIsRGShieldState_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测融光护盾",
+		"description": "检测受击部位是否是融光护盾",
+		"category": "怪物事件",
+		"richDescription": "检测受击部位是否是融光护盾",
+		"author": "jevenZhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CompareSummonDestroyReason_BoolValueDelegate": {
+		"className": "CompareSummonDestroyReason_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "CompareSummonDestroyReason",
+		"description": "对比召唤物销毁的原因",
+		"category": "召唤物相关",
+		"richDescription": "对比召唤物销毁的原因",
+		"author": "birdlin",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckMonsterChanLevelChange_BoolValueDelegate": {
+		"className": "CheckMonsterChanLevelChange_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测缠等级变化",
+		"description": "怪物缠值等级变化检测",
+		"category": "怪物相关",
+		"richDescription": "怪物缠值等级变化检测",
+		"author": "birdlin",
+		"baseClass": "BoolValueDelegate"
+	},
+	"OnEnterAggroMonster_EventDelegateEx": {
+		"className": "OnEnterAggroMonster_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "怪物入战事件",
+		"description": "怪物入战事件",
+		"category": "怪物事件",
+		"richDescription": "怪物入战事件",
+		"author": "jevenZhao",
+		"triggerSide": "Server",
+		"baseClass": "EventDelegateEx"
+	},
+	"IsLocalMainControlPlayer_BoolValueDelegate": {
+		"className": "IsLocalMainControlPlayer_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "判断是否为本地主控角色",
+		"description": "判断buff者本身是否为本地主控角色",
+		"category": "冒险家",
+		"richDescription": "判断buff者本身是否为本地主控角色，如果是的话返回true，反之返回false",
+		"author": "bondhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"ActorDitherOpacityLowerThan_BoolValueDelegate": {
+		"className": "ActorDitherOpacityLowerThan_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "3PAI队友透明度低于设置值",
+		"description": "判断指定Actor当前由DitherManager设置的透明度是否低于阈值",
+		"category": "相机相关",
+		"richDescription": "判断{0}当前由DitherManager设置的透明度是否低于{1}",
+		"author": "nolanyzhang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"ActorOutOfScreen_BoolValueDelegate": {
+		"className": "ActorOutOfScreen_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "Actor是否在屏幕外",
+		"description": "判断指定Actor是否处于当前镜头屏幕外",
+		"category": "相机相关",
+		"richDescription": "判断{0}是否处于当前镜头屏幕外",
+		"author": "nolanyzhang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"ActorBlockedByMonsterFromMainPlayer_BoolValueDelegate": {
+		"className": "ActorBlockedByMonsterFromMainPlayer_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "Actor和镜头之间是否被怪物阻挡",
+		"description": "判断Owner与主控相机之间是否有怪物阻挡",
+		"category": "镜头相关",
+		"richDescription": "判断Owner与主控相机之间是否有怪物阻挡",
+		"author": "nolanyzhang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"HbgReloadClipByAmmoId_ActionDelegate": {
+		"className": "HbgReloadClipByAmmoId_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "按AmmoId装填弹夹",
+		"description": "装填指定AmmoId的弹夹，不关心当前装备的是否是此AmmoId",
+		"category": "武器相关",
+		"richDescription": "装填AmmoId = {0}的弹夹，不关心当前装备的是否是此AmmoId",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
+		"baseClass": "ActionDelegate"
+	},
+	"CheckCurrentPlayingAction_BoolValueDelegate": {
+		"className": "CheckCurrentPlayingAction_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查当前播放的动作定型文",
+		"description": "检查当前播放的动作定型文",
+		"category": "角色相关",
+		"richDescription": "检查当前播放的动作定型文是否为{0}",
+		"author": "edwardynsun",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckCertainNPCPerform_BoolValueDelegate": {
+		"className": "CheckCertainNPCPerform_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "CheckCertainNPCPerform",
+		"description": "检查是不是指定的NPC正在播放指定的蒙太奇动画",
+		"category": "NPC",
+		"richDescription": "检查是不是指定的NPC正在播放指定的蒙太奇动画",
+		"author": "haooyyu",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckCertainNPC_BoolValueDelegate": {
+		"className": "CheckCertainNPC_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "CheckCertainNPC",
+		"description": "检查是不是指定的NPC",
+		"category": "NPC",
+		"richDescription": "检查是不是指定的NPC",
+		"author": "haooyyu",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckCurTODType_BoolValueDelegate": {
+		"className": "CheckCurTODType_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {
+			"0": {
+				"key": "CheckTODType",
+				"label": "TOD类型",
+				"type": "select",
+				"options": [
+					{
+						"label": "凌晨",
+						"value": 1
+					},
+					{
+						"label": "白天",
+						"value": 2
+					},
+					{
+						"label": "黄昏",
+						"value": 3
+					},
+					{
+						"label": "夜晚",
+						"value": 4
+					}
+				],
+				"description": "TOD类型"
+			}
+		},
+		"displayName": "检查当前TODType类型",
+		"description": "检查当前TODType类型（凌晨、白天、黄昏、黑夜），类型对应ENMTodType定义",
+		"category": "TOD",
+		"richDescription": "检查当前TODType类型是否为{0}",
+		"author": "sharkgao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"TODTypeChanged_EventDelegateEx": {
+		"className": "TODTypeChanged_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "TODType天气变化事件",
+		"description": "TODType天气变化事件",
+		"category": "TOD",
+		"richDescription": "TODType天气变化事件",
+		"author": "sharkgao",
+		"baseClass": "EventDelegateEx"
+	},
+	"CheckMonsterIsNotDuplicateInQuestPhotoDelegate_BoolValueDelegate": {
+		"className": "CheckMonsterIsNotDuplicateInQuestPhotoDelegate_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "拍照判断是否是重复UID怪物",
+		"description": "检查目标怪物的 UniqueStrID 是否未出现在指定任务（拍照去重 TakePhotoDistinct）的已拍摄列表中。返回 true 表示该怪物尚未被拍过（不重复），返回 false 表示已被拍过（重复）",
+		"category": "任务相关",
+		"richDescription": "判断{0}怪物的UniqueStrID 是否未在ID为{1}的任务的TakePhotoDistinct.photographed_ids 中（true=未被拍过/不重复）",
+		"author": "rrryrrhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"IsCurrentHbgAmmoEmpty_BoolValueDelegate": {
+		"className": "IsCurrentHbgAmmoEmpty_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "重弩是否有弹药",
+		"description": "重弩是否有弹药，返回Gunpowder是否大于等于当前子弹的PowderCost",
+		"category": "武器相关",
+		"richDescription": "重弩是否有弹药，返回Gunpowder是否大于等于当前子弹的PowderCost",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
+		"baseClass": "BoolValueDelegate"
+	},
+	"IsCurrentHbgClipEmpty_BoolValueDelegate": {
+		"className": "IsCurrentHbgClipEmpty_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "重弩当前弹夹是否空",
+		"description": "重弩当前弹夹是否空",
+		"category": "武器相关",
+		"richDescription": "重弩当前弹夹是否空",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckStiffnessIsLock_BoolValueDelegate": {
+		"className": "CheckStiffnessIsLock_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测硬直是否处于锁定状态",
+		"description": "检测指定怪物的指定硬直类型是否被锁定（Monster 留空时取owner）",
+		"category": "怪物",
+		"richDescription": "检测{1}怪物的{0}硬直是否处于锁定状态",
+		"author": "jevenZhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"OpenCombinSkillShotSetting_BoolValueDelegate": {
+		"className": "OpenCombinSkillShotSetting_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "打开奥义镜头特写",
+		"description": "判断是否打开奥义镜头特写开关",
+		"category": "冒险家",
+		"richDescription": "判断是否打开奥义镜头特写开关，如果打开则返回True",
+		"author": "bondhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"SkillWheelSelectAbilityResult_BoolValueDelegate": {
+		"className": "SkillWheelSelectAbilityResult_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "重弩轮盘弹药选择",
+		"description": "重弩弹药轮盘选择结果",
+		"category": "角色相关",
+		"richDescription": "重弩弹药轮盘选择结果，如果与{0}相同则返回true，反之返回false",
+		"author": "bondhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"GetHbgReloadLevel_NumberValueDelegate": {
+		"className": "GetHbgReloadLevel_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取重弩Reload级别",
+		"description": "获取重弩Reload级别, 1-4分别是Fast,Normal,Slow,VerySlow",
+		"category": "武器相关",
+		"richDescription": "获取重弩Reload级别, 1-4分别是Fast,Normal,Slow,VerySlow",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
+		"baseClass": "NumberValueDelegate"
+	},
+	"GetHbgCurrentAmmoType_NumberValueDelegate": {
+		"className": "GetHbgCurrentAmmoType_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取重弩当前子弹类别",
+		"description": "获取重弩当前子弹类别，1-4分别是 一般, 迫击, 速射, 龙击",
+		"category": "武器相关",
+		"richDescription": "获取重弩当前子弹类别，1-4分别是 一般, 迫击, 速射, 龙击",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
+		"baseClass": "NumberValueDelegate"
+	},
+	"HammerChangeChargingStage_ActionDelegate": {
+		"className": "HammerChangeChargingStage_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "修改大锤蓄力阶段",
+		"description": "修改大锤蓄力阶段",
+		"category": "战斗",
+		"richDescription": "修改大锤蓄力阶段",
+		"author": "cevolvecui",
+		"baseClass": "ActionDelegate"
+	},
+	"ActorDeleteTags_ActionDelegate": {
+		"className": "ActorDeleteTags_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "删除Actor身上的Tags",
+		"description": "删除Actor身上的Tags",
+		"category": "通用",
+		"richDescription": "删除Actor身上的Tags",
+		"author": "nackhuang",
+		"baseClass": "ActionDelegate"
+	},
+	"GetHbgRecoilLevel_NumberValueDelegate": {
+		"className": "GetHbgRecoilLevel_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取重弩Recoil级别",
+		"description": "获取重弩Recoil级别，1-4分别是Low,Average,High,VeryHigh",
+		"category": "武器相关",
+		"richDescription": "获取重弩Recoil级别，1-4分别是Low,Average,High,VeryHigh",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
+		"baseClass": "NumberValueDelegate"
+	},
+	"OnBattleStateChange_EventDelegateEx": {
+		"className": "OnBattleStateChange_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "OnBattleStateChange",
+		"description": "角色战斗状态切换事件",
+		"category": "角色状态",
+		"richDescription": "当角色战斗状态切换的时候触发该事件，其中True为进入战斗触发，Flase为离开战斗触发",
+		"author": "bondhao",
+		"triggerSide": "Both",
+		"baseClass": "EventDelegateEx"
+	},
+	"GetAttributeChangeDelta_NumberValueDelegate": {
+		"className": "GetAttributeChangeDelta_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "GetAttributeChangeDelta",
+		"description": "获取到属性变化的变化量",
+		"category": "战斗数值",
+		"richDescription": "该接口返回属性变化值的变化量,要求上下文必须有属性变化值",
+		"author": "bondhao",
+		"baseClass": "NumberValueDelegate"
+	},
+	"ChangeHbgBulletType_ActionDelegate": {
+		"className": "ChangeHbgBulletType_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "切换重弩弹药类型",
+		"description": "切换重弩弹药类型，0为通常弹，1为强力弹，2为特殊技能弹药",
+		"category": "武器相关",
+		"richDescription": "切换重弩弹药类型，0为通常弹，1为强力弹，2为特殊技能弹药",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
+		"baseClass": "ActionDelegate"
+	},
+	"AttackingWeakPart_BoolValueDelegate": {
+		"className": "AttackingWeakPart_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "AttackingWeakPart",
+		"description": "命中怪物弱点",
+		"category": "战斗事件",
+		"richDescription": "如果命中怪物弱点则返回true反之返回false",
+		"author": "bondhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"SelectHbgStandbyAmmoId_ActionDelegate": {
+		"className": "SelectHbgStandbyAmmoId_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "选择重弩待机弹药",
+		"description": "选择重弩待机弹药的AmmoId，支持通常弹药和强力弹药",
+		"category": "武器相关",
+		"richDescription": "选择重弩待机弹药的AmmoId为{1}，{0} = 0表示通常弹药，{0}=1表示强力弹药",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
+		"baseClass": "ActionDelegate"
+	},
+	"GetHbgCurrentAmmoId_NumberValueDelegate": {
+		"className": "GetHbgCurrentAmmoId_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取重弩当前子弹Id",
+		"description": "获取重弩当前子弹Id，返回Number",
+		"category": "武器相关",
+		"richDescription": "获取重弩当前子弹Id，返回数值，例如1001为通常弹",
+		"author": "emiljqchen",
+		"triggerSide": "Client",
+		"baseClass": "NumberValueDelegate"
+	},
+	"AddActorTags_ActionDelegate": {
+		"className": "AddActorTags_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "给对象添加Tag",
+		"description": "给对象添加Tag",
+		"category": "通用",
+		"richDescription": "给对象添加Tag",
+		"author": "nackhuang",
+		"baseClass": "ActionDelegate"
+	},
+	"AddProstrateEnergy_ActionDelegate": {
+		"className": "AddProstrateEnergy_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "增加救援能量",
+		"description": "增加救援能量",
+		"category": "治疗相关",
+		"richDescription": "增加救援能量",
+		"author": "nackhuang",
+		"baseClass": "ActionDelegate"
+	},
+	"SetBuffDuration_ActionDelegate": {
+		"className": "SetBuffDuration_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "设置Buff的Duration",
+		"description": "设置Buff的Duration，仅对BuffSource是本Buff持有者的Buff有效",
+		"category": "Buff相关",
+		"richDescription": "获取{1}的ID为{0}的Buff，筛选BuffSource为Self()的Buff并将其Duration设置为{3}",
+		"author": "emiljqchen",
+		"triggerSide": "Server",
+		"baseClass": "ActionDelegate"
+	},
+	"ExtendAllGoodBuffsRemainingTime_TaskDelegate": {
+		"className": "ExtendAllGoodBuffsRemainingTime_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "ExtendAllGoodBuffsRemainingTime",
+		"description": "延长所有增益Buff的时长",
+		"category": "Buff相关",
+		"richDescription": "延长所有增益Buff的时长，当{0} = 0时，增加现有时长的万分之{1}时长，当{0} = 1时，增加{1}时长。{2}为false时，只能延长一个增益Buff（默认为false）",
+		"author": "emiljqchen",
+		"triggerSide": "Server",
+		"baseClass": "TaskDelegate"
+	},
+	"GetWeaponCountInTeam_NumberValueDelegate": {
+		"className": "GetWeaponCountInTeam_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取小队里使用某种武器的人数",
+		"description": "获取小队里使用某种武器的人数",
+		"category": "角色相关",
+		"richDescription": "获取小队里使用某种武器的人数",
+		"author": "nackhuang",
+		"baseClass": "NumberValueDelegate"
+	},
+	"GetHammerChargeLevel_NumberValueDelegate": {
+		"className": "GetHammerChargeLevel_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "大锤蓄力等级(ChargeLevel)",
+		"description": "获取大锤蓄力等级(0 = 普通蓄力，1 = 刚蓄)",
+		"category": "战斗",
+		"richDescription": "获取大锤蓄力等级(0 = 普通蓄力，1 = 刚蓄)",
+		"author": "cevolvecui",
+		"baseClass": "NumberValueDelegate"
+	},
+	"GetSouA04ComboPlayRate_NumberValueDelegate": {
+		"className": "GetSouA04ComboPlayRate_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "大凶颚龙双刀连击倍率",
+		"description": "获取大凶颚龙双刀当前combo loop的播放倍率",
+		"category": "战斗",
+		"richDescription": "获取大凶颚龙双刀当前combo loop的播放倍率(默认1.0)",
+		"author": "umaruluo",
+		"baseClass": "NumberValueDelegate"
+	},
+	"CheckAttackParamsIsHealing_BoolValueDelegate": {
+		"className": "CheckAttackParamsIsHealing_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测Attack是否是回血Attack",
+		"description": "检测Attack是否是回血Attack",
+		"category": "战斗事件",
+		"richDescription": "检测Attack是否是回血Attack",
+		"author": "nackhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"IsInFreeTrainingScene_BoolValueDelegate": {
+		"className": "IsInFreeTrainingScene_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "判断是否在自由训练所",
+		"description": "判断是否在自由训练所",
+		"category": "通用",
+		"richDescription": "判断是否在自由训练所",
+		"author": "florethuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"IsHammerLockCharge_BoolValueDelegate": {
+		"className": "IsHammerLockCharge_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "大锤蓄力锁",
+		"description": "返回大锤是否处于蓄力锁定状态",
+		"category": "武器相关",
+		"richDescription": "返回大锤是否处于蓄力锁定状态",
+		"author": "emiljqchen",
+		"baseClass": "BoolValueDelegate"
+	},
+	"PetMasterIsLocalPlayerControlled_BoolValueDelegate": {
+		"className": "PetMasterIsLocalPlayerControlled_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查随从拥有者为主控",
+		"description": "判断随从的拥有者是否是主控",
+		"category": "随从相关",
+		"richDescription": "判断随从的拥有者是否是主控",
+		"author": "nolanyzhang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckCustomStiffnessGroup_BoolValueDelegate": {
+		"className": "CheckCustomStiffnessGroup_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测自定义硬直组",
+		"description": "检测MonsterStiffnessDurationAtomTransfer表中定义的自定义硬直组",
+		"category": "怪物相关",
+		"richDescription": "检测{0}是否处于{1}硬直集合",
+		"author": "jevenZhao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckMonsterFengChanLevelChange_BoolValueDelegate": {
+		"className": "CheckMonsterFengChanLevelChange_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测风缠等级变化",
+		"description": "检测怪物风缠/风遁等级变化，支持过滤变化方向和目标等级",
+		"category": "怪物相关",
+		"richDescription": "检测怪物等级变化，方向{0}（0=任意,1=增加,2=减少），目标值{1}（-1=无目标值），检测模式{2}（0=风遁等级,1=风缠等级）",
+		"author": "jansenzheng",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckEMIsPlayingEcologyAbility_BoolValueDelegate": {
+		"className": "CheckEMIsPlayingEcologyAbility_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测是否在做生态行为（指EMBehavior.Ecology下的技能，填-1表示任意生态行为）",
+		"description": "检测是否在做生态行为（填-1表示任意生态行为）",
+		"category": "怪物相关",
+		"richDescription": "检测是否在做生态行为（填-1表示任意生态行为）",
+		"author": "harryyli",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckEMIsBodyPartBroken_BoolValueDelegate": {
+		"className": "CheckEMIsBodyPartBroken_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测是否部位破坏（填-1表示任意部位破坏）",
+		"description": "检测是否部位破坏（填-1表示任意部位破坏）",
+		"category": "怪物相关",
+		"richDescription": "检测是否部位破坏（填-1表示任意部位破坏）",
+		"author": "harryyli",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckIsEnvMonster_BoolValueDelegate": {
+		"className": "CheckIsEnvMonster_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "判断是否环境生物",
+		"description": "判断是否环境生物",
+		"category": "环境生物相关",
+		"richDescription": "判断是否环境生物",
+		"author": "harryyli",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckFubenFirstAttrackAttrMiss_BoolValueDelegate": {
+		"className": "CheckFubenFirstAttrackAttrMiss_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "MHTsCT_CheckFubenFirstAttrackAttrMiss",
+		"description": "首A融光怪物若冒险家属性与怪物弱点属性不一致",
+		"category": "角色攻击",
+		"richDescription": "首A融光怪物若冒险家属性与怪物弱点属性不一致",
+		"author": "qileisong",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckBreakablePartStiffness_BoolValueDelegate": {
+		"className": "CheckBreakablePartStiffness_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查部位硬直",
+		"description": "检查怪物部位硬直",
+		"category": "怪物相关",
+		"richDescription": "检查{0}部位硬直，硬直原因{1}",
+		"author": "jansenzheng",
+		"baseClass": "BoolValueDelegate"
+	},
+	"PostBuffApplied_EventDelegateEx": {
+		"className": "PostBuffApplied_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "Buff被添加事件",
+		"description": "指定ID的Buff被添加时触发此事件",
+		"category": "Buff相关",
+		"richDescription": "BuffID为{0}的Buff被添加时，触发此事件",
+		"author": "emiljqchen",
+		"triggerSide": "Both",
+		"baseClass": "EventDelegateEx"
+	},
+	"ManELongTwoSkill3_ActionDelegate": {
+		"className": "ManELongTwoSkill3_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "ManELongTwoSkill3",
+		"description": "ManELongTwoSkill3开始和结束",
+		"category": "冒险家机制",
+		"richDescription": "ManELongTwoSkill3开始和结束，{0}参数True代表开始，False代表结束",
+		"author": "emiljqchen",
+		"baseClass": "ActionDelegate"
+	},
+	"PostBuffRemoved_EventDelegateEx": {
+		"className": "PostBuffRemoved_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "Buff被移除事件",
+		"description": "某个Buff被移除时的事件",
+		"category": "Buff相关",
+		"richDescription": "BuffId为{0}的Buff被移除时的事件",
+		"author": "emiljqchen",
+		"triggerSide": "Both",
+		"baseClass": "EventDelegateEx"
+	},
+	"PostAttackEffect_EventDelegateEx": {
+		"className": "PostAttackEffect_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "攻击效果触发后事件",
+		"description": "攻击效果触发后的事件（FPostAttackEffectEvent），通过GameInstance广播",
+		"category": "战斗事件",
+		"richDescription": "攻击效果触发后",
+		"author": "weigangxu",
+		"baseClass": "EventDelegateEx"
+	},
+	"CheckBuffByTag_BoolValueDelegate": {
+		"className": "CheckBuffByTag_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查某个GameplayTag的Buff是否存在",
+		"description": "判断当前对象或者指定是否有指定GameplayTag的Buff",
+		"category": "Buff相关",
+		"richDescription": "判断对象是否有GameplayTag包含{0}的Buff",
+		"author": "emiljqchen",
+		"triggerSide": "Both",
+		"baseClass": "BoolValueDelegate"
+	},
+	"PerfectDodgeSuccess_EventDelegateEx": {
+		"className": "PerfectDodgeSuccess_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "完美闪避成功客户端事件",
+		"description": "玩家完美闪避成功时在客户端触发的事件",
+		"category": "战斗事件",
+		"richDescription": "玩家完美闪避成功时在客户端触发的PerfectDodgeSuccess事件",
+		"author": "whispersong",
+		"baseClass": "EventDelegateEx"
+	},
+	"PerfectDodgeSuccessServer_EventDelegateEx": {
+		"className": "PerfectDodgeSuccessServer_EventDelegateEx",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "完美闪避成功服务端事件",
+		"description": "玩家完美闪避成功时在服务端触发的事件",
+		"category": "战斗事件",
+		"richDescription": "玩家完美闪避成功时在服务端触发的PerfectDodgeSuccessServer事件",
+		"author": "whispersong",
+		"baseClass": "EventDelegateEx"
+	},
+	"RedHealthRecovery_ActionDelegate": {
+		"className": "RedHealthRecovery_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "RedHealthRecovery",
+		"description": "红血恢复",
+		"category": "角色属性",
+		"richDescription": "红血万分比{0}恢复",
+		"author": "jiannanchao",
+		"baseClass": "ActionDelegate"
+	},
+	"TriggerMonsterTipsEvent_ActionDelegate": {
+		"className": "TriggerMonsterTipsEvent_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "触发怪物Tips事件",
+		"description": "触发一个怪物Tips",
+		"category": "怪物事件",
+		"richDescription": "触发TipsID为{0}的怪物Tips",
+		"author": "jevenZhao",
+		"baseClass": "ActionDelegate"
+	},
+	"GetHammerChargeStage_NumberValueDelegate": {
+		"className": "GetHammerChargeStage_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "大锤蓄力阶段(ChargeStage)",
+		"description": "获取大锤当前的蓄力阶段",
+		"category": "战斗",
+		"richDescription": "获取大锤当前的蓄力阶段",
+		"author": "emiljqchen",
+		"baseClass": "NumberValueDelegate"
+	},
+	"IsHammerCharging_BoolValueDelegate": {
+		"className": "IsHammerCharging_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "大锤是否在蓄力中",
+		"description": "大锤是否在蓄力中",
+		"category": "战斗",
+		"richDescription": "大锤是否在蓄力中",
+		"author": "emiljqchen",
+		"baseClass": "BoolValueDelegate"
+	},
+	"FubenSubtaskAdjustDamage_NumberValueDelegate": {
+		"className": "FubenSubtaskAdjustDamage_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "副本目标伤害调整",
+		"description": "根据伤害值大小进行分段取整调整",
+		"category": "副本相关",
+		"richDescription": "根据伤害值大小进行分段取整调整",
+		"author": "harryyli",
+		"baseClass": "NumberValueDelegate"
+	},
+	"DelayChangeMonsterStiffnessDuration_ActionDelegate": {
+		"className": "DelayChangeMonsterStiffnessDuration_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "延迟修改怪物硬直时间(包括BuffState)",
+		"description": "延迟修改怪物硬直(BuffState)的时间(百分比+动态值)，参数一映射MonsterStiffnessDurationAtomTransfer表，bPersistent决定是否持续生效",
+		"category": "怪物相关",
+		"richDescription": "延迟修改怪物{0}硬直/BuffState时间: +总时长*{1}% + {2}秒, 是否持续:{3}",
+		"author": "jevenZhao",
+		"baseClass": "ActionDelegate"
+	},
+	"CheckGameModeGroup_BoolValueDelegate": {
+		"className": "CheckGameModeGroup_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {
+			"0": {
+				"key": "CheckGameModeGroup",
+				"label": "GameModeGroup",
+				"type": "string",
+				"description": "GameMode表中GameModeGroup列"
+			}
+		},
+		"displayName": "检测当前玩法是否属于特定的玩法模式",
+		"description": "检测当前玩法是否属于特定的玩法模式",
+		"category": "战斗",
+		"richDescription": "检测当前玩法是否属于特定的玩法模式GameMode表中的GameModeGroup列",
+		"author": "yinbao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckGameModeID_BoolValueDelegate": {
+		"className": "CheckGameModeID_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {
+			"0": {
+				"key": "CheckGameModeId",
+				"label": "玩法ID",
+				"type": "string",
+				"description": "GameMode表中ID"
+			}
+		},
+		"displayName": "检测当前玩法是否属于特定ID",
+		"description": "检测当前玩法是否属于特定ID(GameMode表)",
+		"category": "战斗",
+		"richDescription": "检测当前玩法是否属于特定Id(GameMode表)",
+		"author": "yinbao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"GetActorShieldValueById_NumberValueDelegate": {
+		"className": "GetActorShieldValueById_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取Actor护盾值",
+		"description": "获取Actor护盾值，传入id参数代表检查指定id的护盾，不传代表最大护盾值",
+		"category": "战斗",
+		"richDescription": "获取Actor{0}护盾值",
+		"author": "sharkgao",
+		"baseClass": "NumberValueDelegate"
+	},
+	"CheckHasActorShield_BoolValueDelegate": {
+		"className": "CheckHasActorShield_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查是否有护盾",
+		"description": "检查是否有护盾，传入id参数代表检查指定id的护盾，不传代表任意护盾",
+		"category": "战斗",
+		"richDescription": "检查是否有护盾{0}",
+		"author": "sharkgao",
+		"baseClass": "BoolValueDelegate"
+	},
+	"SetComponentRelativeLocation_ActionDelegate": {
+		"className": "SetComponentRelativeLocation_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "设置组件相对位置",
+		"description": "设置包含Tag组件的相对位置",
+		"category": "通用",
+		"richDescription": "设置包含Tag组件的相对位置",
+		"author": "weigangxu",
+		"baseClass": "ActionDelegate"
+	},
+	"CheckAbilityConfigID_BoolValueDelegate": {
+		"className": "CheckAbilityConfigID_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检测AbilityConfigID是否一致",
+		"description": "检测AbilityConfigID是否一致",
+		"category": "技能相关",
+		"richDescription": "检测AbilityConfigID是否一致",
+		"author": "nackhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"ModifyActorShieldValue_TaskDelegate": {
+		"className": "ModifyActorShieldValue_TaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "修改Actor护盾属性",
+		"description": "修改Actor护盾属性",
+		"category": "战斗相关",
+		"richDescription": "修改Actor护盾属性",
+		"author": "sharkgao",
+		"baseClass": "TaskDelegate"
+	},
+	"ActionAddActorShieldDelegate": {
+		"className": "ActionAddActorShieldDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "添加护盾",
+		"description": "给角色立即添加一次护盾（一次性动作，用于EventActionEx）",
+		"category": "战斗",
+		"richDescription": "给角色添加护盾（配置ID={0}，覆盖值={1}）",
+		"author": "weigangxu",
+		"baseClass": "ActionDelegate"
+	},
+	"CheckComplexEventStringIsSame_BoolValueDelegate": {
+		"className": "CheckComplexEventStringIsSame_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "判断ComplexEventInst变量中的值是否相等",
+		"description": "判断ComplexEventInst变量中的值是否相等",
+		"category": "通用",
+		"richDescription": "判断ComplexEventInst变量中的值是否相等",
+		"author": "nackhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckComplexEventBoolIsSame_BoolValueDelegate": {
+		"className": "CheckComplexEventBoolIsSame_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "判断ComplexEventInst变量中的值是否相等",
+		"description": "判断ComplexEventInst变量中的值是否相等",
+		"category": "通用",
+		"richDescription": "判断ComplexEventInst变量中的值是否相等",
+		"author": "nackhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckMonsterStiffnessType_BoolValueDelegate": {
+		"className": "CheckMonsterStiffnessType_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "判断怪物硬直类型",
+		"description": "判断怪物硬直类型",
+		"category": "怪物相关",
+		"richDescription": "判断怪物硬直类型",
+		"author": "nackhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckPlayerProstrateTarget_BoolValueDelegate": {
+		"className": "CheckPlayerProstrateTarget_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "判断玩家救援相关事件内的对象是否相等",
+		"description": "目前支持：FOnPlayerProstrateEvent，FOnPlayerBeHelpUpEvent，FOnPlayerProstrateCallHelpEvent，FOnPlayerHelpFinishEvent",
+		"category": "Player",
+		"richDescription": "目前支持：FOnPlayerProstrateEvent，FOnPlayerBeHelpUpEvent，FOnPlayerProstrateCallHelpEvent，FOnPlayerHelpFinishEvent",
+		"author": "nackhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"IsBeginnerIsland_BoolValueDelegate": {
+		"className": "IsBeginnerIsland_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "判断是否在新手岛",
+		"description": "判断是否在新手岛",
+		"category": "通用",
+		"richDescription": "判断是否在新手岛",
+		"author": "harryyli",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckTargetSocketBroken_BoolValueDelegate": {
+		"className": "CheckTargetSocketBroken_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "判断当前锁定部位是否已被破坏",
+		"description": "判断当前锁定部位是否已被破坏",
+		"category": "战斗相关",
+		"richDescription": "判断当前锁定部位是否已被破坏",
+		"author": "nackhuang",
+		"baseClass": "BoolValueDelegate"
+	},
+	"AkEvent_ActionDelegate": {
+		"className": "AkEvent_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "播放音效原子",
+		"description": "播放音效原子",
+		"category": "通用",
+		"richDescription": "播放音效原子",
+		"author": "weigangxu",
+		"baseClass": "ActionDelegate"
+	},
 	"GetAtkDamageValue_NumberValueDelegate": {
 		"className": "GetAtkDamageValue_NumberValueDelegate",
 		"isDelegate": true,
@@ -4179,6 +6897,28 @@
 		"category": "角色攻击",
 		"richDescription": "获取此次攻击伤害值",
 		"author": "sharkgao",
+		"baseClass": "NumberValueDelegate"
+	},
+	"GetHitBoneIndex_NumberValueDelegate": {
+		"className": "GetHitBoneIndex_NumberValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取命中骨骼Index",
+		"description": "获取当次攻击命中的骨骼 Index（仅对骨骼名有效，socket 名被 ModifyHitBoneName 的校验拦截）",
+		"category": "角色攻击",
+		"richDescription": "获取当次攻击命中骨骼的 Index，可通过 ApplyBuffWithCustomValue 传递给 DealDamage 的 HitBoneIndex 参数",
+		"author": "weigangxu",
+		"baseClass": "NumberValueDelegate"
+	},
+	"NumberValueGetDamageReactionResult": {
+		"className": "NumberValueGetDamageReactionResult",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "获取受击动作类型",
+		"description": "获取当次攻击的受击动作类型 DamageReactionResult（EMHStrengthType），返回枚举数值（0=Default,1=HouYang,...）",
+		"category": "角色攻击",
+		"richDescription": "获取当次攻击的受击动作类型 DamageReactionResult（EMHStrengthType），仅在攻击触发器Payload携带AtkArgs时有效",
+		"author": "weigangxu",
 		"baseClass": "NumberValueDelegate"
 	},
 	"AnyAggroMonsterInStatus_BoolValueDelegate": {
@@ -4195,11 +6935,24 @@
 	"OnAggroMonsterStatus_EventDelegateEx": {
 		"className": "OnAggroMonsterStatus_EventDelegateEx",
 		"isDelegate": true,
-		"fields": {},
+		"fields": {
+			"0": {
+				"key": "Status",
+				"label": "BuffStateID",
+				"type": "string",
+				"description": "需要监听的怪物BuffState名称(StateId)"
+			},
+			"1": {
+				"key": "ListenType",
+				"label": "监听类型",
+				"type": "string",
+				"description": "BuffState监听类型,默认InEffect表示进入这个状态,可选Finished,表示状态结束"
+			}
+		},
 		"displayName": "当前战斗相关怪物进入融光化/愤怒/疲劳等硬直事件",
-		"description": "当前战斗相关怪物进入融光化/愤怒/疲劳时触发",
+		"description": "当前战斗相关怪物进入或结束融光化/愤怒/疲劳时触发",
 		"category": "怪物相关",
-		"richDescription": "当前战斗相关怪物进入融光化/愤怒/疲劳时触发",
+		"richDescription": "当前战斗相关怪物的指定状态进入或结束时触发，{1}默认InEffect,可选Finished",
 		"author": "sharkgao",
 		"baseClass": "EventDelegateEx"
 	},
@@ -4217,7 +6970,26 @@
 	"EventAttributeChange_EventDelegateEx": {
 		"className": "EventAttributeChange_EventDelegateEx",
 		"isDelegate": true,
-		"fields": {},
+		"fields": {
+			"2": {
+				"key": "ChangeMode",
+				"label": "ChangeMode",
+				"type": "string",
+				"description": "0为增减, 1为增, 2为减"
+			},
+			"3": {
+				"key": "CombatResourceChangeMode",
+				"label": "CombatResourceChangeMode",
+				"type": "string",
+				"description": "0为通用属性, 1为战斗资源的一次性变化"
+			},
+			"4": {
+				"key": "MinDelta",
+				"label": "单次变化差值",
+				"type": "string",
+				"description": "单次属性变化绝对值；0为不限制，非0时需严格相等"
+			}
+		},
 		"displayName": "Actor属性变化事件",
 		"description": "Actor属性变化事件",
 		"category": "角色属性",
@@ -4463,6 +7235,28 @@
 		"author": "emiljqchen",
 		"baseClass": "EventDelegateEx"
 	},
+	"EventCombineEventDelegate": {
+		"className": "EventCombineEventDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "组合事件（任意子事件触发）",
+		"description": "当子事件中任意一个触发时触发",
+		"category": "系统事件",
+		"richDescription": "当{0}等子事件中任意一个触发时触发",
+		"author": "sharkgao",
+		"baseClass": "EventDelegateEx"
+	},
+	"StatusEffectInflictionDelegate": {
+		"className": "StatusEffectInflictionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "异常状态积蓄事件",
+		"description": "产生任意或特定异常状态积蓄时触发",
+		"category": "战斗",
+		"richDescription": "产生任意或特定异常状态积蓄时触发",
+		"author": "system",
+		"baseClass": "EventDelegateEx"
+	},
 	"GetAverageMonsterPartDamageRatio_NumberValueDelegate": {
 		"className": "GetAverageMonsterPartDamageRatio_NumberValueDelegate",
 		"isDelegate": true,
@@ -4568,15 +7362,356 @@
 		"author": "unknown",
 		"baseClass": "BoolValueDelegate"
 	},
-	"MeshGlowExTaskDelegate": {
-		"className": "MeshGlowExTaskDelegate",
+	"CheckBuffSourceIsSelf_BoolValueDelegate": {
+		"className": "CheckBuffSourceIsSelf_BoolValueDelegate",
 		"isDelegate": true,
 		"fields": {},
-		"displayName": "模型自发光（新版）",
-		"description": "设置角色/武器的自发光效果（不兼容旧版MeshGlow）",
-		"category": "特效相关",
-		"richDescription": "设置{0}部位（枚举值）自发光：颜色{4}、强度{3}，优先级{2}（-1=默认），曲线配置：强度曲线ID{5}/颜色曲线ID{6}",
+		"displayName": "检查Buff来源是否为自己",
+		"description": "检查当前Buff的来源是否为自己",
+		"category": "Buff相关",
+		"richDescription": "检查Buff来源是否为自己",
 		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckWAEndMethodOnlySuccessOrFailed_BoolValueDelegate": {
+		"className": "CheckWAEndMethodOnlySuccessOrFailed_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查世界活动结束成功失败",
+		"description": "检查世界活动结束时是成功还是失败",
+		"category": "世界活动",
+		"richDescription": "检查{0}活动是否{1}成功/失败",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckWAEndMethod_BoolValueDelegate": {
+		"className": "CheckWAEndMethod_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查世界活动结束方式",
+		"description": "检查世界活动的结束方式",
+		"category": "世界活动",
+		"richDescription": "检查{0}活动结束方式是否为{1}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckEntryLevel_BoolValueDelegate": {
+		"className": "CheckEntryLevel_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查入口等级",
+		"description": "检查指定入口类型的等级",
+		"category": "通用",
+		"richDescription": "检查{0}入口等级是否为{1}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckInteractActionType_BoolValueDelegate": {
+		"className": "CheckInteractActionType_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查交互动作类型",
+		"description": "检查交互动作类型",
+		"category": "交互",
+		"richDescription": "检查交互动作类型是否为{0}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckBagCapacityIsFull_BoolValueDelegate": {
+		"className": "CheckBagCapacityIsFull_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查背包容量是否已满",
+		"description": "检查指定类型背包容量是否已满",
+		"category": "背包",
+		"richDescription": "检查{0}类型背包容量是否已满，是否统计实际{1}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckBagCapacityNumChangeID_BoolValueDelegate": {
+		"className": "CheckBagCapacityNumChangeID_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查背包容量变化ID",
+		"description": "检查背包容量变化的ID",
+		"category": "背包",
+		"richDescription": "检查背包容量变化ID是否为{0}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckBuildingCountChangedID_BoolValueDelegate": {
+		"className": "CheckBuildingCountChangedID_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查建筑数量变化ID",
+		"description": "检查建筑数量变化的ID",
+		"category": "建筑",
+		"richDescription": "检查建筑数量变化ID是否为{0}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckBuildingRemainCountLessThan_BoolValueDelegate": {
+		"className": "CheckBuildingRemainCountLessThan_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查建筑剩余数量小于",
+		"description": "检查建筑剩余数量是否小于指定值",
+		"category": "建筑",
+		"richDescription": "检查{0}号建筑剩余数量是否小于{1}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckStudyNodeCost_BoolValueDelegate": {
+		"className": "CheckStudyNodeCost_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查研究节点费用",
+		"description": "检查研究节点费用",
+		"category": "研究树",
+		"richDescription": "检查{0}号研究节点费用",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckStudyNodeLevel_BoolValueDelegate": {
+		"className": "CheckStudyNodeLevel_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查研究节点等级",
+		"description": "检查研究节点等级",
+		"category": "研究树",
+		"richDescription": "检查{0}号研究节点{1}等级是否为{2}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"StudyTreeTriggerTips_ActionDelegate": {
+		"className": "StudyTreeTriggerTips_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "研究树触发提示Action",
+		"description": "研究树触发提示的Action",
+		"category": "研究树",
+		"richDescription": "触发{0}号研究节点提示",
+		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"CheckMovementMode_BoolValueDelegate": {
+		"className": "CheckMovementMode_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查移动模式",
+		"description": "检查移动模式变化",
+		"category": "移动",
+		"richDescription": "检查移动模式从{0}/{1}变为{2}/{3}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckMonsterBodyBrokenPartName_BoolValueDelegate": {
+		"className": "CheckMonsterBodyBrokenPartName_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查怪物部位破坏",
+		"description": "检查怪物部位是否被破坏",
+		"category": "怪物相关",
+		"richDescription": "检查{0}部位是否被破坏，是否切断{1}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckAddedSidetalkID_BoolValueDelegate": {
+		"className": "CheckAddedSidetalkID_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查添加的闲聊ID",
+		"description": "检查添加的闲聊ID",
+		"category": "通用",
+		"richDescription": "检查添加的闲聊ID是否为{0}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckTutorialIsUnlock_BoolValueDelegate": {
+		"className": "CheckTutorialIsUnlock_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查教程是否解锁",
+		"description": "检查教程是否解锁",
+		"category": "教程",
+		"richDescription": "检查{0}号教程是否解锁",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckCanShowRedLightPopup_BoolValueDelegate": {
+		"className": "CheckCanShowRedLightPopup_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查是否可弹红光预警窗",
+		"description": "检查是否可以弹出红光（攻击预警）弹窗",
+		"category": "教程",
+		"richDescription": "检查是否可以弹出红光预警弹窗",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckActorWeaponType_BoolValueDelegate": {
+		"className": "CheckActorWeaponType_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查Actor武器类型",
+		"description": "检查Actor的武器类型",
+		"category": "武器相关",
+		"richDescription": "检查Actor武器类型是否为{0}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckCurrentAbility_BoolValueDelegate": {
+		"className": "CheckCurrentAbility_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查当前技能",
+		"description": "检查当前技能组ID",
+		"category": "技能相关",
+		"richDescription": "检查当前技能组ID是否为{0}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"AddSubTriggerList_ActionDelegate": {
+		"className": "AddSubTriggerList_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "添加子触发器列表Action",
+		"description": "添加子触发器列表的Action",
+		"category": "触发器",
+		"richDescription": "添加子触发器列表，关系{0}",
+		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"CheckInputKey_BoolValueDelegate": {
+		"className": "CheckInputKey_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查输入按键",
+		"description": "检查输入按键",
+		"category": "输入",
+		"richDescription": "检查输入按键是否为{0}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"CheckBuffID_BoolValueDelegate": {
+		"className": "CheckBuffID_BoolValueDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "检查BuffID",
+		"description": "检查BuffID",
+		"category": "Buff相关",
+		"richDescription": "检查BuffID是否为{0}",
+		"author": "unknown",
+		"baseClass": "BoolValueDelegate"
+	},
+	"AttSkillDefaultSuccAction_ActionDelegate": {
+		"className": "AttSkillDefaultSuccAction_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "攻击技能默认成功Action",
+		"description": "攻击技能默认成功处理的Action",
+		"category": "技能相关",
+		"richDescription": "攻击技能默认成功Action，是否检查不同技能{0}",
+		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"AddSubTrigger_ActionDelegate": {
+		"className": "AddSubTrigger_ActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "添加子触发器Action",
+		"description": "添加子触发器的Action",
+		"category": "触发器",
+		"richDescription": "添加{0}号子触发器",
+		"author": "unknown",
+		"baseClass": "ActionDelegate"
+	},
+	"CombatResourceConsumptionBuildUpOrRestorationTickTask": {
+		"className": "CombatResourceConsumptionBuildUpOrRestorationTickTask",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "战斗资源Tick累积Task",
+		"description": "战斗资源Tick累积的Task",
+		"category": "属性相关",
+		"richDescription": "{0}战斗资源每Tick累积{1}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"AdventurerHealthLockTaskDelegate": {
+		"className": "AdventurerHealthLockTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "冒险家血量锁定Task",
+		"description": "冒险家血量锁定的Task",
+		"category": "角色相关",
+		"richDescription": "冒险家血量锁定，血量点{0}，血量比例{1}",
+		"author": "jiannanchao",
+		"baseClass": "TaskDelegate"
+	},
+	"AdventurerCounterDamageRedHealthConversionLockTaskDelegate": {
+		"className": "AdventurerCounterDamageRedHealthConversionLockTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "冒险家受身红血转换锁定Task",
+		"description": "锁定冒险家受身红血转换",
+		"category": "角色相关",
+		"richDescription": "锁定冒险家受身红血转换",
+		"author": "jiannanchao",
+		"baseClass": "TaskDelegate"
+	},
+	"CombatResourceConsumptionBuildUpOrRestorationIntervalTask": {
+		"className": "CombatResourceConsumptionBuildUpOrRestorationIntervalTask",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "战斗资源间隔累积Task",
+		"description": "战斗资源间隔累积的Task",
+		"category": "属性相关",
+		"richDescription": "{0}战斗资源间隔累积Task",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"BuildUpOrRestoreInTickTaskDelegate": {
+		"className": "BuildUpOrRestoreInTickTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "战斗资源Tick累积Task",
+		"description": "战斗资源Tick累积的Task",
+		"category": "属性相关",
+		"richDescription": "{0}战斗资源Tick累积",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"AttributeAdditionTaskDelegate": {
+		"className": "AttributeAdditionTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "属性添加Task",
+		"description": "属性添加的Task",
+		"category": "属性相关",
+		"richDescription": "添加{0}属性，值{1}，是否加到基础值{2}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"TemperatureOvercomeTaskDelegate": {
+		"className": "TemperatureOvercomeTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "温度克服Task",
+		"description": "温度克服的Task",
+		"category": "属性相关",
+		"richDescription": "克服{0}类型温度，道具ID{1}",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"GlowingMistTaskDelegate": {
+		"className": "GlowingMistTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "光雾下耐力消耗累积",
+		"description": "监控战斗资源消耗并在达到阈值时触发Buff",
+		"category": "生存相关",
+		"richDescription": "时间窗口 {0} 秒内消耗 {1} 点资源触发 Buff {2}, 冷却 {3} 秒, 静止 {4} 秒重置并触发 Buff {5}, 额外阈值/Buff/冷却 {6}...",
+		"author": "jiannanchao",
 		"baseClass": "TaskDelegate"
 	},
 	"MeshMaterialChangeTaskDelegate": {
@@ -4589,5 +7724,45 @@
 		"richDescription": "设置角色的Mesh变色，传入变色指定的DataAsset路径{0}",
 		"author": "unknown",
 		"baseClass": "TaskDelegate"
+	},
+	"UpdateFallingMoveArgsTaskDelegate": {
+		"className": "UpdateFallingMoveArgsTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "修改Falling移动参数",
+		"description": "修改Falling移动参数",
+		"category": "移动",
+		"richDescription": "传入移动参数",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"MoveTowardsPointTaskDelegate": {
+		"className": "MoveTowardsPointTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "增加MoveTowardsPointRMS",
+		"description": "根据customvalue施加additive RMS",
+		"category": "移动",
+		"baseClass": "TaskDelegate"
+	},
+	"AddCDModifierTaskDelegate": {
+		"className": "AddCDModifierTaskDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "增加CDModifier",
+		"description": "增加CDModifier",
+		"category": "技能消耗",
+		"richDescription": "传入相关参数",
+		"author": "unknown",
+		"baseClass": "TaskDelegate"
+	},
+	"SendFubenFirstAttackAttrMissActionDelegate": {
+		"className": "SendFubenFirstAttackAttrMissActionDelegate",
+		"isDelegate": true,
+		"fields": {},
+		"displayName": "副本 - 首A融光怪物若冒险家属性与护盾弱属不一致弹出tipstips事件",
+		"description": "副本 - 首A融光怪物若冒险家属性与护盾弱属不一致弹出tipstips事件",
+		"category": "副本",
+		"baseClass": "ActionDelegate"
 	}
 }

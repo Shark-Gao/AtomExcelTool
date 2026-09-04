@@ -114,6 +114,32 @@ function findFunctionNameByClassName(className: string): string | null {
 }
 
 /**
+ * 将参数值转换为表达式片段
+ * - 数组：按元素逐个展开（rest 参数会被还原成逗号分隔的多个实参）
+ * - 对象：递归反向解析
+ * - 字符串：加引号
+ * - 数字/布尔值：直接转换
+ *
+ * 数组元素可能是原始值（如 string[] 的 TagName），不能无条件当委托对象递归，
+ * 否则 deParseJsonToExpression 会在类型检查处直接返回空字符串。
+ */
+function valueToExpressions(value: any): DeParseExpressonType[] {
+  if (Array.isArray(value)) {
+    return value.flatMap(item => valueToExpressions(item));
+  }
+
+  if (value !== null && typeof value === 'object') {
+    return [deParseJsonToExpression(value, false)];
+  }
+
+  if (typeof value === 'string') {
+    return [{expression:`"${value}"`, expressionDesc:`${value}`}];
+  }
+
+  return [{expression:String(value), expressionDesc:`${value}`}];
+}
+
+/**
  * 构建函数调用表达式
  */
 function buildFunctionCall(functionName: string, className: string, jsonObject: any, isRoot: boolean): DeParseExpressonType {
@@ -152,23 +178,7 @@ function buildFunctionCall(functionName: string, className: string, jsonObject: 
       continue;
     }
 
-    if (Array.isArray(paramValue)) {
-      // 处理数组参数
-      const arrayElements = paramValue.map(item => deParseJsonToExpression(item, false));
-      params.push(...arrayElements);
-    } else if (typeof paramValue === 'object') {
-      // 递归处理嵌套对象
-      const nestedExpression = deParseJsonToExpression(paramValue, false);
-      if (nestedExpression) {
-        params.push(nestedExpression);
-      }
-    } else if (typeof paramValue === 'string') {
-      // 字符串需要加引号
-      params.push({expression:`"${paramValue}"`, expressionDesc:`${paramValue}`});
-    } else {
-      // 数字、布尔值等直接转换
-      params.push({expression:String(paramValue), expressionDesc:`${paramValue}`});
-    }
+    params.push(...valueToExpressions(paramValue));
   }
 
   // 构建函数调用表达式

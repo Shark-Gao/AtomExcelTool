@@ -7,7 +7,10 @@
         "✨ AI 问答使用上报新增记录用户提交的消息内容（event_params.message），并上报实际选用的模型名，替代原硬编码的 'knot'",
         "🔧 普通问答与流式问答两条链路统一上报 message、provider、stream 字段",
         "📝 README 新增 Usage Event Reporting 说明：明确仅采集提交消息，不含对话历史、系统提示、API 凭证、AI 回复与原子上下文，并提示避免提交敏感文本",
-        "✅ 新增 scripts/test-usage-reporting.cjs 单测，校验上报字段正确且不泄露 Token 与私有上下文，关闭上报时不发送数据"
+        "✅ 新增 scripts/test-usage-reporting.cjs 单测，校验上报字段正确且不泄露 Token 与私有上下文，关闭上报时不发送数据",
+        "🔧 打包脚本 build.bat 改用 %~dp0 相对路径，移除硬编码的个人绝对路径，换机器/换人均可直接运行",
+        "🔧 打包时不再关闭 CodeBuddy/IDE 与 node 进程，仅关闭本工具正在运行的实例，避免影响开发",
+        "✨ 打包脚本支持手动输入部署输出目录（直接回车使用默认目录）"
       ]
     },
     {

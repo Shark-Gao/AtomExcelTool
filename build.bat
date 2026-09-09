@@ -6,13 +6,12 @@ echo ========================================
 echo         MHAtomExcelTool 打包脚本
 echo ========================================
 
-REM 关闭 codebuddy 和相关进程
+REM 仅关闭本工具正在运行的实例（避免打包/复制时 exe 与文件被占用）
+REM 注意：不会关闭 CodeBuddy / IDE / node，避免影响正在进行的开发工作
 echo.
-echo [1/4] 正在关闭进程...
-taskkill /F /IM CodeBuddy.exe 2>nul
-taskkill /F /IM "CodeBuddy CN.exe" 2>nul
+echo [1/4] 正在关闭本工具正在运行的实例（不影响 IDE）...
+taskkill /F /IM MHAtomExcelTool.exe 2>nul
 taskkill /F /IM electron.exe 2>nul
-taskkill /F /IM node.exe 2>nul
 timeout /t 2 /nobreak
 
 REM 清理之前的构建输出
@@ -30,7 +29,7 @@ if exist release\1.0.0 (
 REM 开始打包
 echo.
 echo [3/4] 正在打包应用...
-cd /d C:\Users\bondhao\Downloads\AtomExcelTool-master\AtomExcelTool-master
+cd /d "%~dp0"
 call npm run app:build
 
 REM 检查打包结果
@@ -41,13 +40,19 @@ if exist release\1.0.0 (
   echo ========================================
   echo     ✓ 打包成功！
   echo ========================================
-  echo 输出位置: C:\Users\bondhao\Downloads\AtomExcelTool-master\AtomExcelTool-master\release\1.0.0
+  echo 输出位置: %~dp0release\1.0.0
   echo.
   
   REM 复制文件到目标目录
   echo [5/6] 正在复制文件到目标目录...
-  set SOURCE_DIR=C:\Users\bondhao\Downloads\AtomExcelTool-master\AtomExcelTool-master\release\1.0.0\win-unpacked
-  set TARGET_DIR=D:\xgWS\MHAGame\Tools\MHAtomExcelTool
+  set SOURCE_DIR=%~dp0release\1.0.0\win-unpacked
+  set "DEFAULT_TARGET=D:\xgWS\MHAGame\Tools\MHAtomExcelTool"
+  echo.
+  echo   默认部署目录: !DEFAULT_TARGET!
+  set /p "TARGET_DIR=  请输入打包输出（部署）目录，直接回车使用默认值: "
+  if "!TARGET_DIR!"=="" set "TARGET_DIR=!DEFAULT_TARGET!"
+  set TARGET_DIR=!TARGET_DIR:"=!
+  echo   本次部署目录: !TARGET_DIR!
   
   REM 清理目标目录（保留 config 目录）
   echo.

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
 import * as monaco from 'monaco-editor'
+import { reportCodeEditorEvent } from '../utils/codeEditorReporting'
 
 // Worker 已在 monacoTypeRegistry.ts 中全局配置
 
@@ -46,6 +47,7 @@ let extraLibDisposables: monaco.IDisposable[] = []
 
 // 临时编辑值（用于取消时恢复）
 const tempValue = ref('')
+let openedValue = ''
 
 // 显示的代码（直接显示所有内容，没有截断）
 const displayCode = computed(() => {
@@ -137,12 +139,13 @@ function disposeEditor() {
 }
 
 function openModal() {
-  if (props.readonly) return
+  if (props.readonly || isModalOpen.value) return
   tempValue.value = props.modelValue || ''
+  openedValue = tempValue.value
   isModalOpen.value = true
   
   // 上报打开代码编辑器操作
-  window.usageBridge?.reportOpenCodeEditor()
+  reportCodeEditorEvent('open_code_editor', { content: openedValue, language: props.language })
   
   nextTick(() => {
     initEditor()
@@ -150,10 +153,15 @@ function openModal() {
 }
 
 function closeModal() {
-  // 自动保存编辑内容
-  emit('update:modelValue', tempValue.value)
-  emit('change', tempValue.value)
+  if (!isModalOpen.value) return
+  const savedValue = editor?.getValue() ?? tempValue.value
   isModalOpen.value = false
+  // 自动保存编辑内容
+  emit('update:modelValue', savedValue)
+  emit('change', savedValue)
+  if (savedValue !== openedValue) {
+    reportCodeEditorEvent('edit_code_editor', { previous_content: openedValue, content: savedValue, language: props.language })
+  }
   disposeEditor()
 }
 

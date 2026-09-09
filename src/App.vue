@@ -8,6 +8,7 @@ import ProgressModal from './components/ProgressModal.vue'
 import SkeletonLoader from './components/SkeletonLoader.vue'
 import CheckValidationModal, { type ValidationErrorItem, type ValidationResult } from './components/CheckValidationModal.vue'
 import CodeEditor from './components/CodeEditor.vue'
+import { collectAtomClassNames, reportCodeEditorEvent } from './utils/codeEditorReporting'
 import AtomFieldsConfigEditor from './components/AtomFieldsConfigEditor.vue'
 import AIAssistantPanel from './components/AIAssistantPanel.vue'
 import { loadSettingsFromStorage, saveSettingsToStorage, addRecentFile, getRecentFiles, removeRecentFile, clearRecentFiles, type RecentFileItem } from './utils/settingsStorage'
@@ -1834,6 +1835,14 @@ async function parseCodeEditorContent() {
       // 解析成功，同时更新 DynamicObjectForm 测试界面
       try {
         const parsedJson = JSON.parse(result.json) as ParsedClassObject
+        reportCodeEditorEvent('parse_code_editor', {
+          content: code,
+          expression,
+          status: 'success',
+          className: typeof parsedJson?._ClassName === 'string' ? parsedJson._ClassName : '',
+          atom_types: collectAtomClassNames(parsedJson),
+          parsed_content: parsedJson
+        })
         applyNormalizedObject(parsedJson)
       } catch (parseError) {
         console.warn('Failed to parse JSON result:', parseError)
@@ -1841,10 +1850,12 @@ async function parseCodeEditorContent() {
     } else {
       codeEditorParseResult.value = ''
       codeEditorParseError.value = result.error || '代码解析失败'
+      reportCodeEditorEvent('parse_code_editor', { content: code, expression, status: 'failed', error_message: codeEditorParseError.value })
     }
   } catch (error) {
     codeEditorParseResult.value = ''
     codeEditorParseError.value = error instanceof Error ? error.message : '未知错误'
+    reportCodeEditorEvent('parse_code_editor', { content: code, status: 'failed', error_message: codeEditorParseError.value })
     console.error('[parseCodeEditorContent]', error)
   }
 }

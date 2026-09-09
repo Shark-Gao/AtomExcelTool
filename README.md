@@ -24,3 +24,24 @@ Run the reporting tests without contacting the statistics or AI servers:
 ```shell
 node --test scripts/test-usage-reporting.cjs
 ```
+
+### Code Editor Events
+
+The code editor currently belongs to the atom playground, not an Excel cell.
+Its reports contain only the code being edited and its parsing result:
+
+- `open_code_editor`: full code when the editor is opened.
+- `edit_code_editor`: previous and current code when changed text is saved by
+  closing the editor (including Escape). No edit event is emitted if unchanged.
+- `parse_code_editor`: code, extracted expression, and success/failure status.
+  Successful results include the root atom class, nested atom types, and parsed
+  JSON. Failed results include the error instead of guessed atom names.
+
+No individual keystrokes, unrelated workbook cells, or guessed file associations
+are collected. Closing the editor saves its workspace text, not the Excel file.
+Users should be informed that submitted editor code enters usage statistics.
+Older events without these fields cannot be reconstructed.
+
+```shell
+node --test scripts/test-usage-reporting.cjs scripts/test-code-editor-reporting.cjs
+```

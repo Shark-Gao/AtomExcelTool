@@ -1346,7 +1346,9 @@ ipcMain.handle('ai:chat', async (_event, payload: { message: string; currentAtom
         }
         console.log('[ai:chat] Sending message:', payload.message.substring(0, 50) + '...');
         // 上报 AI 问答操作
-        reportAIChat('knot');
+        reportAIChat(knotModelConfig.model, {
+            event_params: { message: payload.message, provider: 'knot', stream: false }
+        });
         const response = await service.chat(payload.message, { currentAtom: payload.currentAtom });
         console.log('[ai:chat] Response received');
         return {
@@ -1374,7 +1376,10 @@ ipcMain.on('ai:chat-stream', async (event, payload: { message: string; currentAt
         }
         console.log('[ai:chat-stream] Starting stream for:', payload.message.substring(0, 50) + '...');
         // 上报 AI 问答操作（stream 类型）
-        reportAIChat('knot', { stream: true });
+        reportAIChat(knotModelConfig.model, {
+            stream: true,
+            event_params: { message: payload.message, provider: 'knot', stream: true }
+        });
         for await (const chunk of service.chatStream(payload.message, { currentAtom: payload.currentAtom })) {
             event.reply('ai:chat-stream-chunk', {
                 requestId: payload.requestId,

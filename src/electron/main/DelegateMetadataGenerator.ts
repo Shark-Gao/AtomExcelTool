@@ -434,8 +434,12 @@ export class DelegateMetadataGenerator {
 
   private static mapNonUnionAtomType(atomType: FAtomTypeBase): FieldTypeInfo | null {
     switch (atomType.AtomType) {
+      // 数字字面量必须映射成 number，否则 UI 渲染成文本框，
+      // PrimitiveInput 走 handleStringInput 存下字符串 "5"，
+      // 反向解析时被当字符串加引号，表达式解析器无法识别成 NumberValueConst。
       case EAtomType.SpecificNumber:
       case EAtomType.LiteralNumber:
+        return { type: 'number' };
       case EAtomType.SpecificBoolean:
       case EAtomType.LiteralBoolean:
       case EAtomType.SpecificString:

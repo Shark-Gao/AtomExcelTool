@@ -1,6 +1,14 @@
 {
   "changelog": [
     {
+      "version": "2.3.4",
+      "date": "2026-09-12",
+      "changes": [
+        "🐛 修复 number 类型参数保存后自带双引号的问题：SpecificNumber / LiteralNumber 未映射成 number 而 fall-through 到字符串分支，UI 渲染成文本框后 PrimitiveInput 将输入存成字符串 \"5\"，反向解析加引号后表达式解析器无法识别为 NumberValueConst",
+        "🔧 DelegateMetadataGenerator.mapNonUnionAtomType 中数字字面量类型显式返回 { type: 'number' }，确保 UI 使用数字输入控件"
+      ]
+    },
+    {
       "version": "2.3.3",
       "date": "2026-09-09",
       "changes": [

@@ -398,7 +398,7 @@ const appVersion = app?.getVersion?.() || '0.0.2';
 // 自动初始化上报器
 initReporter({
     toolId: 'MHAtomExcelTool',
-    serverUrl: 'http://10.30.129.88:9876/api/notify',
+    serverUrl: 'http://10.30.243.17:9876/api/notify',
     appVersion,
     enabled: true,
     timeout: 3000

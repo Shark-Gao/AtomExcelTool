@@ -7,7 +7,7 @@ Learn more about the recommended Project Setup and IDE Support in the [Vue Docs 
 ## Usage Event Reporting
 
 The application reports usage events to the configured internal statistics server
-(`http://10.30.129.88:9876/api/notify` by default; see `UsageReporter.ts`).
+(`http://10.30.243.17:9876/api/notify` by default; see `UsageReporter.ts`).
 Both regular and streaming AI chat report the submitted user message in
 `event_params.message`, together with the selected model, provider, and stream flag.
 Only that submission is included, not conversation history, system prompts, API

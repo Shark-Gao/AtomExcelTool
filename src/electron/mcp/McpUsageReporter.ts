@@ -17,7 +17,7 @@ import * as os from 'os';
 
 const MCP_REPORT_CONFIG = {
   toolId: 'MHAtomExcelTool',
-  serverUrl: 'http://10.30.129.88:9876/api/notify',
+  serverUrl: 'http://10.30.243.17:9876/api/notify',
   timeout: 3000,
 };
 

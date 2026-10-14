@@ -24,9 +24,10 @@ function callback(channel) {
     assert.ok(handler, `Missing IPC handler ${channel}`);
     return compile(`module.exports = ${handler.getText(ast)}`);
 }
-function reporter(outgoing) {
+function reporter(outgoing, resolveEndpoint = () => 'http://127.0.0.1:9876/api/notify', destinations = []) {
     const module = { exports: {} };
     const http = { request(options, onResponse) {
+        destinations.push(options.hostname);
         const request = new EventEmitter();
         let body = '';
         request.write = chunk => { body += chunk; };
@@ -37,6 +38,7 @@ function reporter(outgoing) {
     vm.runInNewContext(compile(fs.readFileSync(path.join(root, 'src/electron/main/UsageReporter.ts'), 'utf8')), {
         module, exports: module.exports, Buffer, URL, setTimeout, clearTimeout,
         console: { log() {} }, require: name => name === 'electron' ? { app: { getVersion: () => 'test' } } :
+            name === '../shared/TelemetryConfig' ? { getTelemetryEndpoint: resolveEndpoint } :
             ['http', 'https'].includes(name) ? http : require(name),
     });
     return module.exports;
@@ -72,4 +74,16 @@ test('Reporting remains optional', () => {
     const disabled = new usage.UsageReporter({ toolId: 'test', serverUrl: 'http://127.0.0.1/', enabled: false });
     disabled.reportAIChat('test', { event_params: { message: 'not-sent' } });
     assert.deepEqual(outgoing, []);
+});
+
+test('Default reporter resolves the configured endpoint for every event', () => {
+    const outgoing = [];
+    const destinations = [];
+    let host = '127.0.0.1';
+    const usage = reporter(outgoing, () => `http://${host}:9876/api/notify`, destinations);
+    usage.reportLaunch();
+    host = '127.0.0.2';
+    usage.reportAction('after-config-change');
+    assert.deepEqual(destinations, ['127.0.0.1', '127.0.0.2']);
+    assert.deepEqual(outgoing.map(event => event.event_type), ['launch', 'action']);
 });

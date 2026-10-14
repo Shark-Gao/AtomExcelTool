@@ -12,12 +12,12 @@
 import * as http from 'http';
 import * as https from 'https';
 import * as os from 'os';
+import { getTelemetryEndpoint } from '../shared/TelemetryConfig';
 
 // ============ 配置 ============
 
 const MCP_REPORT_CONFIG = {
   toolId: 'MHAtomExcelTool',
-  serverUrl: 'http://10.30.243.17:9876/api/notify',
   timeout: 3000,
 };
 
@@ -70,7 +70,7 @@ try {
 function sendReport(payload: Record<string, unknown>): void {
   try {
     const data = JSON.stringify(payload);
-    const url = new URL(MCP_REPORT_CONFIG.serverUrl);
+    const url = new URL(getTelemetryEndpoint());
     const isHttps = url.protocol === 'https:';
     const httpModule = isHttps ? https : http;
 

@@ -46,7 +46,14 @@ if exist release\1.0.0 (
   REM 复制文件到目标目录
   echo [5/6] 正在复制文件到目标目录...
   set SOURCE_DIR=%~dp0release\1.0.0\win-unpacked
-  set "DEFAULT_TARGET=D:\xgWS\MHAGame\Tools\MHAtomExcelTool"
+  REM 上报地址放在 exe 同目录；打包结果带默认配置，目标目录已有配置时保留用户修改。
+  copy /Y "%~dp0telemetry.json" "!SOURCE_DIR!\telemetry.json" >nul
+  if errorlevel 1 (
+    echo     上报配置复制失败，停止部署。
+    pause
+    exit /b 1
+  )
+  set "DEFAULT_TARGET=K:\MHA_Client_main\MHAGame\Tools\MHAtomExcelTool"
   echo.
   echo   默认部署目录: !DEFAULT_TARGET!
   set /p "TARGET_DIR=  请输入打包输出（部署）目录，直接回车使用默认值: "
@@ -65,9 +72,11 @@ if exist release\1.0.0 (
   )
   
   for %%i in (!TARGET_DIR!\*) do (
-    if not "%%i"=="!TARGET_DIR!\config" (
-      attrib -r "%%i" >nul 2>&1
-      del /f /q "%%i" 2>nul
+    if /i not "%%~nxi"=="config" (
+      if /i not "%%~nxi"=="telemetry.json" (
+        attrib -r "%%i" >nul 2>&1
+        del /f /q "%%i" 2>nul
+      )
     )
   )
   echo   ✓ 目标目录已清理
@@ -75,9 +84,16 @@ if exist release\1.0.0 (
   REM 复制新文件
   echo.
   echo   正在复制新文件...
-  xcopy "!SOURCE_DIR!\*" "!TARGET_DIR!\" /E /Y /I >nul
+  robocopy "!SOURCE_DIR!" "!TARGET_DIR!" /E /XF telemetry.json /R:2 /W:1 >nul
+  set "COPY_RESULT=!ERRORLEVEL!"
+  if !COPY_RESULT! LSS 8 (
+    if not exist "!TARGET_DIR!\telemetry.json" (
+      copy /Y "!SOURCE_DIR!\telemetry.json" "!TARGET_DIR!\telemetry.json" >nul
+      if errorlevel 1 set "COPY_RESULT=8"
+    )
+  )
   
-  if !errorlevel! equ 0 (
+  if !COPY_RESULT! LSS 8 (
     echo   ✓ 文件复制成功
     
     REM 使用 p4 reconcile 自动检测变化并标记文件

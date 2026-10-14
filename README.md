@@ -6,8 +6,25 @@ Learn more about the recommended Project Setup and IDE Support in the [Vue Docs 
 
 ## Usage Event Reporting
 
-The application reports usage events to the configured internal statistics server
-(`http://10.30.243.17:9876/api/notify` by default; see `UsageReporter.ts`).
+The application reports usage events to the internal statistics server configured in
+`telemetry.json` beside `MHAtomExcelTool.exe`. During development it reads the file
+in the project root. `build.bat` copies that file beside the packaged exe and keeps
+an existing deployment's edited copy when rebuilding. If missing, the application
+creates it automatically. For example:
+
+```json
+{
+  "server_host": "10.30.129.12"
+}
+```
+
+Set `server_host` to an IPv4 address or a DNS hostname that this computer can
+resolve. The application sends reports to `http://<server_host>:9876/api/notify`.
+Both the main application and its MCP server read this file for each event, so
+changing the host takes effect without rebuilding or restarting the application.
+The file sits beside the exe because startup P4 sync can replace files in the
+`config` directory.
+
 Both regular and streaming AI chat report the submitted user message in
 `event_params.message`, together with the selected model, provider, and stream flag.
 Only that submission is included, not conversation history, system prompts, API
@@ -22,7 +39,7 @@ be reconstructed from historical events that did not include the text.
 Run the reporting tests without contacting the statistics or AI servers:
 
 ```shell
-node --test scripts/test-usage-reporting.cjs
+node --test scripts/test-usage-reporting.cjs scripts/test-mcp-telemetry.cjs scripts/test-telemetry-config.cjs
 ```
 
 ### Code Editor Events
@@ -43,5 +60,5 @@ Users should be informed that submitted editor code enters usage statistics.
 Older events without these fields cannot be reconstructed.
 
 ```shell
-node --test scripts/test-usage-reporting.cjs scripts/test-code-editor-reporting.cjs
+node --test scripts/test-usage-reporting.cjs scripts/test-mcp-telemetry.cjs scripts/test-telemetry-config.cjs scripts/test-code-editor-reporting.cjs
 ```

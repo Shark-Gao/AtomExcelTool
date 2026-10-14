@@ -16,6 +16,7 @@ import * as http from 'http';
 import * as https from 'https';
 import * as os from 'os';
 import { app } from 'electron';
+import { getTelemetryEndpoint } from '../shared/TelemetryConfig';
 
 // ============ 类型定义 ============
 
@@ -23,7 +24,7 @@ export interface UsageReporterConfig {
     /** 工具唯一标识（建议使用英文，与服务器配置对应） */
     toolId: string;
     /** 服务器通知接口地址 */
-    serverUrl: string;
+    serverUrl: string | (() => string);
     /** 是否启用上报，默认 true */
     enabled?: boolean;
     /** 请求超时时间（毫秒），默认 3000 */
@@ -87,7 +88,7 @@ function getTimestamp(): string {
  */
 export class UsageReporter {
     private toolId: string;
-    private serverUrl: string;
+    private serverUrl: string | (() => string);
     private enabled: boolean;
     private timeout: number;
     private appVersion: string;
@@ -144,7 +145,7 @@ export class UsageReporter {
 
         try {
             const data = JSON.stringify(payload);
-            const url = new URL(this.serverUrl);
+            const url = new URL(typeof this.serverUrl === 'function' ? this.serverUrl() : this.serverUrl);
             const isHttps = url.protocol === 'https:';
             const httpModule = isHttps ? https : http;
 
@@ -204,7 +205,7 @@ export class UsageReporter {
 
             try {
                 const data = JSON.stringify(payload);
-                const url = new URL(this.serverUrl);
+                const url = new URL(typeof this.serverUrl === 'function' ? this.serverUrl() : this.serverUrl);
                 const isHttps = url.protocol === 'https:';
                 const httpModule = isHttps ? https : http;
 
@@ -398,7 +399,7 @@ const appVersion = app?.getVersion?.() || '0.0.2';
 // 自动初始化上报器
 initReporter({
     toolId: 'MHAtomExcelTool',
-    serverUrl: 'http://10.30.243.17:9876/api/notify',
+    serverUrl: getTelemetryEndpoint,
     appVersion,
     enabled: true,
     timeout: 3000

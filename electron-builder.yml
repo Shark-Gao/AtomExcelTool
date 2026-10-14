@@ -7,6 +7,7 @@ asar: true
 asarUnpack:
   - dist/electron/mcp/**/*
   - dist/electron/main/**/*
+  - dist/electron/shared/**/*
   - dist/types/**/*
   - dist/constants/**/*
 directories:

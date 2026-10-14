@@ -1,6 +1,17 @@
 {
   "changelog": [
     {
+      "version": "2.3.5",
+      "date": "2026-10-14",
+      "changes": [
+        "✨ 上报服务器地址改为运行时从 exe 同目录的 telemetry.json 读取（配置 server_host），修改地址无需重新编译或重启即可生效",
+        "🔧 主程序与 MCP Server 统一通过 shared/TelemetryConfig 的 getTelemetryEndpoint 获取上报地址，UsageReporter.serverUrl 支持传入函数动态求值",
+        "🔧 打包脚本 build.bat 将 telemetry.json 复制到 exe 同目录；部署时保留目标目录已有的 telemetry.json（用户修改不被覆盖），复制改用 robocopy 并排除该文件",
+        "🔧 electron-builder 新增 dist/electron/shared 到 asarUnpack，确保 telemetry 配置模块可被外部读取",
+        "📝 README 更新上报地址配置说明；新增 test-mcp-telemetry.cjs、test-telemetry-config.cjs 单测"
+      ]
+    },
+    {
       "version": "2.3.4",
       "date": "2026-09-12",
       "changes": [
